@@ -3,56 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KI PDF Quiz Pro</title>
+    <title>AI PDF Quiz Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-50 min-h-screen font-sans">
+<body class="bg-slate-50 min-h-screen font-sans text-slate-900">
 
     <div class="max-w-2xl mx-auto py-10 px-4">
         <div class="text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-slate-900 mb-2">🧠 PDF Quiz Master</h1>
-            <p class="text-slate-600">Lade ein PDF hoch und lass die KI Fragen generieren.</p>
+            <h1 class="text-4xl font-extrabold text-blue-600 mb-2">🧠 PDF Quiz Master</h1>
+            <p class="text-slate-500">Kostenlose KI-Analyse für deine Dokumente</p>
         </div>
 
-        <div id="setup-card" class="bg-white shadow-xl rounded-2xl p-8 mb-6 border border-slate-200">
+        <div id="setup-card" class="bg-white shadow-xl rounded-2xl p-8 mb-6 border border-slate-200 transition-all">
             <div class="space-y-6">
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">Kostenloser Gemini API Key</label>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Google Gemini API Key (Kostenlos)</label>
                     <input type="password" id="api-key" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="AIza...">
-                    <p class="text-[10px] text-slate-400 mt-1 italic italic">Dein Key wird nur lokal im Browser gespeichert.</p>
+                    <p class="text-[10px] text-slate-400 mt-1 italic">Wird nur lokal in deinem Browser gespeichert.</p>
                 </div>
                 
-                <div class="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-blue-400 transition cursor-pointer" onclick="document.getElementById('pdf-file').click()">
+                <div class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-blue-400 transition cursor-pointer bg-slate-50" onclick="document.getElementById('pdf-file').click()">
                     <input type="file" id="pdf-file" accept="application/pdf" class="hidden">
-                    <span class="text-slate-500" id="file-name">Klicke hier, um ein PDF zu wählen</span>
+                    <div class="text-3xl mb-2">📄</div>
+                    <span class="text-slate-600 font-medium" id="file-name">PDF auswählen oder hierher ziehen</span>
                 </div>
 
-                <button onclick="generateQuiz()" id="gen-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-200">
+                <button onclick="startQuizGeneration()" id="gen-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-200 disabled:bg-slate-400">
                     Quiz kostenlos generieren
                 </button>
             </div>
         </div>
 
-        <div id="status" class="hidden text-center p-6">
-            <div class="animate-bounce text-4xl mb-4">🤖</div>
-            <p id="status-text" class="text-slate-700 font-medium italic"></p>
+        <div id="status" class="hidden text-center p-10 bg-white rounded-2xl shadow-md border border-slate-100">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 border-solid mb-4"></div>
+            <p id="status-text" class="text-slate-700 font-medium italic">Bereite vor...</p>
         </div>
 
-        <div id="quiz-container" class="hidden bg-white shadow-xl rounded-2xl p-8 border border-slate-200">
+        <div id="quiz-container" class="hidden bg-white shadow-2xl rounded-2xl p-8 border border-slate-200">
             <div id="quiz-content">
                 <div class="flex justify-between items-center mb-6">
-                    <span id="q-count" class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full text-uppercase">Frage 1 / 5</span>
-                    <span id="timer" class="text-slate-400 text-xs">AI Generated</span>
+                    <span id="q-count" class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Frage 1 / 5</span>
+                    <span id="active-model-badge" class="text-slate-300 text-[10px] font-mono uppercase tracking-tighter"></span>
                 </div>
-                <h2 id="question-text" class="text-xl font-bold text-slate-800 mb-6 leading-tight"></h2>
-                <div id="options" class="space-y-3"></div>
+                <h2 id="question-text" class="text-xl font-bold text-slate-800 mb-8 leading-snug"></h2>
+                <div id="options" class="space-y-3">
+                    </div>
             </div>
 
             <div id="result-screen" class="hidden text-center py-6">
-                <div class="text-6xl mb-4">🎉</div>
-                <h2 class="text-3xl font-bold text-slate-800">Fertig!</h2>
-                <p id="score" class="text-xl text-slate-600 mt-2 mb-8"></p>
-                <button onclick="location.reload()" class="bg-slate-800 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-700 transition">Nochmal versuchen</button>
+                <div class="text-6xl mb-4">🏆</div>
+                <h2 class="text-3xl font-bold text-slate-800">Ergebnis</h2>
+                <p id="score-display" class="text-xl text-slate-600 mt-2 mb-8"></p>
+                <button onclick="location.reload()" class="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition">Neues Quiz</button>
             </div>
         </div>
     </div>
@@ -62,44 +64,60 @@
         let currentIndex = 0;
         let score = 0;
 
-        // Key beim Laden wiederherstellen
+        // Key aus LocalStorage laden
         window.onload = () => {
             const savedKey = localStorage.getItem('gemini_key');
             if(savedKey) document.getElementById('api-key').value = savedKey;
         };
 
-        // UI Updates für File Input
+        // Dateiname anzeigen
         document.getElementById('pdf-file').onchange = (e) => {
-            document.getElementById('file-name').innerText = e.target.files[0].name;
+            if(e.target.files.length > 0) {
+                document.getElementById('file-name').innerText = e.target.files[0].name;
+                document.getElementById('file-name').classList.add('text-blue-600');
+            }
         };
 
-        async function generateQuiz() {
+        async function startQuizGeneration() {
             const key = document.getElementById('api-key').value.trim();
             const file = document.getElementById('pdf-file').files[0];
 
-            if(!key || !file) return alert("Key und PDF werden benötigt!");
+            if(!key || !file) return alert("Bitte API Key eingeben und PDF auswählen!");
             
-            // Key speichern
             localStorage.setItem('gemini_key', key);
-
-            // UI umschalten
             document.getElementById('setup-card').classList.add('hidden');
             const statusDiv = document.getElementById('status');
             statusDiv.classList.remove('hidden');
             const statusText = document.getElementById('status-text');
 
             try {
-                statusText.innerText = "Lese PDF Dokument...";
-                const base64 = await toBase64(file);
+                // 1. MODELL-CHECK: Was ist verfügbar?
+                statusText.innerText = "Verbindung zu Google wird geprüft...";
+                const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+                const modelsData = await modelsRes.json();
                 
-                statusText.innerText = "KI analysiert und erstellt Fragen...";
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+                if(modelsData.error) throw new Error("API Key Fehler: " + modelsData.error.message);
+
+                const modelList = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"];
+                let chosenModel = modelList.find(m => modelsData.models.some(gm => gm.name.includes(m)));
+
+                if(!chosenModel) chosenModel = "gemini-1.5-flash"; // Fallback
+                document.getElementById('active-model-badge').innerText = chosenModel;
+
+                // 2. PDF VERARBEITEN
+                statusText.innerText = `PDF wird gelesen (${chosenModel})...`;
+                const base64Data = await toBase64(file);
+                
+                // 3. KI ANFRAGE
+                statusText.innerText = "Fragen werden generiert (Deutsch)...";
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${chosenModel}:generateContent?key=${key}`, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
                             parts: [
-                                {text: "Erstelle aus dem PDF exakt 5 Multiple-Choice-Fragen auf Deutsch. Antworte NUR als JSON-Array: [{'question':'Frage?','options':['A','B','C','D'],'answer':0}]. Die 'answer' ist der Index der richtigen Option (0-3)."},
-                                {inlineData: {mimeType: "application/pdf", data: base64.split(',')[1]}}
+                                { text: "Erstelle aus dem PDF exakt 5 Multiple-Choice-Fragen auf Deutsch. Antworte NUR als valides JSON-Array ohne Markdown-Formatierung: [{'question':'Frage?','options':['A','B','C','D'],'answer':0}]. Die 'answer' ist der Index der richtigen Option (0, 1, 2 oder 3)." },
+                                { inlineData: { mimeType: "application/pdf", data: base64Data.split(',')[1] } }
                             ]
                         }]
                     })
@@ -108,14 +126,18 @@
                 const data = await response.json();
                 if(data.error) throw new Error(data.error.message);
 
-                const rawText = data.candidates[0].content.parts[0].text;
-                quizData = JSON.parse(rawText.replace(/```json|```/g, ""));
+                let rawText = data.candidates[0].content.parts[0].text;
+                // Falls KI Markdown liefert, säubern:
+                rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+                
+                quizData = JSON.parse(rawText);
                 
                 statusDiv.classList.add('hidden');
                 document.getElementById('quiz-container').classList.remove('hidden');
                 showQuestion();
 
             } catch (err) {
+                console.error(err);
                 alert("Fehler: " + err.message);
                 location.reload();
             }
@@ -131,14 +153,14 @@
 
             q.options.forEach((opt, i) => {
                 const btn = document.createElement('button');
-                btn.className = "w-full text-left p-4 rounded-xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition font-medium text-slate-700";
+                btn.className = "w-full text-left p-4 rounded-xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all font-medium text-slate-700 hover:shadow-sm";
                 btn.innerText = opt;
-                btn.onclick = () => handleAnswer(i);
+                btn.onclick = () => checkAnswer(i);
                 optContainer.appendChild(btn);
             });
         }
 
-        function handleAnswer(idx) {
+        function checkAnswer(idx) {
             if(idx === quizData[currentIndex].answer) score++;
             
             currentIndex++;
@@ -152,7 +174,7 @@
         function showResults() {
             document.getElementById('quiz-content').classList.add('hidden');
             document.getElementById('result-screen').classList.remove('hidden');
-            document.getElementById('score').innerText = `Du hast ${score} von ${quizData.length} Fragen richtig beantwortet!`;
+            document.getElementById('score-display').innerText = `Du hast ${score} von ${quizData.length} Punkten erreicht!`;
         }
 
         const toBase64 = file => new Promise((resolve, reject) => {
