@@ -2,113 +2,166 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Gemini Quiz - Final Fix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Quiz Generator - Ultra Fix 2026</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 40px; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
-        input, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
-        button { background: #4f46e5; color: white; border: none; font-weight: bold; cursor: pointer; }
-        button:disabled { background: #9ca3af; }
-        #error-display { color: #dc2626; background: #fee2e2; padding: 10px; margin-top: 10px; border-radius: 6px; display: none; font-size: 13px; border: 1px solid #fecaca; }
+        :root { --primary: #4f46e5; --bg: #f8fafc; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 500px; }
         .hidden { display: none; }
+        input, button { width: 100%; padding: 14px; margin-top: 12px; border-radius: 10px; border: 1px solid #e2e8f0; box-sizing: border-box; font-size: 1rem; }
+        button { background: var(--primary); color: white; font-weight: 600; cursor: pointer; border: none; transition: transform 0.1s; }
+        button:active { transform: scale(0.98); }
+        #error-box { color: #b91c1c; background: #fef2f2; padding: 12px; border-radius: 8px; margin-top: 15px; display: none; font-size: 0.85rem; border: 1px solid #fee2e2; line-height: 1.4; }
+        .loading-spinner { border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div class="card" id="main-card">
-    <h2>🧠 Quiz Generator</h2>
-    <p>Bitte gib deinen API-Key ein:</p>
-    <input type="password" id="apiKey" placeholder="AI Studio Key...">
-    <input type="file" id="pdfFile" accept="application/pdf">
-    <button id="startBtn" onclick="runQuiz()">Quiz erstellen</button>
-    <div id="error-display"></div>
+<div class="card">
+    <div id="setup-step">
+        <h2 style="margin-top:0;">🧠 Quiz Generator</h2>
+        <p style="color: #64748b; font-size: 0.9rem;">Erstelle MC-Fragen direkt aus deinen PDFs.</p>
+        
+        <label><strong>1. API-Key</strong></label>
+        <input type="password" id="apiKey" placeholder="Dein Key aus AI Studio...">
+        
+        <label style="display:block; margin-top:15px;"><strong>2. PDF hochladen</strong></label>
+        <input type="file" id="pdfFile" accept="application/pdf">
+        
+        <button id="startBtn" onclick="runQuiz()">Quiz generieren</button>
+        <div id="error-box"></div>
+    </div>
 
-    <div id="quiz-area" class="hidden">
-        <hr>
-        <h3 id="question"></h3>
-        <div id="options"></div>
+    <div id="quiz-step" class="hidden">
+        <div id="quiz-content"></div>
+        <button onclick="location.reload()" style="background:#64748b; margin-top:20px;">Anderes PDF wählen</button>
     </div>
 </div>
 
 <script>
-    // PDF.js Setup
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
     async function runQuiz() {
         const key = document.getElementById('apiKey').value.trim();
         const file = document.getElementById('pdfFile').files[0];
         const btn = document.getElementById('startBtn');
-        const errBox = document.getElementById('error-display');
+        const errBox = document.getElementById('error-box');
 
-        if(!key || !file) return alert("Key und PDF vergessen!");
+        if (!key || !file) return alert("Bitte Key eingeben und PDF wählen!");
 
         btn.disabled = true;
-        btn.innerText = "KI arbeitet...";
+        btn.innerHTML = '<span class="loading-spinner"></span> KI analysiert...';
         errBox.style.display = "none";
 
         try {
-            // 1. Text aus PDF holen
+            // 1. PDF Text-Extraktion
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-            let text = "";
-            for (let i = 1; i <= Math.min(pdf.numPages, 5); i++) {
+            let extractedText = "";
+            for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
                 const page = await pdf.getPage(i);
                 const content = await page.getTextContent();
-                text += content.items.map(s => s.str).join(" ");
+                extractedText += content.items.map(s => s.str).join(" ") + " ";
             }
 
-            // 2. API Aufruf mit dem stabilsten Pfad für 2026
-            // Wir nutzen v1beta und das Modell ohne "latest" Suffix
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+            // 2. Multi-Modell Fallback Strategie (Gegen den 404 Fehler)
+            const endpoints = [
+                "v1beta/models/gemini-1.5-flash:generateContent",
+                "v1/models/gemini-1.5-flash:generateContent",
+                "v1beta/models/gemini-pro:generateContent"
+            ];
 
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: "Erstelle aus folgendem Text ein Quiz mit 3 Fragen als JSON Array. Struktur: " + 
-                                  '[{"q":"Frage","a":["Opt1","Opt2","Opt3"],"c":"Richtige Opt"}]. Text: ' + text.substring(0, 5000)
-                        }]
-                    }]
-                })
-            });
+            let successResponse = null;
+            let lastErrorMessage = "";
 
-            const data = await response.json();
+            for (let endpoint of endpoints) {
+                try {
+                    console.log("Versuche Endpunkt: " + endpoint);
+                    const resp = await fetch(`https://generativelanguage.googleapis.com/${endpoint}?key=${key}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{
+                                    text: `Erstelle aus folgendem Text ein deutsches Multiple-Choice Quiz mit 3 Fragen. 
+                                    Antworte NUR als JSON-Array in diesem Format: 
+                                    [{"q":"Frage?","a":["Opt1","Opt2","Opt3"],"c":"Richtige Opt"}]
+                                    Text: ${extractedText.substring(0, 6000)}`
+                                }]
+                            }]
+                        })
+                    });
 
-            if (data.error) {
-                throw new Error(`Google sagt: ${data.error.message} (Code: ${data.error.code})`);
+                    const data = await resp.json();
+                    if (resp.ok && data.candidates) {
+                        successResponse = data;
+                        break; // Wir haben eine Antwort!
+                    } else {
+                        lastErrorMessage = data.error ? data.error.message : "Unbekannter Fehler";
+                    }
+                } catch (e) {
+                    lastErrorMessage = e.message;
+                }
             }
 
-            // 3. Quiz anzeigen
-            let aiText = data.candidates[0].content.parts[0].text;
+            if (!successResponse) {
+                throw new Error("Google verweigert den Zugriff. Grund: " + lastErrorMessage);
+            }
+
+            // 3. Ergebnis verarbeiten
+            let aiText = successResponse.candidates[0].content.parts[0].text;
             aiText = aiText.replace(/```json|```/g, "").trim();
-            const quiz = JSON.parse(aiText);
+            const quizData = JSON.parse(aiText);
 
-            document.getElementById('quiz-area').classList.remove('hidden');
-            const q = quiz[0];
-            document.getElementById('question').innerText = q.q;
-            const optDiv = document.getElementById('options');
-            optDiv.innerHTML = "";
-            q.a.forEach(opt => {
-                const b = document.createElement('button');
-                b.innerText = opt;
-                b.style.marginBottom = "5px";
-                b.onclick = () => alert(opt === q.c ? "Richtig! ✅" : "Falsch! ❌");
-                optDiv.appendChild(b);
-            });
+            // 4. Quiz anzeigen
+            showQuiz(quizData);
 
-            btn.innerText = "Erfolgreich!";
-
-        } catch (e) {
-            console.error(e);
-            errBox.innerText = e.message;
+        } catch (err) {
+            console.error(err);
+            errBox.innerText = "Fehler: " + err.message;
             errBox.style.display = "block";
             btn.disabled = false;
-            btn.innerText = "Nochmal versuchen";
+            btn.innerText = "Erneut versuchen";
+        }
+    }
+
+    function showQuiz(questions) {
+        document.getElementById('setup-step').classList.add('hidden');
+        document.getElementById('quiz-step').classList.remove('hidden');
+        const container = document.getElementById('quiz-content');
+        
+        container.innerHTML = questions.map((q, i) => `
+            <div style="margin-bottom:25px; border-bottom:1px solid #eee; padding-bottom:15px;">
+                <p><strong>${i+1}. ${q.q}</strong></p>
+                ${q.a.map(opt => `
+                    <button class="opt-btn" onclick="checkAnswer(this, '${opt}', '${q.c}')" 
+                        style="background:white; color:black; border:1px solid #ccc; font-size:0.9rem; padding:8px; margin-bottom:5px; text-align:left;">
+                        ${opt}
+                    </button>
+                `).join('')}
+            </div>
+        `).join('');
+    }
+
+    function checkAnswer(btn, selected, correct) {
+        const parent = btn.parentElement;
+        const allBtns = parent.querySelectorAll('button');
+        allBtns.forEach(b => b.disabled = true);
+
+        if (selected === correct) {
+            btn.style.background = "#dcfce7";
+            btn.style.borderColor = "#22c55e";
+            btn.innerText += " ✅";
+        } else {
+            btn.style.background = "#fee2e2";
+            btn.style.borderColor = "#ef4444";
+            btn.innerText += " ❌";
         }
     }
 </script>
+
 </body>
 </html>
