@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Quiz Master Pro</title>
+    <title>AI Quiz Master Pro Vers.</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
@@ -11,14 +11,14 @@
         #game-canvas { cursor: crosshair; background: #f8fafc; border-radius: 1rem; border: 2px solid #e2e8f0; }
         .history-card { animation: slideIn 0.3s ease-out; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        #pdf-preview { max-height: 200px; overflow: hidden; display: none; }
+        #pdf-preview { max-height: 200px; overflow: hidden; display: none; margin-top: 1rem; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-900 pb-20">
 
     <div class="max-w-2xl mx-auto py-10 px-4">
         <div class="text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-blue-600 mb-2">🧠 AI Quiz Master Pro</h1>
+            <h1 class="text-4xl font-extrabold text-blue-600 mb-2">🧠 AI Quiz Master Pro 1.4</h1>
             <p class="text-slate-500 italic">Lernen, Fehler analysieren & Fortschritt speichern</p>
         </div>
 
@@ -119,7 +119,7 @@
             renderHistory();
         };
 
-        // PDF VORSCHAU
+        // PDF VORSCHAU Logik
         document.getElementById('pdf-file').onchange = async (e) => {
             const file = e.target.files[0];
             if(!file) return;
@@ -145,7 +145,7 @@
             const key = document.getElementById('api-key').value.trim();
             const file = document.getElementById('pdf-file').files[0];
             const count = document.getElementById('question-count').value;
-            if(!key || !file) return alert("API Key und PDF Datei erforderlich!");
+            if(!key || !file) return alert("Bitte API Key und PDF angeben!");
             
             localStorage.setItem('gemini_key', key);
             document.getElementById('setup-card').classList.add('hidden');
@@ -158,10 +158,10 @@
             const retryTimer = document.getElementById('retry-timer');
             
             try {
-                statusText.innerText = "PDF wird gelesen...";
+                statusText.innerText = "PDF wird verschlüsselt...";
                 const base64Data = await toBase64(file);
                 
-                // Stabile v1 URL
+                // Stabile v1 URL für maximale Kompatibilität
                 const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${key}`;
 
                 const response = await fetch(apiUrl, {
@@ -170,25 +170,24 @@
                     body: JSON.stringify({
                         contents: [{
                             parts: [
-                                { text: `Analysiere das PDF und erstelle exakt ${count} Multiple-Choice-Fragen auf Deutsch. Antworte NUR als valides JSON-Array ohne Einleitung: [{"question":"Text","options":["A","B","C","D"],"answer":0}].` },
+                                { text: `Erstelle aus dem PDF exakt ${count} Multiple-Choice-Fragen auf Deutsch. ANTWORTE NUR ALS JSON-ARRAY: [{"question":"Text","options":["A","B","C","D"],"answer":0}]. Kein Text davor oder danach!` },
                                 { inlineData: { mimeType: "application/pdf", data: base64Data.split(',')[1] } }
                             ]
-                        }],
-                        generationConfig: { responseMimeType: "application/json" }
+                        }]
                     })
                 });
 
                 const data = await response.json();
                 
-                // Retry Logik bei Quota (Code 429)
+                // Fehlerbehandlung & Retry Logik
                 if (data.error) {
                     if ((data.error.code === 429 || data.error.status === "RESOURCE_EXHAUSTED") && retryCount < 2) {
                         let sec = 35;
                         retryTimer.classList.remove('hidden');
                         const t = setInterval(() => {
                             sec--;
-                            statusText.innerText = "Warte auf API Slot...";
-                            retryTimer.innerText = `Retry in ${sec}s (Versuch ${retryCount+1}/2)`;
+                            statusText.innerText = "Quota erreicht. Warte kurz...";
+                            retryTimer.innerText = `Nächster Versuch in ${sec}s (Versuch ${retryCount+1}/2)`;
                             if(sec <= 0) { 
                                 clearInterval(t); 
                                 retryTimer.classList.add('hidden'); 
@@ -200,8 +199,11 @@
                     throw new Error(data.error.message);
                 }
 
-                const rawText = data.candidates[0].content.parts[0].text;
-                quizData = JSON.parse(rawText.replace(/```json|```/g, "").trim());
+                // Robustes Parsing der KI-Antwort
+                let rawText = data.candidates[0].content.parts[0].text;
+                const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+                
+                quizData = JSON.parse(cleanJson);
                 if(!Array.isArray(quizData)) quizData = quizData.questions || [];
 
                 document.getElementById('status').classList.add('hidden');
@@ -209,12 +211,13 @@
                 showQuestion();
 
             } catch (err) {
-                alert("Fehler: " + err.message);
+                alert("Fehler bei der Generierung: " + err.message);
                 location.reload();
             }
         }
 
         function showQuestion() {
+            // Spielpause in der Mitte triggern
             const triggerIdx = Math.floor(quizData.length / 2);
             if (currentIndex === triggerIdx && gamePoints < 10 && quizData.length > 2) {
                 startMiniGame();
@@ -253,7 +256,9 @@
 
             canvas.onclick = (e) => {
                 const r = canvas.getBoundingClientRect();
-                if(Math.sqrt((e.clientX-r.left-b.x)**2 + (e.clientY-r.top-b.y)**2) < b.r) {
+                const mx = e.clientX - r.left;
+                const my = e.clientY - r.top;
+                if(Math.sqrt((mx-b.x)**2 + (my-b.y)**2) < b.r) {
                     gamePoints++;
                     document.getElementById('game-score').innerText = `${gamePoints}/10`;
                     b.x = Math.random()*250+25; b.y = Math.random()*250+25;
@@ -267,7 +272,7 @@
             };
             function draw() { 
                 if(!gameActive) return;
-                ctx.clearRect(0,0,300,300); ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7);
+                ctx.clearRect(0,0,300,300); ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
                 ctx.fillStyle = '#3b82f6'; ctx.fill(); requestAnimationFrame(draw);
             }
             draw();
@@ -276,14 +281,14 @@
         function showRes() {
             document.getElementById('quiz-content').classList.add('hidden');
             document.getElementById('result-screen').classList.remove('hidden');
-            document.getElementById('score-display').innerText = `${score} von ${quizData.length} richtig beantwortet!`;
+            document.getElementById('score-display').innerText = `${score} von ${quizData.length} Punkten!`;
             
             if(userMistakes.length > 0) {
                 document.getElementById('mistake-analysis').innerHTML = `
-                    <p class="text-left font-bold text-red-600 mb-2 text-sm uppercase tracking-tight">Korrekturliste:</p>
+                    <p class="text-left font-bold text-red-600 mb-2 text-sm uppercase">Korrektur:</p>
                     ${userMistakes.map(m => `
-                        <div class="text-left bg-red-50 p-3 rounded-lg mb-2 text-xs border border-red-100 shadow-sm">
-                            <p class="font-bold text-slate-800 mb-1">${m.q}</p>
+                        <div class="text-left bg-red-50 p-3 rounded-lg mb-2 text-xs border border-red-100">
+                            <p class="font-bold text-slate-800">${m.q}</p>
                             <p class="text-red-500">❌ Deine Antwort: ${m.g}</p>
                             <p class="text-green-600 font-semibold">✅ Korrekt: ${m.c}</p>
                         </div>
@@ -306,13 +311,14 @@
                     <span class="text-slate-400 font-mono text-[10px]">${e.d}</span>
                     <span class="font-bold text-slate-700">${e.p}% (${e.s}/${e.t})</span>
                 </div>
-            `).join('') || '<p class="text-center text-slate-400 text-xs">Noch keine Daten.</p>';
+            `).join('') || '<p class="text-center text-slate-400 text-xs">Noch keine Daten vorhanden.</p>';
         }
 
         function exportCSV() {
             let csv = "\uFEFFFrage;Option A;Option B;Option C;Option D;Richtige Antwort\n";
             quizData.forEach(q => {
-                csv += `"${q.question.replace(/"/g, '""')}";${q.options.map(o => `"${o.replace(/"/g, '""')}"`).join(';')};"${q.options[q.answer].replace(/"/g, '""')}"\n`;
+                const row = [q.question, ...q.options, q.options[q.answer]].map(t => `"${t.replace(/"/g, '""')}"`).join(';');
+                csv += row + "\n";
             });
             const b = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
             const a = document.createElement('a');
@@ -321,7 +327,7 @@
             a.click();
         }
 
-        function clearHistory() { if(confirm("Historie löschen?")) { localStorage.removeItem('quiz_history'); renderHistory(); } }
+        function clearHistory() { if(confirm("Historie wirklich löschen?")) { localStorage.removeItem('quiz_history'); renderHistory(); } }
         const toBase64 = f => new Promise((res, rej) => {
             const r = new FileReader(); r.readAsDataURL(f);
             r.onload = () => res(r.result); r.onerror = rej;
