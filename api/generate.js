@@ -5,18 +5,25 @@ export default async function handler(req, res) {
         const { pdfBase64, questionCount } = req.body;
         const apiKey = process.env.GEMINI_API_KEY;
 
-        // Wir probieren den stabilen v1 Endpunkt mit dem offiziellen Modellnamen
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // URL für Gemini 1.5 Pro
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
 
         const payload = {
             contents: [{
                 parts: [
-                    { text: `Analysiere das PDF und erstelle exakt ${questionCount} MC-Fragen auf Deutsch. Antworte NUR als JSON-Array: [{"question":"Text","options":["A","B","C","D"],"answer":0}]. Kein Markdown!` },
+                    { text: `Analysiere das PDF und erstelle exakt ${questionCount} Multiple-Choice-Fragen auf Deutsch. 
+                             Antworte ausschließlich in validem JSON als Array.
+                             Format: [{"question":"Text","options":["A","B","C","D"],"answer":0}]
+                             Wichtig: Gib nur das JSON-Array zurück, keinen Text davor oder danach.` 
+                    },
                     { inlineData: { mimeType: "application/pdf", data: pdfBase64 } }
                 ]
             }],
             generationConfig: {
-                responseMimeType: "application/json"
+                // Diese Einstellung zwingt das Modell, direkt JSON zu liefern (verfügbar in Pro)
+                responseMimeType: "application/json",
+                temperature: 0.7,
+                topP: 0.95,
             }
         };
 
@@ -29,17 +36,17 @@ export default async function handler(req, res) {
         const data = await response.json();
 
         if (!response.ok) {
-            console.error("Google API Error Details:", data);
-            throw new Error(data.error?.message || "Google API antwortet mit Fehler");
+            console.error("Google API Error:", data);
+            throw new Error(data.error?.message || "Fehler beim Aufruf von Gemini Pro");
         }
 
+        // Gemini Pro liefert bei responseMimeType direkt sauberes JSON im Text-Feld
         const rawText = data.candidates[0].content.parts[0].text;
-        // Da wir responseMimeType: "application/json" nutzen, 
-        // sollte die KI direkt sauberes JSON liefern.
+        
         res.status(200).json(JSON.parse(rawText));
 
     } catch (error) {
         console.error("Backend Error:", error);
-        res.status(500).json({ error: "Fehler: " + error.message });
+        res.status(500).json({ error: "Fehler (Gemini Pro): " + error.message });
     }
 }
