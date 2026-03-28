@@ -8,8 +8,8 @@ export default async function handler(req, res) {
 
         if (!apiKey) throw new Error("API Key fehlt!");
 
-        // Wir nutzen v1beta für volle PDF-Unterstützung
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // FIX: In v1beta über REST muss das Modell oft so angesprochen werden:
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
         const response = await fetch(url, {
             method: 'POST',
@@ -18,11 +18,12 @@ export default async function handler(req, res) {
                 contents: [{
                     parts: [
                         { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
-                        { text: `Erstelle exakt ${questionCount} Multiple-Choice-Fragen auf Deutsch basierend auf diesem PDF. Antwort NUR als JSON-Array: [{"question":"Frage","options":["A","B","C","D"],"answer":0}]` }
+                        { text: `Erstelle exakt ${questionCount} Multiple-Choice-Fragen auf Deutsch basierend auf diesem PDF. 
+                                 Antwort NUR als JSON-Array: [{"question":"Frage","options":["A","B","C","D"],"answer":0}]` }
                     ]
                 }],
                 generationConfig: {
-                    // WICHTIG: Hier lag der Fehler - Unterstriche statt CamelCase!
+                    // WICHTIG: Unterstriche für die REST-API (v1beta)
                     response_mime_type: "application/json"
                 }
             })
@@ -37,11 +38,11 @@ export default async function handler(req, res) {
             });
         }
 
-        // Gemini liefert das Ergebnis in einem Text-Feld
         const resultText = data.candidates[0].content.parts[0].text;
         
-        // Wir parsen das JSON und schicken es an dein Frontend
-        res.status(200).json(JSON.parse(resultText));
+        // Sicherheitshalber parsen, falls Gemini Markdown-Backticks nutzt
+        const cleanJson = resultText.replace(/```json|```/g, "").trim();
+        res.status(200).json(JSON.parse(cleanJson));
 
     } catch (error) {
         console.error("Backend Error:", error);
