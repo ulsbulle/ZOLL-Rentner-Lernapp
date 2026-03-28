@@ -1,12 +1,6 @@
 {
   "version": 2,
-  "functions": {
-    "api/quiz.js": {
-      "runtime": "@vercel/node",
-      "memory": 1024,
-      "maxDuration": 10
-    }
-  },
+  "cleanUrls": true,
   "rewrites": [
     { "source": "/api/quiz", "destination": "/api/quiz.js" },
     { "source": "/(.*)", "destination": "/public/$1" }
