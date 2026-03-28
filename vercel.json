@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "env": {
+    "FORCE_REBUILD": "1"
+  },
   "rewrites": [
     { "source": "/api/quiz", "destination": "/api/quiz.js" },
     { "source": "/(.*)", "destination": "/public/$1" }
