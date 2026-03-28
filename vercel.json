@@ -2,8 +2,9 @@
   "version": 2,
   "functions": {
     "api/quiz.js": {
-      "runtime": "vercel-node@latest",
-      "regions": ["iad1"]
+      "runtime": "@vercel/node",
+      "memory": 1024,
+      "maxDuration": 10
     }
   },
   "rewrites": [
