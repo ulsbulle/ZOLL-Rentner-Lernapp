@@ -1,41 +1,44 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export default async function handler(req, res) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
+    if (req.method !== 'POST') return res.status(405).send('Method not allowed');
 
     try {
         const { pdfBase64, questionCount } = req.body;
-        const apiKey = process.env.GEMINI_API_KEY;
-
-        if (!apiKey) {
-            return res.status(500).json({ error: "API Key fehlt in den Umgebungsvariablen." });
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        // Initialisierung des SDKs
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        
+        // WICHTIG: Wir nutzen gemini-1.5-flash. 
+        // Das SDK kümmert sich intern um die richtige URL (v1beta), 
+        // solange die Version des SDKs aktuell ist.
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-1.5-flash",
+        });
 
         const prompt = `Analysiere das PDF und erstelle exakt ${questionCount} MC-Fragen auf Deutsch. 
-        Antworte NUR als JSON-Array im Format: [{"question":"Text","options":["A","B","C","D"],"answer":0}]. 
-        Kein Markdown, kein Text davor oder danach!`;
+        Antworte NUR als JSON-Array: [{"question":"Text","options":["A","B","C","D"],"answer":0}]. Kein Markdown!`;
 
         const result = await model.generateContent([
             prompt,
             {
                 inlineData: {
                     mimeType: "application/pdf",
-                    data: pdfBase64 // Erwartet reinen Base64-String ohne Header
+                    data: pdfBase64
                 }
             }
         ]);
 
         const response = await result.response;
-        let text = response.text().replace(/```json/g, "").replace(/```/g, "").trim();
+        const text = response.text();
         
-        res.status(200).json(JSON.parse(text));
+        // Bereinigung falls die KI doch Markdown-Code-Blocks mitschickt
+        const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+        
+        res.status(200).json(JSON.parse(cleanJson));
     } catch (error) {
-        console.error("Gemini Error:", error);
+        console.error(error);
+        // Detaillierte Fehlermeldung für die Vercel Logs
         res.status(500).json({ error: "Fehler bei der Quiz-Generierung: " + error.message });
     }
 }
