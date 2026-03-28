@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "regions": ["iad1"],
   "cleanUrls": true,
   "rewrites": [
     { "source": "/api/quiz", "destination": "/api/quiz.js" },
