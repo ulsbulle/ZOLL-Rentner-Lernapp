@@ -1,5 +1,5 @@
 {
-  "name": "ai-quiz-master",
+  "name": "zoll-rentner-lernapp",
   "version": "1.0.0",
   "description": "KI-gestützter Quiz-Generator mit Gemini 1.5",
   "main": "api/quiz.js", 
