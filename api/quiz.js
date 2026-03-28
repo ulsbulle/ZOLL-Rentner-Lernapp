@@ -1,9 +1,13 @@
 export default async function handler(req, res) {
-    if (req.method !== 'POST') return res.status(405).send('Method not allowed');
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
 
     try {
         const { pdfBase64, questionCount } = req.body;
         const apiKey = process.env.GEMINI_API_KEY;
+
+        if (!apiKey) throw new Error("API Key fehlt!");
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
@@ -14,10 +18,12 @@ export default async function handler(req, res) {
                 contents: [{
                     parts: [
                         { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
-                        { text: `Erstelle ${questionCount} MC-Fragen auf Deutsch als JSON-Array: [{"question":"Frage","options":["A","B","C","D"],"answer":0}]` }
+                        { text: `Erstelle ${questionCount} MC-Fragen auf Deutsch. Antwort NUR als JSON-Array: [{"question":"Frage","options":["A","B","C","D"],"answer":0}]` }
                     ]
                 }],
-                generationConfig: { response_mime_type: "application/json" }
+                generationConfig: { 
+                    response_mime_type: "application/json" 
+                }
             })
         });
 
