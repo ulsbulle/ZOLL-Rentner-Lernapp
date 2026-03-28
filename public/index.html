@@ -198,7 +198,7 @@
 			statusText.innerText = "KI generiert Fragen (via Vercel)...";
 			
 			// Schritt 2: Anfrage an DEINEN Vercel-Endpunkt statt an Google
-			const response = await fetch('/api/generate', {
+			const response = await fetch('/api/quiz', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
