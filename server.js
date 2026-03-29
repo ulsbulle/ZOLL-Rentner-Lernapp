@@ -12,24 +12,7 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static('public'));
 
-// --- LISTE DER VERFÜGBAREN MODELLE (DER DEBUGGER) ---
-async function debugModels() {
-    const apiKey = process.env.GEMINI_API_KEY;
-    try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
-        const response = await fetch(url);
-        const data = await response.json();
-        console.log("📋 VERFÜGBARE MODELLE FÜR DIESEN KEY:");
-        if (data.models) {
-            data.models.forEach(m => console.log(`- ${m.name}`));
-        } else {
-            console.log("Keine Modelle gefunden:", JSON.stringify(data));
-        }
-    } catch (err) {
-        console.error("Debug-Check fehlgeschlagen:", err.message);
-    }
-}
-
+// --- QUIZ ENDPUNKT MIT GEMINI 2.5 FLASH ---
 app.post('/api/quiz', async (req, res) => {
     try {
         let { pdfBase64, questionCount } = req.body;
@@ -39,8 +22,10 @@ app.post('/api/quiz', async (req, res) => {
             pdfBase64 = pdfBase64.split(',')[1];
         }
 
-        // Wir nutzen hier den VOLLSTÄNDIGEN Pfad, den Google für Server-IPs bevorzugt
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // AKTUALISIERTE URL: Nutzt das Modell aus deinem Log
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+        console.log("Anfrage an Gemini 2.5 Flash wird gesendet...");
 
         const response = await fetch(url, {
             method: 'POST',
@@ -49,27 +34,35 @@ app.post('/api/quiz', async (req, res) => {
                 contents: [{
                     parts: [
                         { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
-                        { text: `Erstelle ${questionCount} MC-Fragen auf Deutsch. Format: [{"question":"Frage","options":["A","B","C","D"],"answer":0}]` }
+                        { text: `Erstelle exakt ${questionCount} Multiple-Choice-Fragen auf Deutsch basierend auf diesem Dokument. 
+                                 Antworte NUR als JSON-Array: [{"question":"Frage","options":["A","B","C","D"],"answer":0}]` }
                     ]
                 }],
-                generationConfig: { response_mime_type: "application/json" }
+                generationConfig: { 
+                    response_mime_type: "application/json",
+                    temperature: 0.7 
+                }
             })
         });
 
         const data = await response.json();
-        if (!data.candidates) {
-            return res.status(500).json({ error: "Google Block", details: data });
+
+        if (!data.candidates || data.candidates.length === 0) {
+            console.error("Fehler von Google:", JSON.stringify(data));
+            return res.status(500).json({ error: "Keine Daten von Gemini 2.5 erhalten.", details: data });
         }
 
-        const resultText = data.candidates[0].content.parts[0].text;
-        res.status(200).json(JSON.parse(resultText.replace(/```json|```/g, "").trim()));
+        let resultText = data.candidates[0].content.parts[0].text;
+        resultText = resultText.replace(/```json|```/g, "").trim();
+        
+        res.status(200).json(JSON.parse(resultText));
 
     } catch (error) {
+        console.error("Server-Fehler:", error.message);
         res.status(500).json({ error: error.message });
     }
 });
 
-app.listen(PORT, '0.0.0.0', async () => {
-    console.log(`🚀 Server gestartet auf Port ${PORT}`);
-    await debugModels(); // Zeigt uns in den Logs, was der Key wirklich darf!
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server läuft auf Port ${PORT} mit Gemini 2.5 Support`);
 });
