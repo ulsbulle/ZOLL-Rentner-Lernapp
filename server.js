@@ -9,29 +9,26 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '50mb' })); // Wichtig für große PDFs
 app.use(express.static('public'));
 
 // --- AUTOMATISCHER VERBINDUNGSTEST ---
 async function checkGoogleConnection() {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-        console.error("❌ FEHLER: GEMINI_API_KEY ist nicht in Railway gesetzt!");
+        console.error("❌ FEHLER: GEMINI_API_KEY fehlt in den Railway-Variablen!");
         return;
     }
-
     try {
-        // Wir nutzen hier die v1beta mit dem Standard-Modellnamen
         const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         const response = await fetch(testUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: [{ text: "Hi" }] }] })
         });
-        
         const data = await response.json();
         if (response.ok) {
-            console.log("✅ GOOGLE API CHECK: Verbindung steht! Modell gemini-1.5-flash ist bereit.");
+            console.log("✅ GOOGLE API CHECK: Verbindung steht! Modell bereit.");
         } else {
             console.error("❌ GOOGLE API CHECK FEHLGESCHLAGEN:", JSON.stringify(data.error || data));
         }
@@ -40,17 +37,25 @@ async function checkGoogleConnection() {
     }
 }
 
-// API ENDPUNKT FÜR DAS QUIZ
+// --- HAUPT-LOGIK FÜR DAS QUIZ ---
 app.post('/api/quiz', async (req, res) => {
     try {
-        const { pdfBase64, questionCount } = req.body;
+        let { pdfBase64, questionCount } = req.body;
         const apiKey = process.env.GEMINI_API_KEY;
 
+        // 1. BASE64 BEREINIGEN (Entfernt Header wie 'data:application/pdf;base64,')
+        if (pdfBase64 && pdfBase64.includes(',')) {
+            console.log("Info: Base64-Header erkannt und entfernt.");
+            pdfBase64 = pdfBase64.split(',')[1];
+        }
+
         if (!pdfBase64) {
-            return res.status(400).json({ error: "Kein PDF-Inhalt empfangen." });
+            return res.status(400).json({ error: "Kein PDF-Inhalt (Base64) empfangen." });
         }
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+        console.log(`Anfrage an Google gestartet (${questionCount} Fragen)...`);
 
         const response = await fetch(url, {
             method: 'POST',
@@ -79,29 +84,38 @@ app.post('/api/quiz', async (req, res) => {
 
         const data = await response.json();
 
+        // 2. DETAILLIERTE FEHLERPRÜFUNG
         if (!data.candidates || data.candidates.length === 0) {
-            console.error("Google verweigert Antwort:", JSON.stringify(data));
+            console.error("🚨 GOOGLE BLOCKIERT: ", JSON.stringify(data));
+            
+            // Spezifische Meldung für den User
+            let errorMsg = "Google liefert keine Daten.";
+            if (data.promptFeedback?.blockReason) {
+                errorMsg += ` Grund: ${data.promptFeedback.blockReason} (Safety-Filter)`;
+            }
+
             return res.status(500).json({ 
-                error: "Google liefert keine Daten. Prüfe die Railway-Logs für Details.",
-                details: data 
+                error: errorMsg,
+                debug: data 
             });
         }
 
         let resultText = data.candidates[0].content.parts[0].text;
         
-        // Bereinigung falls Google Markdown-Codeblöcke mitsendet
+        // Markdown-Reste entfernen
         resultText = resultText.replace(/```json|```/g, "").trim();
         
+        console.log("✅ Quiz erfolgreich generiert!");
         res.status(200).json(JSON.parse(resultText));
 
     } catch (error) {
-        console.error("KRITISCHER FEHLER:", error.message);
+        console.error("🔥 KRITISCHER SERVER-FEHLER:", error.message);
         res.status(500).json({ error: "Server-Fehler: " + error.message });
     }
 });
 
-// START
+// SERVER START
 app.listen(PORT, '0.0.0.0', async () => {
-    console.log(`🚀 Server gestartet auf Port ${PORT}`);
+    console.log(`🚀 Server läuft auf Port ${PORT} (0.0.0.0)`);
     await checkGoogleConnection();
 });
