@@ -12,51 +12,35 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static('public'));
 
-// --- AUTOMATISCHER VERBINDUNGSTEST (BEIM START) ---
-async function checkGoogleConnection() {
+// --- LISTE DER VERFÜGBAREN MODELLE (DER DEBUGGER) ---
+async function debugModels() {
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        console.error("❌ FEHLER: GEMINI_API_KEY fehlt in den Railway-Variablen!");
-        return;
-    }
     try {
-        // Umstellung auf v1 Stable
-        const testUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-        const response = await fetch(testUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: "Hi" }] }] })
-        });
+        const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+        const response = await fetch(url);
         const data = await response.json();
-        if (response.ok) {
-            console.log("✅ GOOGLE API CHECK: Verbindung erfolgreich! v1/gemini-1.5-flash ist bereit.");
+        console.log("📋 VERFÜGBARE MODELLE FÜR DIESEN KEY:");
+        if (data.models) {
+            data.models.forEach(m => console.log(`- ${m.name}`));
         } else {
-            console.error("❌ GOOGLE API CHECK FEHLGESCHLAGEN:", JSON.stringify(data.error || data));
+            console.log("Keine Modelle gefunden:", JSON.stringify(data));
         }
     } catch (err) {
-        console.error("❌ NETZWERK-FEHLER beim Check:", err.message);
+        console.error("Debug-Check fehlgeschlagen:", err.message);
     }
 }
 
-// --- HAUPT-ENDPUNKT FÜR QUIZ-GENERIERUNG ---
 app.post('/api/quiz', async (req, res) => {
     try {
         let { pdfBase64, questionCount } = req.body;
         const apiKey = process.env.GEMINI_API_KEY;
 
-        // Base64-Header entfernen (Data-URL Bereinigung)
         if (pdfBase64 && pdfBase64.includes(',')) {
             pdfBase64 = pdfBase64.split(',')[1];
         }
 
-        if (!pdfBase64) {
-            return res.status(400).json({ error: "Kein PDF-Inhalt empfangen." });
-        }
-
-        // URL auf v1 Stable gesetzt
-        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-        console.log(`Anfrage an Google v1 gestartet (${questionCount} Fragen)...`);
+        // Wir nutzen hier den VOLLSTÄNDIGEN Pfad, den Google für Server-IPs bevorzugt
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
         const response = await fetch(url, {
             method: 'POST',
@@ -65,48 +49,27 @@ app.post('/api/quiz', async (req, res) => {
                 contents: [{
                     parts: [
                         { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
-                        { text: `Erstelle exakt ${questionCount} Multiple-Choice-Fragen auf Deutsch basierend auf diesem Dokument. 
-                                 Antworte NUR als JSON-Array in diesem Format: 
-                                 [{"question":"Frage","options":["A","B","C","D"],"answer":0}]` }
+                        { text: `Erstelle ${questionCount} MC-Fragen auf Deutsch. Format: [{"question":"Frage","options":["A","B","C","D"],"answer":0}]` }
                     ]
                 }],
-                safetySettings: [
-                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-                ],
-                generationConfig: { 
-                    response_mime_type: "application/json",
-                    temperature: 0.7 
-                }
+                generationConfig: { response_mime_type: "application/json" }
             })
         });
 
         const data = await response.json();
-
-        if (!data.candidates || data.candidates.length === 0) {
-            console.error("🚨 GOOGLE BLOCKIERT:", JSON.stringify(data));
-            return res.status(500).json({ 
-                error: "Google liefert keine Daten. Prüfe Railway Logs.",
-                details: data 
-            });
+        if (!data.candidates) {
+            return res.status(500).json({ error: "Google Block", details: data });
         }
 
-        let resultText = data.candidates[0].content.parts[0].text;
-        resultText = resultText.replace(/```json|```/g, "").trim();
-        
-        console.log("✅ Quiz erfolgreich generiert!");
-        res.status(200).json(JSON.parse(resultText));
+        const resultText = data.candidates[0].content.parts[0].text;
+        res.status(200).json(JSON.parse(resultText.replace(/```json|```/g, "").trim()));
 
     } catch (error) {
-        console.error("🔥 SERVER-FEHLER:", error.message);
         res.status(500).json({ error: error.message });
     }
 });
 
-// SERVER START
 app.listen(PORT, '0.0.0.0', async () => {
-    console.log(`🚀 Server aktiv auf Port ${PORT}`);
-    await checkGoogleConnection();
+    console.log(`🚀 Server gestartet auf Port ${PORT}`);
+    await debugModels(); // Zeigt uns in den Logs, was der Key wirklich darf!
 });
