@@ -3,18 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Quiz Master Pro 2.6.2</title>
+    <title>AI Quiz Master Pro 2.6.3</title>
     <link rel="icon" href="https://fav.farm/🧠" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         #progress-bar { transition: width 0.4s ease-in-out; }
-        #game-canvas { 
+        #game-canvas, #home-canvas { 
             cursor: default; 
-            background: radial-gradient(circle, #ffffff 0%, #f1f5f9 100%); 
+            background: #ffffff; 
             border-radius: 1.5rem; 
             border: 4px solid #e2e8f0; 
-            touch-action: none; 
+            touch-action: none;
+            box-shadow: inset 0 4px 10px rgba(0,0,0,0.05);
         }
         .animate-slideIn { animation: slideIn 0.4s ease-out; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -25,22 +26,13 @@
 
     <div class="max-w-2xl mx-auto py-10 px-4">
         <div class="sticky top-0 z-10 bg-slate-50 text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.6.2 🧠</h1>
-            <p class="text-slate-500 italic">Lernen & Spielen ©ZOLL-Rentner</p>
+            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.6.3 🧠</h1>
+            <p class="text-slate-500 italic">Vibrant Colors & Training ©ZOLL-Rentner</p>
         </div>
 
         <div id="setup-card" class="space-y-6">
             <div class="bg-white shadow-xl rounded-2xl p-8 border border-slate-200">
                 <div class="space-y-6">
-                    <div class="bg-slate-50 p-5 rounded-xl border border-slate-100">
-                        <label class="block text-base font-bold text-slate-700 mb-2 underline">Kurzanleitung:</label>
-                        <ul class="text-sm text-slate-600 space-y-1 list-disc ml-5 leading-relaxed">
-                            <li>Wähle <b>PDF</b> oder <b>CSV</b> für den Start.</li>
-                            <li>In der Spielpause hilft dir der <b>Leuchtkreis</b> beim Zielen.</li>
-                            <li>Nutze die <b>Trainings-Zone</b> unten zum Üben!</li>
-                        </ul>
-                    </div>
-
                     <div class="p-4 bg-blue-50 rounded-xl border border-blue-100">
                         <label for="Modus" class="block text-sm font-bold text-blue-800 mb-2">Modus wählen:</label>
                         <select id="Modus" class="w-full p-3 rounded-lg border-2 border-blue-200 focus:border-blue-500 outline-none font-medium bg-white">
@@ -77,7 +69,7 @@
 
             <div class="bg-slate-900 rounded-2xl p-6 shadow-xl text-white">
                 <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                    <span class="text-2xl">🎮</span> Trainings-Zone (Spiele testen)
+                    <span class="text-2xl">🎮</span> Trainings-Zone
                 </h3>
                 <div id="home-game-selector" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <button onclick="startDirectGame('clicker')" class="bg-slate-800 hover:bg-blue-600 p-3 rounded-xl text-xs font-bold transition-colors">🎯 Clicker</button>
@@ -87,9 +79,9 @@
                 </div>
                 
                 <div id="home-game-area" class="hidden mt-6 animate-slideIn text-center">
-                    <canvas id="home-canvas" width="300" height="300" class="mx-auto rounded-xl border-2 border-slate-700 bg-white"></canvas>
+                    <canvas id="home-canvas" width="300" height="300" class="mx-auto"></canvas>
                     <div id="home-game-score" class="mt-4 text-2xl font-black text-blue-400">0 / 10</div>
-                    <button onclick="closeHomeGame()" class="mt-4 text-xs text-slate-400 underline">Training beenden</button>
+                    <button onclick="closeHomeGame()" class="mt-4 text-xs text-slate-400 underline uppercase tracking-widest">Training beenden</button>
                 </div>
             </div>
         </div>
@@ -106,7 +98,7 @@
                 <h2 id="question-text" class="text-xl font-bold text-slate-800 my-6"></h2>
                 <div id="options" class="space-y-3"></div>
                 <div id="feedback-area" class="hidden mt-8 p-6 rounded-2xl border-2 animate-slideIn">
-                    <p id="feedback-text" class="text-lg mb-4"></p>
+                    <p id="feedback-text" class="text-lg mb-4 font-bold"></p>
                     <button id="next-q-btn" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl">Nächste Frage →</button>
                 </div>
             </div>
@@ -114,10 +106,10 @@
             <div id="game-screen" class="hidden text-center py-4 animate-slideIn">
                 <h2 class="text-2xl font-bold text-blue-600 mb-2">Spielpause! 🎮</h2>
                 <div id="quiz-game-selection" class="grid grid-cols-2 gap-3 mb-6">
-                    <button onclick="setupGame('clicker', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-blue-400 transition-all">🎯 Clicker</button>
-                    <button onclick="setupGame('catcher', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-emerald-400 transition-all">🍎 Fänger</button>
-                    <button onclick="setupGame('dodger', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-red-400 transition-all">🚀 Ufo</button>
-                    <button onclick="setupGame('grower', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-amber-400 transition-all">🫧 Blase</button>
+                    <button onclick="setupGame('clicker', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-blue-400 transition-all font-bold">🎯 Clicker</button>
+                    <button onclick="setupGame('catcher', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-emerald-400 transition-all font-bold">🍎 Fänger</button>
+                    <button onclick="setupGame('dodger', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-red-400 transition-all font-bold">🚀 Ufo</button>
+                    <button onclick="setupGame('grower', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-amber-400 transition-all font-bold">🫧 Blase</button>
                 </div>
                 <div id="active-game-area" class="hidden">
                     <canvas id="game-canvas" width="300" height="300" class="mx-auto"></canvas>
@@ -145,9 +137,8 @@
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
         let quizData = [], currentIndex = 0, score = 0, gamePoints = 0, gameActive = false, userMistakes = [];
-        let gameDone = false, gameInterval, currentTargetCanvas = 'game-canvas';
+        let gameDone = false, gameInterval;
 
-        // --- Sound Engine ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -170,7 +161,6 @@
             }
         }
 
-        // --- UI Manager ---
         function toggleCard(id) {
             ['setup-card', 'status', 'quiz-container'].forEach(c => {
                 const el = document.getElementById(c);
@@ -180,7 +170,6 @@
             if(target) target.classList.remove('hidden');
         }
 
-        // --- Trainings-Zone Logik ---
         function startDirectGame(type) {
             document.getElementById('home-game-area').classList.remove('hidden');
             document.getElementById('home-game-selector').classList.add('hidden');
@@ -194,7 +183,6 @@
             document.getElementById('home-game-selector').classList.remove('hidden');
         }
 
-        // --- CSV / PDF Import (Kurzversion) ---
         document.getElementById('Modus').onchange = function() {
             document.getElementById('section-pdf').classList.toggle('hidden', this.value !== 'PDF');
             document.getElementById('section-csv').classList.toggle('hidden', this.value !== 'CSV');
@@ -233,7 +221,6 @@
             } catch (err) { alert("Fehler!"); location.reload(); }
         }
 
-        // --- Quiz Flow ---
         function showQuestion() {
             if (currentIndex === Math.floor(quizData.length/2) && !gameDone && quizData.length > 2) { 
                 gameDone = true; 
@@ -256,7 +243,7 @@
             const optDiv = document.getElementById('options'); optDiv.innerHTML = '';
             q.options.forEach((opt, i) => {
                 const b = document.createElement('button');
-                b.className = "option-btn w-full text-left p-4 rounded-xl border-2 border-slate-100 bg-white font-medium";
+                b.className = "option-btn w-full text-left p-4 rounded-xl border-2 border-slate-100 bg-white font-medium hover:border-blue-300 transition-colors shadow-sm";
                 b.innerText = opt;
                 b.onclick = () => {
                     document.querySelectorAll('.option-btn').forEach(btn => btn.disabled = true);
@@ -271,7 +258,7 @@
             });
         }
 
-        // --- All-In-One Game Engine ---
+        // --- Game Engine v2.6.3 (Vibrant Focus) ---
         function setupGame(type, canvasId) {
             gameActive = true; gamePoints = 0;
             const scoreDisplay = canvasId === 'home-canvas' ? 'home-game-score' : 'game-score';
@@ -283,7 +270,7 @@
             }
 
             const canvas = document.getElementById(canvasId), ctx = canvas.getContext('2d');
-            let particles = [], enemies = [], mouse = { x: 150, y: 150 };
+            let mouse = { x: 150, y: 150 }, enemies = [];
             let targetX = 150, targetY = 150, targetR = 25;
 
             canvas.onpointermove = (e) => {
@@ -301,32 +288,37 @@
                 if(!gameActive) return;
                 ctx.clearRect(0,0,300,300);
                 
-                // Halo Effekt
-                ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 15, 0, Math.PI*2);
-                ctx.fillStyle = "rgba(59, 130, 246, 0.2)"; ctx.fill();
+                // 1. Visueller Halo (Hintergrund-Ebene für beste Sichtbarkeit)
+                ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 20, 0, Math.PI*2);
+                ctx.fillStyle = "rgba(59, 130, 246, 0.15)"; ctx.fill();
 
-                ctx.font = "40px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                // 2. Styling für die Emojis
+                ctx.font = "bold 44px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.shadowColor = "rgba(0,0,0,0.15)"; ctx.shadowBlur = 6;
 
                 if (type === 'clicker') ctx.fillText("⭐", targetX, targetY);
                 if (type === 'catcher') {
-                    targetY += 4; if(targetY > 320) { targetY = -20; targetX = Math.random()*260+20; }
+                    targetY += 4.5; if(targetY > 320) { targetY = -20; targetX = Math.random()*260+20; }
                     ctx.fillText("🍎", targetX, targetY);
                     if(Math.abs(mouse.x - targetX) < 35 && Math.abs(mouse.y - targetY) < 35) { playSound('point'); updateScore(1, scoreDisplay); targetY = -50; targetX = Math.random()*260+20; }
                 }
                 if (type === 'dodger') {
                     ctx.fillText("🛸", mouse.x, mouse.y);
-                    if(Math.random() < 0.05) enemies.push({x: Math.random()*300, y: -20});
+                    if(Math.random() < 0.06) enemies.push({x: Math.random()*300, y: -20});
                     enemies.forEach((en, i) => {
-                        en.y += 3; ctx.fillText("☄️", en.x, en.y);
-                        if(Math.sqrt((en.x-mouse.x)**2 + (en.y-mouse.y)**2) < 30) { gamePoints = Math.max(0, gamePoints - 0.2); }
+                        en.y += 3.8; ctx.fillText("☄️", en.x, en.y);
+                        if(Math.sqrt((en.x-mouse.x)**2 + (en.y-mouse.y)**2) < 32) { gamePoints = Math.max(0, gamePoints - 0.25); }
                         if(en.y > 320) enemies.splice(i, 1);
                     });
-                    updateScore(0.02, scoreDisplay);
+                    updateScore(0.025, scoreDisplay);
                 }
                 if (type === 'grower') {
                     ctx.fillText("🫧", targetX, targetY);
-                    ctx.beginPath(); ctx.arc(targetX, targetY, targetR, 0, Math.PI*2); ctx.strokeStyle = "#3b82f6"; ctx.lineWidth = 2; ctx.stroke();
+                    ctx.shadowBlur = 0; // Kein Schatten für den Ring
+                    ctx.beginPath(); ctx.arc(targetX, targetY, targetR, 0, Math.PI*2); 
+                    ctx.strokeStyle = "#3b82f6"; ctx.lineWidth = 3; ctx.stroke();
                 }
+                ctx.shadowBlur = 0;
             }, 1000/60);
         }
 
@@ -334,10 +326,8 @@
             gamePoints += p;
             document.getElementById(displayId).innerText = `${Math.floor(gamePoints)} / 10`;
             if (gamePoints >= 10) {
-                gameActive = false;
-                clearInterval(gameInterval);
-                if(displayId === 'home-game-score') { setTimeout(closeHomeGame, 800); }
-                else { setTimeout(showQuestion, 800); }
+                gameActive = false; clearInterval(gameInterval);
+                setTimeout(() => (displayId === 'home-game-score' ? closeHomeGame() : showQuestion()), 600);
             }
         }
 
@@ -346,6 +336,7 @@
             document.getElementById('result-screen').classList.remove('hidden');
             const p = Math.round(score/quizData.length*100);
             document.getElementById('score-display').innerText = `${score} von ${quizData.length} (${p}%)`;
+            document.getElementById('mistake-analysis').innerHTML = userMistakes.map(m => `<div class="p-3 bg-red-50 border border-red-100 rounded-lg text-xs"><b>${m.q}</b><br><span class="text-green-600">Lösung: ${m.c}</span></div>`).join('') || '<p class="text-green-600">Perfekt!</p>';
             const h = JSON.parse(localStorage.getItem('quiz_history') || '[]'); h.unshift({d: new Date().toLocaleDateString(), p});
             localStorage.setItem('quiz_history', JSON.stringify(h.slice(0,10))); renderHistory();
         }
@@ -360,6 +351,7 @@
         function handleDrop(e) { e.preventDefault(); document.getElementById('pdf-file').files = e.dataTransfer.files; document.getElementById('file-name').innerText = e.dataTransfer.files[0].name; }
         function handleDragOverCSV(e) { e.preventDefault(); }
         function handleDropCSV(e) { e.preventDefault(); importCSV(e.dataTransfer.files); }
+        function clearHistory() { localStorage.removeItem('quiz_history'); renderHistory(); }
         window.onload = renderHistory;
     </script>
 </body>
