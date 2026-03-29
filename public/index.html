@@ -37,6 +37,7 @@
                         <ul class="text-sm text-blue-900 space-y-1 list-disc ml-5 leading-relaxed font-medium">
 							<li>Wähle <b>PDF</b> für KI-Analyse oder <b>CSV</b> für schnellen Import.</li>
 							<li>Nutze <b>Drag & Drop</b> zum Hochladen der Dateien.</li>
+							<li>Wähle beim Fragengenrator <b>(KI-Analyse</b>) die gewünschte Fragenanzahl.</li>
 							<li>Nach der halben Fragenanzahl wartet eine <b>Spielpause</b> auf dich!</li>
 							<li>Lerne durch direktes Feedback & Sound nach jeder Antwort.</li>
                         </ul>
@@ -59,7 +60,7 @@
                             <div id="drop-zone" class="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center hover:border-blue-400 transition-all cursor-pointer bg-slate-50"
                                  onclick="document.getElementById('pdf-file').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
                                 <input type="file" id="pdf-file" accept="application/pdf" class="hidden">
-                                <span id="file-name" class="text-xs text-slate-600 font-bold italic">PDF WÄHLEN</span>
+                                <span id="file-name" class="text-xs text-slate-600 font-bold italic">PDF  hierher ziehen oder klicken</span>
                             </div>
                         </div>
                         <button onclick="startQuizGeneration()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl transition-all shadow-lg mt-4 uppercase tracking-wider">🚀 Quiz generieren</button>
@@ -67,11 +68,12 @@
 
                     <div id="section-csv" class="hidden animate-slideIn">
                         <div id="drop-zone-csv" class="bg-emerald-50 border-2 border-dashed border-emerald-200 rounded-2xl p-8 text-center cursor-pointer"
-                             onclick="document.getElementById('csv-import').click()" ondragover="handleDragOverCSV(event)" ondragleave="handleDragLeaveCSV(event)" ondrop="handleDropCSV(event)">
-                            <p class="text-emerald-700 font-bold mb-4 uppercase">CSV Import</p>
-                            <input type="file" id="csv-import" accept=".csv" class="hidden" onchange="importCSV(this)">
-                            <span class="bg-emerald-600 text-white py-2 px-6 rounded-xl font-bold">Datei wählen</span>
-                        </div>
+                         onclick="document.getElementById('csv-import').click()" ondragover="handleDragOverCSV(event)" ondragleave="handleDragLeaveCSV(event)" ondrop="handleDropCSV(event)">
+                        <div class="text-4xl mb-3">📊</div>
+                        <p class="text-emerald-700 font-bold mb-4 text-lg">CSV hierher ziehen oder klicken</p>
+                        <input type="file" id="csv-import" accept=".csv" class="hidden" onchange="importCSV(this)">
+                        <span class="bg-emerald-600 text-white py-2 px-6 rounded-xl font-bold">Datei wählen</span>
+                    </div>
                     </div>
                 </div>
             </div>
