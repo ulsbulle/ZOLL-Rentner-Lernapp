@@ -77,6 +77,11 @@
                     <canvas id="pdf-canvas"></canvas>
                 </div>
 
+				<button onclick="document.getElementById('csv-import').click()" class="w-full mt-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 rounded-xl transition-all flex items-center justify-center gap-2 border border-slate-300">
+    <span>📂 Vorhandenes Quiz (CSV) laden</span>
+    <input type="file" id="csv-import" accept=".csv" class="hidden" onchange="importCSV(this)">
+				</button>
+
 				<button onclick="startQuizGeneration()" id="gen-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
 					<span>🚀 Quiz jetzt generieren</span>
 				</button>
