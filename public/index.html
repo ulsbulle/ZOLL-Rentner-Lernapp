@@ -3,119 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Quiz Master 2.6.5 - Ultra Vivid</title>
+    <title>AI Quiz Master Pro 2.6.4 - Vivid Edition</title>
     <link rel="icon" href="https://fav.farm/🧠" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         #progress-bar { transition: width 0.4s ease-in-out; }
         #game-canvas, #home-canvas { 
-            cursor: none; 
+            cursor: none; /* Versteckt Standard-Maus für Fokus-Effekt */
             background: #ffffff; 
             border-radius: 1.5rem; 
             border: 4px solid #e2e8f0; 
             touch-action: none;
+            box-shadow: inset 0 4px 10px rgba(0,0,0,0.05);
         }
         .animate-slideIn { animation: slideIn 0.4s ease-out; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .option-btn:disabled { opacity: 0.8; cursor: not-allowed; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-900 pb-20">
 
     <div class="max-w-2xl mx-auto py-10 px-4">
-        <div class="text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-blue-600 mb-2">🧠 AI Quiz Master 2.6.5</h1>
-            <p class="text-slate-500 italic font-bold text-sm">Vivid Color Engine ©ZOLL-Rentner</p>
+        <div class="sticky top-0 z-10 bg-slate-50 text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.6.4</h1>
+            <p class="text-slate-500 italic font-bold">Glasklare Farben & Training ©ZOLL-Rentner</p>
         </div>
 
         <div id="setup-card" class="space-y-6">
             <div class="bg-white shadow-xl rounded-2xl p-8 border border-slate-200">
                 <div class="space-y-6">
                     <div class="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                        <label class="block text-sm font-bold text-blue-800 mb-2">Dokument auswählen:</label>
+                        <label for="Modus" class="block text-sm font-bold text-blue-800 mb-2">Modus wählen:</label>
+                        <select id="Modus" class="w-full p-3 rounded-lg border-2 border-blue-200 focus:border-blue-500 outline-none font-medium bg-white">
+                            <option value="PDF">📄 PDF analysieren (KI)</option>
+                            <option value="CSV">📂 CSV laden (Import)</option>
+                        </select>
+                    </div>
+
+                    <div id="section-pdf" class="space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input type="number" id="question-count" min="1" max="20" value="10" class="px-4 py-2 border rounded-lg outline-none font-bold">
-                            <div class="border-2 border-dashed border-blue-200 rounded-lg p-2 text-center cursor-pointer bg-white" onclick="document.getElementById('pdf-file').click()">
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">Fragenanzahl</label>
+                                <input type="number" id="question-count" min="1" max="20" value="10" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div id="drop-zone" class="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center hover:border-blue-400 transition-all cursor-pointer bg-slate-50"
+                                 onclick="document.getElementById('pdf-file').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
                                 <input type="file" id="pdf-file" accept="application/pdf" class="hidden">
-                                <span id="file-name" class="text-xs font-bold text-blue-600">PDF HOCHLADEN</span>
+                                <span id="file-name" class="text-xs text-slate-600 font-medium italic">PDF hierher ziehen</span>
                             </div>
                         </div>
-                        <button onclick="startQuizGeneration()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl shadow-lg mt-4 uppercase tracking-tighter">Quiz generieren</button>
+                        <button onclick="startQuizGeneration()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg mt-4">🚀 Quiz generieren</button>
                     </div>
                 </div>
             </div>
 
             <div class="bg-slate-900 rounded-2xl p-6 shadow-xl text-white">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">🎮 Trainings-Zone (Test-Modus)</h3>
+                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">🎮 Trainings-Zone</h3>
                 <div id="home-game-selector" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <button onclick="startDirectGame('clicker')" class="bg-slate-800 p-3 rounded-xl text-xs font-bold hover:bg-blue-600">🎯 Clicker</button>
-                    <button onclick="startDirectGame('catcher')" class="bg-slate-800 p-3 rounded-xl text-xs font-bold hover:bg-emerald-600">🍎 Fänger</button>
-                    <button onclick="startDirectGame('dodger')" class="bg-slate-800 p-3 rounded-xl text-xs font-bold hover:bg-red-600">🚀 Ufo</button>
-                    <button onclick="startDirectGame('grower')" class="bg-slate-800 p-3 rounded-xl text-xs font-bold hover:bg-amber-600">🫧 Blase</button>
+                    <button onclick="startDirectGame('clicker')" class="bg-slate-800 hover:bg-blue-600 p-3 rounded-xl text-xs font-bold transition-colors">🎯 Clicker</button>
+                    <button onclick="startDirectGame('catcher')" class="bg-slate-800 hover:bg-emerald-600 p-3 rounded-xl text-xs font-bold transition-colors">🍎 Fänger</button>
+                    <button onclick="startDirectGame('dodger')" class="bg-slate-800 hover:bg-red-600 p-3 rounded-xl text-xs font-bold transition-colors">🚀 Ufo</button>
+                    <button onclick="startDirectGame('grower')" class="bg-slate-800 hover:bg-amber-600 p-3 rounded-xl text-xs font-bold transition-colors">🫧 Blase</button>
                 </div>
                 
-                <div id="home-game-area" class="hidden mt-6 text-center">
+                <div id="home-game-area" class="hidden mt-6 animate-slideIn text-center">
                     <canvas id="home-canvas" width="300" height="300" class="mx-auto"></canvas>
-                    <div id="home-game-score" class="mt-4 text-3xl font-black text-blue-400">0 / 10</div>
-                    <button onclick="closeHomeGame()" class="mt-4 text-xs text-slate-400 underline">Training beenden</button>
+                    <div id="home-game-score" class="mt-4 text-2xl font-black text-blue-400">0 / 10</div>
+                    <button onclick="closeHomeGame()" class="mt-4 text-xs text-slate-400 underline uppercase tracking-widest">Training beenden</button>
                 </div>
             </div>
         </div>
 
         <div id="status" class="hidden text-center p-12 bg-white rounded-2xl shadow-md border border-slate-100">
             <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 mx-auto mb-4"></div>
-            <p id="status-text" class="text-slate-700 font-bold italic">Generiere kräftige Farben...</p>
+            <p id="status-text" class="text-slate-700 font-medium italic">Bereite Quiz vor...</p>
         </div>
 
         <div id="quiz-container" class="hidden bg-white shadow-2xl rounded-3xl p-8 border border-slate-200">
             <div id="quiz-content">
                 <div class="w-full bg-slate-100 rounded-full h-2 mb-6"><div id="progress-bar" class="bg-blue-600 h-2 rounded-full" style="width: 0%"></div></div>
+                <span id="q-count" class="text-[10px] font-bold text-blue-500 uppercase tracking-widest"></span>
                 <h2 id="question-text" class="text-xl font-bold text-slate-800 my-6"></h2>
                 <div id="options" class="space-y-3"></div>
-                <div id="feedback-area" class="hidden mt-8 p-6 rounded-2xl border-2 text-center animate-slideIn">
-                    <p id="feedback-text" class="text-lg font-bold mb-4"></p>
-                    <button id="next-q-btn" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl">Weiter</button>
+                <div id="feedback-area" class="hidden mt-8 p-6 rounded-2xl border-2 animate-slideIn text-center">
+                    <p id="feedback-text" class="text-lg mb-4 font-bold"></p>
+                    <button id="next-q-btn" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl">Nächste Frage →</button>
                 </div>
             </div>
 
-            <div id="game-screen" class="hidden text-center py-4">
-                <h2 class="text-2xl font-black text-blue-600 mb-6 italic uppercase">Spielpause!</h2>
+            <div id="game-screen" class="hidden text-center py-4 animate-slideIn">
+                <h2 class="text-2xl font-bold text-blue-600 mb-6 italic uppercase">Spielpause! 🎮</h2>
                 <div id="quiz-game-selection" class="grid grid-cols-2 gap-3 mb-6">
-                    <button onclick="setupGame('clicker', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white font-bold hover:border-blue-500 transition-all">🎯 Clicker</button>
-                    <button onclick="setupGame('catcher', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white font-bold hover:border-emerald-500 transition-all">🍎 Fänger</button>
-                    <button onclick="setupGame('dodger', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white font-bold hover:border-red-500 transition-all">🚀 Ufo</button>
-                    <button onclick="setupGame('grower', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white font-bold hover:border-amber-500 transition-all">🫧 Blase</button>
+                    <button onclick="setupGame('clicker', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-blue-400 font-bold transition-all">🎯 Clicker</button>
+                    <button onclick="setupGame('catcher', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-emerald-400 font-bold transition-all">🍎 Fänger</button>
+                    <button onclick="setupGame('dodger', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-red-400 font-bold transition-all">🚀 Ufo</button>
+                    <button onclick="setupGame('grower', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-amber-400 font-bold transition-all">🫧 Blase</button>
                 </div>
                 <div id="active-game-area" class="hidden">
                     <canvas id="game-canvas" width="300" height="300" class="mx-auto"></canvas>
-                    <div id="game-score" class="mt-4 font-black text-blue-600 text-4xl">0 / 10</div>
+                    <div id="game-score" class="mt-4 font-black text-blue-600 text-3xl italic">0 / 10</div>
                 </div>
             </div>
+
+            <div id="result-screen" class="hidden text-center py-6">
+                <h2 class="text-3xl font-bold text-slate-800 mb-2">Auswertung</h2>
+                <p id="score-display" class="text-xl text-slate-600 mb-8 font-medium"></p>
+                <div id="mistake-analysis" class="mb-8 space-y-2 text-left max-h-64 overflow-y-auto"></div>
+                <button onclick="location.reload()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg">Neustart</button>
+            </div>
+        </div>
+
+        <div id="history-container" class="mt-12">
+            <h3 class="font-bold text-slate-700 mb-4 text-xs uppercase tracking-wider italic flex justify-between">
+                📊 Letzte Ergebnisse
+                <button onclick="clearHistory()" class="text-red-400 underline">Löschen</button>
+            </h3>
+            <div id="history-list" class="space-y-2"></div>
         </div>
     </div>
 
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-        let quizData = [], currentIndex = 0, score = 0, gameActive = false, gamePoints = 0, gameDone = false, gameInterval;
+        let quizData = [], currentIndex = 0, score = 0, gamePoints = 0, gameActive = false, userMistakes = [];
+        let gameDone = false, gameInterval;
 
-        function toggleCard(id) {
-            ['setup-card', 'status', 'quiz-container'].forEach(c => document.getElementById(c).classList.add('hidden'));
-            document.getElementById(id).classList.remove('hidden');
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            if (type === 'point') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            }
         }
 
-        function startDirectGame(type) {
-            document.getElementById('home-game-area').classList.remove('hidden');
-            document.getElementById('home-game-selector').classList.add('hidden');
-            setupGame(type, 'home-canvas');
-        }
-
-        function closeHomeGame() {
-            gameActive = false; clearInterval(gameInterval);
-            document.getElementById('home-game-area').classList.add('hidden');
-            document.getElementById('home-game-selector').classList.remove('hidden');
-        }
-
-        // --- ULTRA VIVID ENGINE ---
+        // --- GAME ENGINE v2.6.4 (Destination-Over Fix) ---
         function setupGame(type, canvasId) {
             gameActive = true; gamePoints = 0;
             const scoreDisplay = canvasId === 'home-canvas' ? 'home-game-score' : 'game-score';
@@ -137,65 +163,66 @@
 
             canvas.onpointerdown = () => {
                 const d = Math.sqrt((mouse.x - targetX)**2 + (mouse.y - targetY)**2);
-                if (type === 'clicker' && d < 35) { updateScore(1, scoreDisplay); targetX = Math.random()*240+30; targetY = Math.random()*240+30; }
-                if (type === 'grower' && d < targetR) { targetR += 15; if(targetR > 70) { updateScore(1, scoreDisplay); targetR = 25; targetX = Math.random()*200+50; targetY = Math.random()*200+50; } }
+                if (type === 'clicker' && d < 35) { playSound('point'); updateScore(1, scoreDisplay); targetX = Math.random()*240+30; targetY = Math.random()*240+30; }
+                if (type === 'grower' && d < targetR) { targetR += 15; if(targetR > 70) { playSound('point'); updateScore(1, scoreDisplay); targetR = 25; targetX = Math.random()*200+50; targetY = Math.random()*200+50; } }
             };
 
             gameInterval = setInterval(() => {
                 if(!gameActive) return;
-                ctx.clearRect(0, 0, 300, 300);
+                ctx.clearRect(0,0,300,300);
                 
-                // 1. ZEICHNE EMOJIS ZUERST (Vordergrund, 100% Deckkraft)
-                ctx.font = "bold 48px serif"; 
-                ctx.textAlign = "center"; 
-                ctx.textBaseline = "middle";
+                // 1. ZEICHNE EMOJIS (Vordergrund, 100% kräftige Farben)
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.font = "bold 48px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.shadowColor = "rgba(0,0,0,0.15)"; ctx.shadowBlur = 5;
 
                 if (type === 'clicker') ctx.fillText("⭐", targetX, targetY);
                 if (type === 'catcher') {
                     targetY += 4.5; if(targetY > 320) { targetY = -20; targetX = Math.random()*260+20; }
                     ctx.fillText("🍎", targetX, targetY);
                     if(Math.abs(mouse.x - targetX) < 35 && Math.abs(mouse.y - targetY) < 35) { 
-                        updateScore(1, scoreDisplay); targetY = -50; targetX = Math.random()*260+20; 
+                        playSound('point'); updateScore(1, scoreDisplay); targetY = -50; targetX = Math.random()*260+20; 
                     }
                 }
                 if (type === 'dodger') {
                     ctx.fillText("🛸", mouse.x, mouse.y);
-                    if(Math.random() < 0.05) enemies.push({x: Math.random()*300, y: -20});
+                    if(Math.random() < 0.06) enemies.push({x: Math.random()*300, y: -20});
                     enemies.forEach((en, i) => {
                         en.y += 3.8; ctx.fillText("☄️", en.x, en.y);
-                        if(Math.sqrt((en.x-mouse.x)**2 + (en.y-mouse.y)**2) < 30) gamePoints = Math.max(0, gamePoints - 0.2);
+                        if(Math.sqrt((en.x-mouse.x)**2 + (en.y-mouse.y)**2) < 32) { gamePoints = Math.max(0, gamePoints - 0.25); }
                         if(en.y > 320) enemies.splice(i, 1);
                     });
-                    updateScore(0.02, scoreDisplay);
+                    updateScore(0.025, scoreDisplay);
                 }
                 if (type === 'grower') {
                     ctx.fillText("🫧", targetX, targetY);
+                    ctx.shadowBlur = 0;
                     ctx.beginPath(); ctx.arc(targetX, targetY, targetR, 0, Math.PI*2); 
                     ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 4; ctx.stroke();
                 }
 
-                // 2. ZEICHNE DEN HALO UNTER DIE EMOJIS
+                // 2. ZEICHNE HALO (Hintergrund-Ebene unter die Emojis)
                 ctx.globalCompositeOperation = 'destination-over';
-                ctx.beginPath();
-                ctx.arc(mouse.x, mouse.y, 25, 0, Math.PI*2);
-                ctx.fillStyle = "rgba(59, 130, 246, 0.4)"; // Stärkeres Blau, aber da es DRUNTER liegt, stört es nicht
-                ctx.fill();
-                ctx.globalCompositeOperation = 'source-over'; // Zurück auf Standard
+                ctx.shadowBlur = 0;
+                ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 25, 0, Math.PI*2);
+                ctx.fillStyle = "rgba(59, 130, 246, 0.4)"; ctx.fill();
+                
             }, 1000/60);
         }
 
+        // --- Restliche Quiz Logik (Stabile Version 2.6.3) ---
         function updateScore(p, displayId) {
             gamePoints += p;
             document.getElementById(displayId).innerText = `${Math.floor(gamePoints)} / 10`;
             if (gamePoints >= 10) {
                 gameActive = false; clearInterval(gameInterval);
-                setTimeout(() => (displayId === 'home-game-score' ? closeHomeGame() : showQuestion()), 500);
+                setTimeout(() => (displayId === 'home-game-score' ? closeHomeGame() : showQuestion()), 600);
             }
         }
 
         async function startQuizGeneration() {
             const file = document.getElementById('pdf-file').files[0];
-            if (!file) return alert("Wähle ein PDF!");
+            if (!file) return alert("PDF fehlt!");
             toggleCard('status');
             try {
                 const base64 = (await toBase64(file)).split(',')[1];
@@ -205,7 +232,6 @@
                     body: JSON.stringify({ pdfBase64: base64, questionCount: document.getElementById('question-count').value })
                 });
                 quizData = await res.json();
-                currentIndex = 0; score = 0; gameDone = false;
                 toggleCard('quiz-container'); showQuestion();
             } catch (err) { alert("Fehler!"); location.reload(); }
         }
@@ -222,29 +248,59 @@
             toggleCard('quiz-container');
             document.getElementById('quiz-content').classList.remove('hidden');
             document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+
             const q = quizData[currentIndex];
             document.getElementById('feedback-area').classList.add('hidden');
             document.getElementById('progress-bar').style.width = `${(currentIndex/quizData.length)*100}%`;
+            document.getElementById('q-count').innerText = `Frage ${currentIndex+1} von ${quizData.length}`;
             document.getElementById('question-text').innerText = q.question;
             const optDiv = document.getElementById('options'); optDiv.innerHTML = '';
             q.options.forEach((opt, i) => {
                 const b = document.createElement('button');
-                b.className = "w-full text-left p-4 rounded-xl border-2 border-slate-100 bg-white font-bold shadow-sm";
+                b.className = "option-btn w-full text-left p-4 rounded-xl border-2 border-slate-100 bg-white font-bold shadow-sm hover:border-blue-400";
                 b.innerText = opt;
                 b.onclick = () => {
-                    document.querySelectorAll('#options button').forEach(btn => btn.disabled = true);
-                    const correct = (i === q.answer);
-                    if(correct) { score++; b.classList.add('border-green-500', 'bg-green-50'); }
-                    else { b.classList.add('border-red-500', 'bg-red-50'); }
+                    document.querySelectorAll('.option-btn').forEach(btn => btn.disabled = true);
+                    const isCorrect = (i === q.answer);
+                    if(isCorrect) { score++; b.classList.add('border-green-500', 'bg-green-50'); }
+                    else { userMistakes.push({q: q.question, g: opt, c: q.options[q.answer]}); b.classList.add('border-red-500', 'bg-red-50'); }
                     document.getElementById('feedback-area').classList.remove('hidden');
-                    document.getElementById('feedback-text').innerText = correct ? "Sehr gut! ✨" : "Leider nicht richtig. ❌";
-                    document.getElementById('next-q-btn').onclick = () => { currentIndex++; (currentIndex < quizData.length) ? showQuestion() : location.reload(); };
+                    document.getElementById('feedback-text').innerText = isCorrect ? "Richtig! ✨" : `Falsch. Richtig: ${q.options[q.answer]}`;
+                    document.getElementById('next-q-btn').onclick = () => { currentIndex++; (currentIndex < quizData.length) ? showQuestion() : showRes(); };
                 };
                 optDiv.appendChild(b);
             });
         }
 
+        function showRes() {
+            document.getElementById('quiz-content').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            const p = Math.round(score/quizData.length*100);
+            document.getElementById('score-display').innerText = `${score} von ${quizData.length} (${p}%)`;
+            document.getElementById('mistake-analysis').innerHTML = userMistakes.map(m => `<div class="p-3 bg-red-50 border border-red-100 rounded-lg text-xs"><b>${m.q}</b><br><span class="text-green-600">Lösung: ${m.c}</span></div>`).join('') || '<p class="text-green-600">Perfekt!</p>';
+        }
+
+        function startDirectGame(type) {
+            document.getElementById('home-game-area').classList.remove('hidden');
+            document.getElementById('home-game-selector').classList.add('hidden');
+            setupGame(type, 'home-canvas');
+        }
+
+        function closeHomeGame() {
+            gameActive = false; clearInterval(gameInterval);
+            document.getElementById('home-game-area').classList.add('hidden');
+            document.getElementById('home-game-selector').classList.remove('hidden');
+        }
+
+        function toggleCard(id) {
+            ['setup-card', 'status', 'quiz-container'].forEach(c => document.getElementById(c)?.classList.add('hidden'));
+            document.getElementById(id)?.classList.remove('hidden');
+        }
+
         const toBase64 = f => new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(f); r.onload = () => res(r.result); });
+        function handleDragOver(e) { e.preventDefault(); }
+        function handleDrop(e) { e.preventDefault(); document.getElementById('pdf-file').files = e.dataTransfer.files; document.getElementById('file-name').innerText = e.dataTransfer.files[0].name; }
     </script>
 </body>
 </html>
