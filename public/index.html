@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Quiz Master Pro 2.6.4 - ZOLL Edition</title>
+    <title>AI Quiz Master Pro 2.6.5 - ZOLL Edition</title>
     <link rel="icon" href="https://fav.farm/🧠" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -24,9 +24,15 @@
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-900 pb-20">
 
+
     <div class="max-w-2xl mx-auto py-10 px-4">
         <div class="sticky top-0 z-10 bg-slate-50 text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.6.4 🧠</h1>
+			<div class="flex justify-center mb-2 pt-4">
+			<button onclick="toggleMute()" id="mute-btn" class="p-2 bg-white border border-slate-200 rounded-lg shadow-sm text-xl hover:bg-slate-100 transition-all">
+				🔊
+			</button>
+			</div>
+            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.6.5 🧠</h1>
             <p class="text-slate-500 italic font-bold">Lernen mit System & Spielspaß ©ZOLL-Rentner</p>
         </div>
 
@@ -155,6 +161,48 @@
         let quizData = [], currentIndex = 0, score = 0, gamePoints = 0, gameActive = false, userMistakes = [];
         let gameDone = false, gameInterval;
 		
+		// 1. Status beim Laden aus dem Speicher abrufen (Standard: an)
+		let isMuted = localStorage.getItem('quiz_muted') === 'true';
+
+		// 2. Die zentrale Sound-Funktion mit Mute-Check für ALLE Töne
+		function playSound(type) {
+			if (isMuted) return; // Wenn stumm, wird die Funktion sofort beendet
+			
+			if (audioCtx.state === 'suspended') audioCtx.resume();
+			const osc = audioCtx.createOscillator();
+			const gain = audioCtx.createGain();
+			osc.connect(gain); gain.connect(audioCtx.destination);
+			
+			if (type === 'point') {
+				osc.type = 'sine'; osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+				gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+				osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+			} else if (type === 'correct') {
+				osc.type = 'sine'; osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+				gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+				osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+			} else if (type === 'wrong') {
+				osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+				gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+				osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+			}
+		}
+
+		// 3. Umschalt-Funktion mit Speicherung
+		function toggleMute() {
+			isMuted = !isMuted;
+			localStorage.setItem('quiz_muted', isMuted); // Speichert die Einstellung lokal
+			updateMuteUI();
+		}
+
+function updateMuteUI() {
+    const icon = isMuted ? '🔇' : '🔊';
+    // Aktualisiert den Button (ID muss 'mute-btn' sein)
+    const btn = document.getElementById('mute-btn');
+    if (btn) btn.innerText = icon;
+}
+		
+		
 		// --- PDF VORSCHAU FUNKTION ---
         async function previewPDF(input) {
             const file = input.files[0];
@@ -182,25 +230,7 @@
         }
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playSound(type) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            if (type === 'point') {
-                osc.type = 'sine'; osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-            } else if (type === 'correct') {
-                osc.type = 'sine'; osc.frequency.setValueAtTime(523, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-            } else if (type === 'wrong') {
-                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-                osc.start(); osc.stop(audioCtx.currentTime + 0.4);
-            }
-        }
+        
 
         // --- ULTRA VIVID ENGINE (v2.6.2 Fix) ---
         function setupGame(type, canvasId) {
@@ -392,7 +422,10 @@
         function handleDrop(e) { e.preventDefault(); document.getElementById('pdf-file').files = e.dataTransfer.files; document.getElementById('file-name').innerText = e.dataTransfer.files[0].name; }
         function handleDragOverCSV(e) { e.preventDefault(); }
         function handleDropCSV(e) { e.preventDefault(); importCSV(e.dataTransfer.files); }
-        window.onload = renderHistory;
+        window.onload = () => {
+		renderHistory(); // Dein bestehender Aufruf
+		updateMuteUI();  // Initialisiert das Lautsprecher-Icon
+		};
     </script>
 </body>
 </html>
