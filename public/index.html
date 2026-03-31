@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Quiz Master Pro 2.6.5 - ZOLL Edition</title>
+    <title>AI Quiz Master Pro 2.7.3 - ZOLL Edition</title>
     <link rel="icon" href="https://fav.farm/🧠" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         #progress-bar { transition: width 0.4s ease-in-out; }
         #game-canvas, #home-canvas { 
-            cursor: none; /* Standard-Cursor aus, Halo an */
+            cursor: none; 
             background: #ffffff; 
             border-radius: 1.5rem; 
             border: 4px solid #e2e8f0; 
@@ -20,19 +20,17 @@
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .option-btn:disabled { opacity: 0.8; cursor: not-allowed; }
 		#pdf-preview-box { transition: all 0.3s ease; max-height: 200px; overflow: hidden; }
+        .mistake-card { animation: slideIn 0.3s ease-out; border-left-width: 4px; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-900 pb-20">
 
-
     <div class="max-w-2xl mx-auto py-10 px-4">
         <div class="sticky top-0 z-10 bg-slate-50 text-center mb-10">
 			<div class="flex justify-center mb-2 pt-4">
-			<button onclick="toggleMute()" id="mute-btn" class="p-2 bg-white border border-slate-200 rounded-lg shadow-sm text-xl hover:bg-slate-100 transition-all">
-				🔊
-			</button>
+                <button onclick="toggleMute()" id="mute-btn" class="p-2 bg-white border border-slate-200 rounded-lg shadow-sm text-xl hover:bg-slate-100 transition-all">🔊</button>
 			</div>
-            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.6.5 🧠</h1>
+            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.7.3 </h1>
             <p class="text-slate-500 italic font-bold">Lernen mit System & Spielspaß ©ZOLL-Rentner</p>
         </div>
 
@@ -42,11 +40,9 @@
                     <div class="bg-blue-50 p-5 rounded-xl border border-blue-100">
                         <label class="block text-base font-bold text-blue-800 mb-2 underline">Kurzanleitung:</label>
                         <ul class="text-sm text-blue-900 space-y-1 list-disc ml-5 leading-relaxed font-medium">
-							<li>Wähle <b>PDF</b> für KI-Analyse oder <b>CSV</b> für schnellen Import.</li>
-							<li>Nutze <b>Drag & Drop</b> zum Hochladen der Dateien.</li>
-							<li>Wähle beim Fragengenrator <b>(KI-Analyse</b>) die gewünschte Fragenanzahl.</li>
-							<li>Nach der halben Fragenanzahl wartet eine <b>Spielpause</b> auf dich!</li>
-							<li>Lerne durch direktes Feedback & Sound nach jeder Antwort.</li>
+							<li>Wähle <b>PDF</b> für KI-Analyse oder <b>CSV</b> für Import.</li>
+                            <li>Nutze <b>Vorlagen</b> für vordefinierte Themengebiete.</li>
+							<li>Nach der halben Fragenanzahl wartet eine <b>Spielpause</b>!</li>
                         </ul>
                     </div>
 
@@ -55,6 +51,7 @@
                         <select id="Modus" class="w-full p-3 rounded-lg border-2 border-blue-100 focus:border-blue-500 outline-none font-medium bg-white">
                             <option value="PDF">📄 PDF analysieren (KI)</option>
                             <option value="CSV">📂 CSV laden (Import)</option>
+                            <option value="TEMPLATE">📚 Vorlagen (Server)</option>
                         </select>
                     </div>
 
@@ -70,40 +67,33 @@
                                 <span id="file-name" class="text-xs text-slate-600 font-bold italic">PDF WÄHLEN / DROP</span>
                             </div>
                         </div>
-                        
                         <div id="pdf-preview-box" class="hidden mt-4 border-2 border-slate-100 rounded-xl bg-slate-50 flex flex-col items-center p-2">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-2">Vorschau der ersten Seite</p>
                             <canvas id="pdf-canvas" class="shadow-md rounded border border-white max-w-full h-auto"></canvas>
                         </div>
-
                         <button onclick="startQuizGeneration()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl transition-all shadow-lg mt-4 uppercase">🚀 Quiz generieren</button>
                     </div>
 
                     <div id="section-csv" class="hidden animate-slideIn">
                         <div id="drop-zone-csv" class="bg-emerald-50 border-2 border-dashed border-emerald-200 rounded-2xl p-8 text-center cursor-pointer"
                          onclick="document.getElementById('csv-import').click()" ondragover="handleDragOverCSV(event)" ondragleave="handleDragLeaveCSV(event)" ondrop="handleDropCSV(event)">
-                        <div class="text-4xl mb-3">📊</div>
-                        <p class="text-emerald-700 font-bold mb-4 text-lg">CSV hierher ziehen oder klicken</p>
-                        <input type="file" id="csv-import" accept=".csv, text/csv, text/comma-separated-values, text/plain" class="hidden" onchange="importCSV(this)">
-                        <span class="bg-emerald-600 text-white py-2 px-6 rounded-xl font-bold">Datei wählen</span>
+                            <div class="text-4xl mb-3">📊</div>
+                            <p class="text-emerald-700 font-bold mb-4 text-lg">CSV hierher ziehen oder klicken</p>
+                            <input type="file" id="csv-import" accept=".csv" class="hidden" onchange="importCSV(this)">
+                            <span class="bg-emerald-600 text-white py-2 px-6 rounded-xl font-bold">Datei wählen</span>
+                        </div>
                     </div>
-                    </div>
-                </div>
-            </div>
 
-            <div class="bg-slate-900 rounded-2xl p-6 shadow-xl text-white">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">🎮 Trainings-Zone</h3>
-                <div id="home-game-selector" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <button onclick="startDirectGame('clicker')" class="bg-slate-800 hover:bg-blue-600 p-3 rounded-xl text-xs font-bold transition-colors">🎯 Clicker</button>
-                    <button onclick="startDirectGame('catcher')" class="bg-slate-800 hover:bg-emerald-600 p-3 rounded-xl text-xs font-bold transition-colors">🍎 Fänger</button>
-                    <button onclick="startDirectGame('dodger')" class="bg-slate-800 hover:bg-red-600 p-3 rounded-xl text-xs font-bold transition-colors">🚀 Ufo</button>
-                    <button onclick="startDirectGame('grower')" class="bg-slate-800 hover:bg-amber-600 p-3 rounded-xl text-xs font-bold transition-colors">🫧 Blase</button>
-                </div>
-                
-                <div id="home-game-area" class="hidden mt-6 animate-slideIn text-center">
-                    <canvas id="home-canvas" width="300" height="300" class="mx-auto"></canvas>
-                    <div id="home-game-score" class="mt-4 text-3xl font-black text-blue-400">0 / 10</div>
-                    <button onclick="closeHomeGame()" class="mt-4 text-xs text-slate-400 underline uppercase">Training beenden</button>
+                    <div id="section-template" class="hidden animate-slideIn space-y-3">
+                        <p class="text-sm font-bold text-slate-600 uppercase mb-2">Verfügbare Themen:</p>
+                        <button onclick="loadTemplate('templates/1x1.csv')" class="w-full p-4 border-2 rounded-xl bg-white hover:border-blue-500 hover:bg-blue-50 text-left font-bold transition-all flex justify-between items-center group">
+                            <span>📦 1x1</span>
+                            <span class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">Starten →</span>
+                        </button>
+                        <button onclick="loadTemplate('verbrauchsteuer.csv')" class="w-full p-4 border-2 rounded-xl bg-white hover:border-blue-500 hover:bg-blue-50 text-left font-bold transition-all flex justify-between items-center group">
+                            <span>⛽ Verbrauchsteuern</span>
+                            <span class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">Starten →</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -121,6 +111,7 @@
                 <div id="options" class="space-y-3"></div>
                 <div id="feedback-area" class="hidden mt-8 p-6 rounded-2xl border-2 animate-slideIn text-center">
                     <p id="feedback-text" class="text-lg font-bold mb-4"></p>
+					<br>
                     <button id="next-q-btn" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl">Nächste Frage →</button>
                 </div>
             </div>
@@ -140,10 +131,15 @@
             </div>
 
             <div id="result-screen" class="hidden text-center py-6">
+				<div class="text-6xl mb-4 text-green-500">🏆</div>
                 <h2 class="text-3xl font-bold text-slate-800 mb-2 font-black">AUSWERTUNG</h2>
                 <p id="score-display" class="text-2xl text-blue-600 mb-8 font-black"></p>
-                <div id="mistake-analysis" class="mb-8 space-y-2 text-left max-h-64 overflow-y-auto"></div>
-                <button onclick="location.reload()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg">NEUSTART</button>
+                <div id="mistake-analysis" class="mb-8 space-y-3 text-left max-h-80 overflow-y-auto pr-2"></div>
+                <div class="grid grid-cols-1 gap-3">
+                    <button onclick="restartCurrentQuiz()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg uppercase tracking-wider">🔄 Quiz Neustarten</button>
+                    <button onclick="goToHome()" class="w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-200 transition-colors">🏠 Hauptmenü</button>
+                    <button id="csv-export-btn" onclick="exportCSV()" class="w-full bg-white border border-slate-200 text-slate-500 py-2 rounded-xl text-sm font-bold hover:bg-slate-50">📥 CSV Export</button>
+                </div>
             </div>
         </div>
 
@@ -158,207 +154,168 @@
 
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-        let quizData = [], currentIndex = 0, score = 0, gamePoints = 0, gameActive = false, userMistakes = [];
-        let gameDone = false, gameInterval;
-		
-		// 1. Status beim Laden aus dem Speicher abrufen (Standard: an)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        let quizData = [], currentIndex = 0, score = 0, userMistakes = []; 
+		let gamePoints = 0, gameActive = false, gameDone = false, gameInterval;
 		let isMuted = localStorage.getItem('quiz_muted') === 'true';
 
-		// 2. Die zentrale Sound-Funktion mit Mute-Check für ALLE Töne
 		function playSound(type) {
-			if (isMuted) return; // Wenn stumm, wird die Funktion sofort beendet
-			
+			if (isMuted) return;
 			if (audioCtx.state === 'suspended') audioCtx.resume();
 			const osc = audioCtx.createOscillator();
 			const gain = audioCtx.createGain();
 			osc.connect(gain); gain.connect(audioCtx.destination);
-			
-			if (type === 'point') {
-				osc.type = 'sine'; osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
-				gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-				osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-			} else if (type === 'correct') {
-				osc.type = 'sine'; osc.frequency.setValueAtTime(523, audioCtx.currentTime);
-				gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-				osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-			} else if (type === 'wrong') {
-				osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-				gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-				osc.start(); osc.stop(audioCtx.currentTime + 0.4);
-			}
+			if (type === 'point') { osc.type = 'sine'; osc.frequency.setValueAtTime(1200, audioCtx.currentTime); gain.gain.setValueAtTime(0.05, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+			} else if (type === 'correct') { osc.type = 'sine'; osc.frequency.setValueAtTime(523, audioCtx.currentTime); gain.gain.setValueAtTime(0.1, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+			} else if (type === 'wrong') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime); gain.gain.setValueAtTime(0.05, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.4); }
 		}
 
-		// 3. Umschalt-Funktion mit Speicherung
-		function toggleMute() {
-			isMuted = !isMuted;
-			localStorage.setItem('quiz_muted', isMuted); // Speichert die Einstellung lokal
-			updateMuteUI();
-		}
+		function toggleMute() { isMuted = !isMuted; localStorage.setItem('quiz_muted', isMuted); updateMuteUI(); }
+		function updateMuteUI() { const btn = document.getElementById('mute-btn'); if (btn) btn.innerText = isMuted ? '🔇' : '🔊'; }
 
-function updateMuteUI() {
-    const icon = isMuted ? '🔇' : '🔊';
-    // Aktualisiert den Button (ID muss 'mute-btn' sein)
-    const btn = document.getElementById('mute-btn');
-    if (btn) btn.innerText = icon;
-}
-		
-		
-		// --- PDF VORSCHAU FUNKTION ---
         async function previewPDF(input) {
-            const file = input.files[0];
-            if (!file || file.type !== "application/pdf") return;
-            
+            const file = input.files[0]; if (!file || file.type !== "application/pdf") return;
             document.getElementById('file-name').innerText = file.name;
             document.getElementById('pdf-preview-box').classList.remove('hidden');
-
             const reader = new FileReader();
             reader.onload = async function() {
                 const typedarray = new Uint8Array(this.result);
                 const pdf = await pdfjsLib.getDocument(typedarray).promise;
                 const page = await pdf.getPage(1);
-                
                 const canvas = document.getElementById('pdf-canvas');
                 const ctx = canvas.getContext('2d');
                 const viewport = page.getViewport({ scale: 0.5 });
-                
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                
+                canvas.height = viewport.height; canvas.width = viewport.width;
                 await page.render({ canvasContext: ctx, viewport: viewport }).promise;
             };
             reader.readAsArrayBuffer(file);
         }
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
-
-        // --- ULTRA VIVID ENGINE (v2.6.2 Fix) ---
+        // --- Games Logic ---
         function setupGame(type, canvasId) {
             gameActive = true; gamePoints = 0;
             const scoreDisplay = canvasId === 'home-canvas' ? 'home-game-score' : 'game-score';
             document.getElementById(scoreDisplay).innerText = "0 / 10";
-            
-            if(canvasId === 'game-canvas') {
-                document.getElementById('quiz-game-selection').classList.add('hidden');
-                document.getElementById('active-game-area').classList.remove('hidden');
-            }
-
+            if(canvasId === 'game-canvas') { document.getElementById('quiz-game-selection').classList.add('hidden'); document.getElementById('active-game-area').classList.remove('hidden'); }
             const canvas = document.getElementById(canvasId), ctx = canvas.getContext('2d');
             let enemies = [], mouse = { x: 150, y: 150 };
-            let targetX = 150, targetY = 150, targetR = 25;
-
-            canvas.onpointermove = (e) => {
-                const r = canvas.getBoundingClientRect();
-                mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
-            };
-
+            let targetX = Math.random()*240+30, targetY = Math.random()*240+30, targetR = 25;
+            canvas.onpointermove = (e) => { const r = canvas.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; };
             canvas.onpointerdown = () => {
                 const d = Math.sqrt((mouse.x - targetX)**2 + (mouse.y - targetY)**2);
                 if (type === 'clicker' && d < 35) { playSound('point'); updateScore(1, scoreDisplay); targetX = Math.random()*240+30; targetY = Math.random()*240+30; }
                 if (type === 'grower' && d < targetR) { targetR += 15; if(targetR > 70) { playSound('point'); updateScore(1, scoreDisplay); targetR = 25; targetX = Math.random()*200+50; targetY = Math.random()*200+50; } }
             };
-
             gameInterval = setInterval(() => {
-                if(!gameActive) return;
-                ctx.clearRect(0, 0, 300, 300);
-                
-                // 1. OBJEKTE (Vordergrund, 100% kräftig)
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.font = "bold 48px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                ctx.shadowColor = "rgba(0,0,0,0.1)"; ctx.shadowBlur = 4;
-
+                if(!gameActive) return; ctx.clearRect(0, 0, 300, 300); ctx.globalCompositeOperation = 'source-over'; ctx.font = "bold 48px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 if (type === 'clicker') ctx.fillText("⭐", targetX, targetY);
-                if (type === 'catcher') {
-                    targetY += 4.5; if(targetY > 320) { targetY = -20; targetX = Math.random()*260+20; }
-                    ctx.fillText("🍎", targetX, targetY);
-                    if(Math.abs(mouse.x - targetX) < 35 && Math.abs(mouse.y - targetY) < 35) { 
-                        playSound('point'); updateScore(1, scoreDisplay); targetY = -50; targetX = Math.random()*260+20; 
-                    }
-                }
-                if (type === 'dodger') {
-                    ctx.fillText("🛸", mouse.x, mouse.y);
-                    if(Math.random() < 0.05) enemies.push({x: Math.random()*300, y: -20});
-                    enemies.forEach((en, i) => {
-                        en.y += 3.8; ctx.fillText("☄️", en.x, en.y);
-                        if(Math.sqrt((en.x-mouse.x)**2 + (en.y-mouse.y)**2) < 30) { gamePoints = Math.max(0, gamePoints - 0.2); }
-                        if(en.y > 320) enemies.splice(i, 1);
-                    });
-                    updateScore(0.02, scoreDisplay);
-                }
-                if (type === 'grower') {
-                    ctx.fillText("🫧", targetX, targetY);
-                    ctx.shadowBlur = 0;
-                    ctx.beginPath(); ctx.arc(targetX, targetY, targetR, 0, Math.PI*2); 
-                    ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 4; ctx.stroke();
-                }
-
-                // 2. HALO (Hintergrund, unter die Emojis geschoben)
-                ctx.globalCompositeOperation = 'destination-over';
-                ctx.shadowBlur = 0;
-                ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 25, 0, Math.PI*2);
-                ctx.fillStyle = "rgba(59, 130, 246, 0.4)"; ctx.fill();
-                
+                if (type === 'catcher') { targetY += 4.5; if(targetY > 320) { targetY = -20; targetX = Math.random()*260+20; } ctx.fillText("🍎", targetX, targetY); if(Math.abs(mouse.x - targetX) < 35 && Math.abs(mouse.y - targetY) < 35) { playSound('point'); updateScore(1, scoreDisplay); targetY = -50; targetX = Math.random()*260+20; } }
+                if (type === 'dodger') { ctx.fillText("🛸", mouse.x, mouse.y); if(Math.random() < 0.05) enemies.push({x: Math.random()*300, y: -20}); enemies.forEach((en, i) => { en.y += 3.8; ctx.fillText("☄️", en.x, en.y); if(Math.sqrt((en.x-mouse.x)**2 + (en.y-mouse.y)**2) < 30) { gamePoints = Math.max(0, gamePoints - 0.2); } if(en.y > 320) enemies.splice(i, 1); }); updateScore(0.02, scoreDisplay); }
+                if (type === 'grower') { ctx.fillText("🫧", targetX, targetY); ctx.beginPath(); ctx.arc(targetX, targetY, targetR, 0, Math.PI*2); ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 4; ctx.stroke(); }
+                ctx.globalCompositeOperation = 'destination-over'; ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 25, 0, Math.PI*2); ctx.fillStyle = "rgba(59, 130, 246, 0.4)"; ctx.fill();
             }, 1000/60);
         }
 
-        // --- Quiz Flow ---
         function updateScore(p, displayId) {
-            gamePoints += p;
-            document.getElementById(displayId).innerText = `${Math.floor(gamePoints)} / 10`;
-            if (gamePoints >= 10) {
-                gameActive = false; clearInterval(gameInterval);
-                setTimeout(() => (displayId === 'home-game-score' ? closeHomeGame() : showQuestion()), 800);
-            }
+            gamePoints += p; document.getElementById(displayId).innerText = `${Math.floor(gamePoints)} / 10`;
+            if (gamePoints >= 10) { gameActive = false; clearInterval(gameInterval); setTimeout(() => (displayId === 'home-game-score' ? closeHomeGame() : showQuestion()), 800); }
+        }
+
+        // --- Core Quiz Flow ---
+        function resetStats() { currentIndex = 0; score = 0; userMistakes = []; gameDone = false; }
+
+		function restartCurrentQuiz() {
+			if (quizData.length === 0) return goToHome();
+			
+			// 1. Fragen neu mischen
+			shuffleArray(quizData);
+			
+			// 2. Antworten innerhalb jeder Frage neu mischen
+			quizData.forEach(q => {
+				const correctText = q.options[q.answer]; // Richtige Antwort merken
+				shuffleArray(q.options); // Optionen mischen
+				q.answer = q.options.indexOf(correctText); // Neuen Index der richtigen Antwort finden
+			});
+
+			resetStats();
+			document.getElementById('result-screen').classList.add('hidden');
+			document.getElementById('quiz-content').classList.remove('hidden');
+			showQuestion();
+		}
+
+        function goToHome() {
+            resetStats();
+            quizData = [];
+            toggleCard('setup-card');
+            const modus = document.getElementById('Modus');
+            modus.value = "PDF";
+            document.getElementById('section-pdf').classList.remove('hidden');
+            document.getElementById('section-csv').classList.add('hidden');
+            document.getElementById('section-template').classList.add('hidden');
+            document.getElementById('pdf-preview-box').classList.add('hidden');
+            document.getElementById('file-name').innerText = "PDF WÄHLEN / DROP";
+            document.getElementById('pdf-file').value = "";
+            document.getElementById('csv-import').value = "";
         }
 
         async function startQuizGeneration() {
-            const file = document.getElementById('pdf-file').files[0];
-            if (!file) return alert("PDF fehlt!");
+            resetStats();
+			const file = document.getElementById('pdf-file').files[0]; if (!file) return alert("PDF fehlt!");
             toggleCard('status');
             try {
                 const base64 = (await toBase64(file)).split(',')[1];
-                const res = await fetch('/api/quiz', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pdfBase64: base64, questionCount: document.getElementById('question-count').value })
-                });
-                quizData = await res.json();
-                toggleCard('quiz-container'); showQuestion();
-            } catch (err) { alert("Fehler!"); location.reload(); }
+                const res = await fetch('/api/quiz', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pdfBase64: base64, questionCount: document.getElementById('question-count').value }) });
+                quizData = await res.json(); 
+                toggleCard('quiz-container'); 
+                showQuestion();
+            } catch (err) { alert("Fehler!"); goToHome(); }
         }
 
         function showQuestion() {
-            if (currentIndex === Math.floor(quizData.length/2) && !gameDone && quizData.length > 2) { 
+            if (currentIndex >= quizData.length) { showRes(); return; }
+            if (currentIndex === Math.floor(quizData.length / 2) && !gameDone && quizData.length > 2) {
                 gameDone = true; 
-                document.getElementById('quiz-content').classList.add('hidden');
-                document.getElementById('game-screen').classList.remove('hidden');
-                document.getElementById('quiz-game-selection').classList.remove('hidden');
-                document.getElementById('active-game-area').classList.add('hidden');
-                return; 
+                document.getElementById('quiz-content').classList.add('hidden'); 
+                document.getElementById('game-screen').classList.remove('hidden'); 
+                document.getElementById('quiz-game-selection').classList.remove('hidden'); 
+                document.getElementById('active-game-area').classList.add('hidden'); 
+                return;
             }
-            toggleCard('quiz-container');
-            document.getElementById('quiz-content').classList.remove('hidden');
-            document.getElementById('game-screen').classList.add('hidden');
-            document.getElementById('result-screen').classList.add('hidden');
-
-            const q = quizData[currentIndex];
+            document.getElementById('quiz-content').classList.remove('hidden'); 
+            document.getElementById('game-screen').classList.add('hidden'); 
             document.getElementById('feedback-area').classList.add('hidden');
-            document.getElementById('progress-bar').style.width = `${(currentIndex/quizData.length)*100}%`;
-            document.getElementById('q-count').innerText = `Frage ${currentIndex+1} von ${quizData.length}`;
+            document.getElementById('result-screen').classList.add('hidden');
+            const q = quizData[currentIndex];
+            document.getElementById('progress-bar').style.width = `${(currentIndex / quizData.length) * 100}%`;
+            document.getElementById('q-count').innerText = `Frage ${currentIndex + 1} von ${quizData.length}`;
             document.getElementById('question-text').innerText = q.question;
-            const optDiv = document.getElementById('options'); optDiv.innerHTML = '';
+            const optDiv = document.getElementById('options'); 
+            optDiv.innerHTML = '';
             q.options.forEach((opt, i) => {
-                const b = document.createElement('button');
-                b.className = "option-btn w-full text-left p-4 rounded-xl border-2 border-slate-100 bg-white font-bold shadow-sm";
+                const b = document.createElement('button'); 
+                b.className = "option-btn w-full text-left p-4 rounded-xl border-2 border-slate-100 transition-all font-medium bg-white hover:border-blue-200 shadow-sm"; 
                 b.innerText = opt;
                 b.onclick = () => {
                     document.querySelectorAll('.option-btn').forEach(btn => btn.disabled = true);
-                    const isCorrect = (i === q.answer);
-                    if(isCorrect) { score++; playSound('correct'); b.classList.add('border-green-500', 'bg-green-50'); }
-                    else { playSound('wrong'); userMistakes.push({q: q.question, g: opt, c: q.options[q.answer]}); b.classList.add('border-red-500', 'bg-red-50'); }
-                    document.getElementById('feedback-area').classList.remove('hidden');
-                    document.getElementById('feedback-text').innerText = isCorrect ? "Richtig! ✨" : `Falsch. Richtig: ${q.options[q.answer]}`;
-                    document.getElementById('next-q-btn').onclick = () => { currentIndex++; (currentIndex < quizData.length) ? showQuestion() : showRes(); };
+                    const isCorrect = (i === q.answer); 
+                    const area = document.getElementById('feedback-area'); 
+                    const txt = document.getElementById('feedback-text');
+                    if (isCorrect) { 
+                        score++; playSound('correct'); 
+                        b.classList.add('border-green-500', 'bg-green-50'); 
+                        txt.innerHTML = "✨ Richtig!"; 
+                        txt.className = "text-green-600 font-bold";
+                    } else {
+                        userMistakes.push({ q: q.question, g: opt, c: q.options[q.answer] }); 
+                        playSound('wrong'); 
+                        b.classList.add('border-red-500', 'bg-red-50');
+                        if(q.answer !== -1) document.querySelectorAll('.option-btn')[q.answer].classList.add('border-green-400', 'bg-green-50');
+                        txt.innerHTML = `❌ Falsch. Richtig ist:<br><span class="text-slate-700">${q.options[q.answer]}</span>`; 
+                        txt.className = "text-red-600 font-bold";
+                    }
+                    area.classList.remove('hidden');
+                    document.getElementById('next-q-btn').onclick = () => { currentIndex++; showQuestion(); };
                 };
                 optDiv.appendChild(b);
             });
@@ -367,65 +324,116 @@ function updateMuteUI() {
         function showRes() {
             document.getElementById('quiz-content').classList.add('hidden');
             document.getElementById('result-screen').classList.remove('hidden');
-            const p = Math.round(score/quizData.length*100);
-            document.getElementById('score-display').innerText = `${score} von ${quizData.length} (${p}%)`;
-            const h = JSON.parse(localStorage.getItem('quiz_history') || '[]'); h.unshift({d: new Date().toLocaleDateString(), p});
-            localStorage.setItem('quiz_history', JSON.stringify(h.slice(0,10))); renderHistory();
+            document.getElementById('progress-bar').style.width = "100%";
+            const total = quizData.length;
+            const percent = Math.round((score / total) * 100);
+            document.getElementById('score-display').innerText = `${score} von ${total} richtig (${percent}%)`;
+            const analysis = document.getElementById('mistake-analysis');
+            if (userMistakes.length > 0) {
+                analysis.innerHTML = userMistakes.map((m, idx) => `
+                    <div class="mistake-card p-3 bg-white border border-slate-200 rounded-xl text-xs shadow-sm border-l-red-500">
+                        <p class="font-bold mb-1 text-slate-800">Frage: ${m.q}</p>
+                        <p class="text-red-500">❌ Deine Wahl: ${m.g}</p>
+                        <p class="text-green-600 font-bold">✅ Lösung: ${m.c}</p>
+                    </div>`).join('');
+            } else { 
+                analysis.innerHTML = '<div class="text-center p-6 bg-green-50 rounded-2xl border-2 border-green-100"><p class="text-green-600 font-black text-lg">PERFEKT! 100% 🌟</p></div>'; 
+            }
+            const h = JSON.parse(localStorage.getItem('quiz_history') || '[]'); 
+            h.unshift({d: new Date().toLocaleDateString(), p: percent}); 
+            localStorage.setItem('quiz_history', JSON.stringify(h.slice(0,10))); 
+            renderHistory();
         }
 
-        function renderHistory() {
-            const h = JSON.parse(localStorage.getItem('quiz_history') || '[]');
-            document.getElementById('history-list').innerHTML = h.map(e => `<div class="bg-white p-3 rounded-lg border flex justify-between text-sm shadow-sm"><span>${e.d}</span><span class="font-bold text-blue-600">${e.p}%</span></div>`).join('') || '<p class="text-slate-400 text-xs italic">Kein Verlauf.</p>';
-        }
+        // --- Data Handling ---
+		//CSV Laden und mischen
+        function parseCSVData(text) {
+			try {
+				const lines = text.split(/\r?\n/).filter(l => l.trim()).slice(1);
+				quizData = lines.map(l => {
+					const c = l.match(/(".*?"|[^;]+)(?=\s*;|\s*$)/g).map(s => s.replace(/^"|"$/g, '').trim());
+					const opts = [c[1], c[2], c[3], c[4]];
+					const correctText = c[5];
+					
+					// Sofort beim Import mischen
+					shuffleArray(opts);
+					
+					return { 
+						question: c[0], 
+						options: opts, 
+						answer: opts.indexOf(correctText) 
+					};
+				}).filter(q => q.answer !== -1);
 
-        function startDirectGame(type) {
-            document.getElementById('home-game-area').classList.remove('hidden');
-            document.getElementById('home-game-selector').classList.add('hidden');
-            setupGame(type, 'home-canvas');
-        }
+				// Die Fragenliste selbst mischen
+				shuffleArray(quizData);
 
-        function closeHomeGame() {
-            gameActive = false; clearInterval(gameInterval);
-            document.getElementById('home-game-area').classList.add('hidden');
-            document.getElementById('home-game-selector').classList.remove('hidden');
-        }
-
-        function toggleCard(id) {
-            ['setup-card', 'status', 'quiz-container'].forEach(c => document.getElementById(c)?.classList.add('hidden'));
-            document.getElementById(id)?.classList.remove('hidden');
-        }
+				if(quizData.length === 0) throw new Error();
+				toggleCard('quiz-container'); 
+				showQuestion();
+			} catch(e) {
+				alert("Daten fehlerhaft!"); goToHome();
+			}
+		}
 
         function importCSV(source) {
-            const file = source.files ? source.files[0] : source[0];
-            if (!file) return;
+            resetStats(); 
+            const file = source.files ? source.files[0] : source[0]; 
+            if (!file) return; 
             toggleCard('status');
-            const r = new FileReader();
-            r.onload = (e) => {
-                const lines = e.target.result.split('\n').slice(1);
-                quizData = lines.filter(l => l.trim()).map(l => {
-                    const c = l.match(/(".*?"|[^;]+)(?=\s*;|\s*$)/g);
-                    const opts = [c[1], c[2], c[3], c[4]].map(o => o.replace(/"/g, ""));
-                    return { question: c[0].replace(/"/g, ""), options: opts, answer: opts.indexOf(c[5].replace(/"/g, "").trim()) };
-                });
-                toggleCard('quiz-container'); showQuestion();
-            };
+            const r = new FileReader(); 
+            r.onload = (e) => parseCSVData(e.target.result);
             r.readAsText(file, 'UTF-8');
         }
 
-        document.getElementById('Modus').onchange = function() {
-            document.getElementById('section-pdf').classList.toggle('hidden', this.value !== 'PDF');
-            document.getElementById('section-csv').classList.toggle('hidden', this.value !== 'CSV');
+        async function loadTemplate(url) {
+            resetStats();
+            toggleCard('status');
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error();
+                const text = await response.text();
+                parseCSVData(text);
+            } catch (err) {
+                alert("Vorlage konnte nicht geladen werden."); goToHome();
+            }
+        }
+
+		//Hilsfunktion mischen bei neustart
+		function shuffleArray(array) {
+			for (let i = array.length - 1; i > 0; i--) {
+				const j = Math.floor(Math.random() * (i + 1));
+				[array[i], array[j]] = [array[j], array[i]];
+			}
+			return array;
+		}
+
+        function exportCSV() {
+            let csv = "\uFEFFFrage;Option A;Option B;Option C;Option D;Antwort\n";
+            quizData.forEach(q => { csv += `"${q.question}";${q.options.map(o => `"${o}"`).join(';')};"${q.options[q.answer]}"\n`; });
+            const b = new Blob([csv], {type: 'text/csv;charset=utf-8;'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = "Quiz_Export.csv"; a.click();
+        }
+
+        function renderHistory() { const h = JSON.parse(localStorage.getItem('quiz_history') || '[]'); document.getElementById('history-list').innerHTML = h.map(e => `<div class="bg-white p-3 rounded-lg border flex justify-between text-sm shadow-sm"><span>${e.d}</span><span class="font-bold text-blue-600">${e.p}%</span></div>`).join('') || '<p class="text-slate-400 text-xs italic">Kein Verlauf.</p>'; }
+        function clearHistory() { localStorage.removeItem('quiz_history'); renderHistory(); }
+        
+        function toggleCard(id) { 
+            ['setup-card', 'status', 'quiz-container'].forEach(c => document.getElementById(c)?.classList.add('hidden')); 
+            document.getElementById(id)?.classList.remove('hidden'); 
+        }
+
+        document.getElementById('Modus').onchange = function() { 
+            document.getElementById('section-pdf').classList.toggle('hidden', this.value !== 'PDF'); 
+            document.getElementById('section-csv').classList.toggle('hidden', this.value !== 'CSV'); 
+            document.getElementById('section-template').classList.toggle('hidden', this.value !== 'TEMPLATE'); 
         };
 
-        const toBase64 = f => new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(f); r.onload = () => res(r.result); });
+        const toBase64 = f => new Promise((res) => { const r = new FileReader(); r.readAsDataURL(f); r.onload = () => res(r.result); });
         function handleDragOver(e) { e.preventDefault(); }
-        function handleDrop(e) { e.preventDefault(); document.getElementById('pdf-file').files = e.dataTransfer.files; document.getElementById('file-name').innerText = e.dataTransfer.files[0].name; }
+        function handleDrop(e) { e.preventDefault(); document.getElementById('pdf-file').files = e.dataTransfer.files; previewPDF(document.getElementById('pdf-file')); }
         function handleDragOverCSV(e) { e.preventDefault(); }
         function handleDropCSV(e) { e.preventDefault(); importCSV(e.dataTransfer.files); }
-        window.onload = () => {
-		renderHistory(); // Dein bestehender Aufruf
-		updateMuteUI();  // Initialisiert das Lautsprecher-Icon
-		};
+        window.onload = () => { renderHistory(); updateMuteUI(); };
     </script>
 </body>
 </html>
