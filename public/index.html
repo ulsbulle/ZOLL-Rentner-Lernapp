@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Quiz Master Pro 2.8.0 - ZOLL Edition</title>
+    <title>AI Quiz Master Pro 2.8.1 - ZOLL Edition</title>
     <link rel="icon" href="https://fav.farm/🧠" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -43,7 +43,7 @@
 			<div class="flex justify-center mb-2 pt-4">
                 <button onclick="toggleMute()" id="mute-btn" class="p-2 bg-white border border-slate-200 rounded-lg shadow-sm text-xl hover:bg-slate-100 transition-all">🔊</button>
 			</div>
-            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.8.0 </h1>
+            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.8.1 🧠 </h1>
             <p class="text-slate-500 italic font-bold">Lernen mit System & Spielspaß ©ZOLL-Rentner</p>
         </div>
 
@@ -149,7 +149,7 @@
 					
                 </div>
             </div>
-        </div>
+       
 
         <div id="status" class="hidden text-center p-12 bg-white rounded-2xl shadow-md border border-slate-100">
             <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 mx-auto mb-4"></div>
@@ -197,15 +197,19 @@
         </div>
 
         <div id="history-container" class="mt-12">
-            <h3 class="font-bold text-slate-700 mb-4 text-xs uppercase tracking-wider italic flex justify-between">
-                📊 Letzte Ergebnisse
-                <button onclick="clearHistory()" class="text-red-400 underline">Löschen</button>
-            </h3>
-            <div id="history-list" class="space-y-2"></div>
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                <h3 class="font-extrabold text-slate-800 text-sm uppercase tracking-widest flex items-center gap-2">
+                    📊 Letzte Ergebnisse
+                </h3>
+                <button onclick="if(confirm('Verlauf wirklich löschen?')) clearHistory()" class="text-red-400 hover:text-red-600 text-xs font-bold underline transition-colors">
+                    Löschen
+                </button>
+            </div>
+            <div id="history-list" class="space-y-3">
+                </div>
         </div>
-    </div>
 
-    <script>
+    </div> <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
@@ -614,8 +618,18 @@
             const b = new Blob([csv], {type: 'text/csv;charset=utf-8;'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = "Quiz_Export.csv"; a.click();
         }
 
-        function renderHistory() { const h = JSON.parse(localStorage.getItem('quiz_history') || '[]'); document.getElementById('history-list').innerHTML = h.map(e => `<div class="bg-white p-3 rounded-lg border flex justify-between text-sm shadow-sm"><span>${e.d}</span><span class="font-bold text-blue-600">${e.p}%</span></div>`).join('') || '<p class="text-slate-400 text-xs italic">Kein Verlauf.</p>'; }
-        function clearHistory() { localStorage.removeItem('quiz_history'); renderHistory(); }
+        function renderHistory() { 
+            const h = JSON.parse(localStorage.getItem('quiz_history') || '[]'); 
+            const list = document.getElementById('history-list');
+            if (h.length === 0) { list.innerHTML = '<p class="text-slate-400 text-sm italic text-center py-4">Kein Verlauf.</p>'; return; }
+            list.innerHTML = h.map(e => `
+                <div class="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100 hover:bg-blue-50 transition-colors">
+                    <span class="font-bold text-slate-600 text-sm">${e.d}</span>
+                    <span class="font-black text-blue-600 bg-white px-3 py-1 rounded-lg shadow-sm border border-blue-50">${e.p}%</span>
+                </div>`).join(''); 
+        }
+		
+		function clearHistory() { localStorage.removeItem('quiz_history'); renderHistory(); }
         
         function toggleCard(id) { 
             ['setup-card', 'status', 'quiz-container'].forEach(c => document.getElementById(c)?.classList.add('hidden')); 
