@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Quiz Master Pro 2.7.3 - ZOLL Edition</title>
+    <title>AI Quiz Master Pro 2.7.5 - ZOLL Edition</title>
     <link rel="icon" href="https://fav.farm/🧠" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -30,7 +30,7 @@
 			<div class="flex justify-center mb-2 pt-4">
                 <button onclick="toggleMute()" id="mute-btn" class="p-2 bg-white border border-slate-200 rounded-lg shadow-sm text-xl hover:bg-slate-100 transition-all">🔊</button>
 			</div>
-            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.7.3 </h1>
+            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.7.5 </h1>
             <p class="text-slate-500 italic font-bold">Lernen mit System & Spielspaß ©ZOLL-Rentner</p>
         </div>
 
@@ -53,7 +53,7 @@
                         <select id="Modus" class="w-full p-3 rounded-lg border-2 border-blue-100 focus:border-blue-500 outline-none font-medium bg-white">
                             <option value="PDF">📄 PDF analysieren (KI)</option>
                             <option value="CSV">📂 CSV laden (Import)</option>
-                            <option value="TEMPLATE">📚 Vorlagen (Server)</option>
+                            <option value="TEMPLATE">📚 Vorlagen laden (Server)</option>
                         </select>
                     </div>
 
@@ -91,7 +91,7 @@
                             <span>🧮 1x1 (100 Fragen)</span>
                             <span class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">Starten →</span>
                         </button>
-                        <button onclick="loadTemplate('verbrauchsteuer.csv')" class="w-full p-4 border-2 rounded-xl bg-white hover:border-blue-500 hover:bg-blue-50 text-left font-bold transition-all flex justify-between items-center group">
+                        <button onclick="loadTemplate('templates/verbrauchsteuer.csv')" class="w-full p-4 border-2 rounded-xl bg-white hover:border-blue-500 hover:bg-blue-50 text-left font-bold transition-all flex justify-between items-center group">
                             <span>⛽ Verbrauchsteuern (10 Fragen)</span>
                             <span class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">Starten →</span>
                         </button>
@@ -121,7 +121,7 @@
             <div id="game-screen" class="hidden text-center py-4 animate-slideIn">
                 <h2 class="text-2xl font-black text-blue-600 mb-6 uppercase italic">Spielpause! ⚡</h2>
                 <div id="quiz-game-selection" class="grid grid-cols-2 gap-3 mb-6">
-                    <button onclick="setupGame('clicker', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-blue-500 font-bold transition-all">🎯 Clicker</button>
+                    <button onclick="setupGame('horse', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-blue-500 font-bold transition-all">🐎 Pferderennen</button>
                     <button onclick="setupGame('catcher', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-emerald-500 font-bold transition-all">🍎 Fänger</button>
                     <button onclick="setupGame('dodger', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-red-500 font-bold transition-all">🚀 Ufo</button>
                     <button onclick="setupGame('grower', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-amber-500 font-bold transition-all">🫧 Blase</button>
@@ -195,29 +195,142 @@
         }
 
         // --- Games Logic ---
-        function setupGame(type, canvasId) {
-            gameActive = true; gamePoints = 0;
-            const scoreDisplay = canvasId === 'home-canvas' ? 'home-game-score' : 'game-score';
-            document.getElementById(scoreDisplay).innerText = "0 / 10";
-            if(canvasId === 'game-canvas') { document.getElementById('quiz-game-selection').classList.add('hidden'); document.getElementById('active-game-area').classList.remove('hidden'); }
-            const canvas = document.getElementById(canvasId), ctx = canvas.getContext('2d');
-            let enemies = [], mouse = { x: 150, y: 150 };
-            let targetX = Math.random()*240+30, targetY = Math.random()*240+30, targetR = 25;
-            canvas.onpointermove = (e) => { const r = canvas.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; };
-            canvas.onpointerdown = () => {
-                const d = Math.sqrt((mouse.x - targetX)**2 + (mouse.y - targetY)**2);
-                if (type === 'clicker' && d < 35) { playSound('point'); updateScore(1, scoreDisplay); targetX = Math.random()*240+30; targetY = Math.random()*240+30; }
-                if (type === 'grower' && d < targetR) { targetR += 15; if(targetR > 70) { playSound('point'); updateScore(1, scoreDisplay); targetR = 25; targetX = Math.random()*200+50; targetY = Math.random()*200+50; } }
-            };
-            gameInterval = setInterval(() => {
-                if(!gameActive) return; ctx.clearRect(0, 0, 300, 300); ctx.globalCompositeOperation = 'source-over'; ctx.font = "bold 48px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                if (type === 'clicker') ctx.fillText("⭐", targetX, targetY);
-                if (type === 'catcher') { targetY += 4.5; if(targetY > 320) { targetY = -20; targetX = Math.random()*260+20; } ctx.fillText("🍎", targetX, targetY); if(Math.abs(mouse.x - targetX) < 35 && Math.abs(mouse.y - targetY) < 35) { playSound('point'); updateScore(1, scoreDisplay); targetY = -50; targetX = Math.random()*260+20; } }
-                if (type === 'dodger') { ctx.fillText("🛸", mouse.x, mouse.y); if(Math.random() < 0.05) enemies.push({x: Math.random()*300, y: -20}); enemies.forEach((en, i) => { en.y += 3.8; ctx.fillText("☄️", en.x, en.y); if(Math.sqrt((en.x-mouse.x)**2 + (en.y-mouse.y)**2) < 30) { gamePoints = Math.max(0, gamePoints - 0.2); } if(en.y > 320) enemies.splice(i, 1); }); updateScore(0.02, scoreDisplay); }
-                if (type === 'grower') { ctx.fillText("🫧", targetX, targetY); ctx.beginPath(); ctx.arc(targetX, targetY, targetR, 0, Math.PI*2); ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 4; ctx.stroke(); }
-                ctx.globalCompositeOperation = 'destination-over'; ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 25, 0, Math.PI*2); ctx.fillStyle = "rgba(59, 130, 246, 0.4)"; ctx.fill();
-            }, 1000/60);
-        }
+				function setupGame(type, canvasId) {
+			gameActive = true; 
+			gamePoints = 0;
+			const scoreDisplay = canvasId === 'home-canvas' ? 'home-game-score' : 'game-score';
+			document.getElementById(scoreDisplay).innerText = "0 / 10";
+
+			// UI-Wechsel: Auswahl verstecken, Spielbereich zeigen
+			if(canvasId === 'game-canvas') { 
+				document.getElementById('quiz-game-selection').classList.add('hidden'); 
+				document.getElementById('active-game-area').classList.remove('hidden'); 
+			}
+
+			const canvas = document.getElementById(canvasId);
+			const ctx = canvas.getContext('2d');
+			
+			// Spiel-Variablen
+			let objects = []; 
+			let player = { x: 150, y: 150, vY: 0 }; // vY für Sprungphysik
+			let target = { x: Math.random() * 240 + 30, y: -20, r: 25 }; 
+			let mouse = { x: 150, y: 150 };
+			let frames = 0;
+
+			// Steuerung
+			canvas.onpointermove = (e) => {
+				const r = canvas.getBoundingClientRect();
+				mouse.x = e.clientX - r.left;
+				mouse.y = e.clientY - r.top;
+			};
+
+			canvas.onpointerdown = (e) => {
+				// PFERDE-SPRUNG
+				if (type === 'horse' && player.y >= 250) {
+					player.vY = -12;
+					playSound('point');
+				}
+				// BLASEN-WACHSTUM (Grower)
+				if (type === 'grower') {
+					const d = Math.sqrt((mouse.x - target.x)**2 + (mouse.y - target.y)**2);
+					if (d < target.r) {
+						target.r += 15;
+						if(target.r > 70) {
+							playSound('point');
+							updateScore(1, scoreDisplay);
+							target.r = 25;
+							target.x = Math.random() * 200 + 50;
+							target.y = Math.random() * 200 + 50;
+						}
+					}
+				}
+			};
+
+			// Game Loop (60 FPS)
+			gameInterval = setInterval(() => {
+				if(!gameActive) return;
+				
+				ctx.clearRect(0, 0, 300, 300);
+				ctx.font = "bold 40px serif";
+				ctx.textAlign = "center";
+				ctx.textBaseline = "middle";
+
+				// --- MODUS: PFERDERENNEN (Ehemals Clicker) ---
+				if (type === 'horse') {
+					// Boden
+					ctx.fillStyle = "#e2e8f0";
+					ctx.fillRect(0, 280, 300, 20);
+					// Physik
+					player.vY += 0.7; 
+					player.y += player.vY;
+					if (player.y > 250) { player.y = 250; player.vY = 0; }
+					// Hindernisse
+					frames++;
+					if(frames % 70 === 0) objects.push({x: 320, y: 265});
+					// Zeichnen
+					ctx.fillText("🐎", 50, player.y);
+					objects.forEach((obj, i) => {
+						obj.x -= 5;
+						ctx.fillText("🚧", obj.x, obj.y);
+						// Kollision
+						if (obj.x > 30 && obj.x < 70 && player.y > 220) {
+							gamePoints = Math.max(0, gamePoints - 0.1);
+							ctx.fillStyle = "rgba(255,0,0,0.1)";
+							ctx.fillRect(0,0,300,300);
+						}
+						if(obj.x < -50) objects.splice(i, 1);
+					});
+					updateScore(0.02, scoreDisplay);
+				}
+
+				// --- MODUS: FÄNGER (Catcher) ---
+				if (type === 'catcher') {
+					target.y += 4;
+					if(target.y > 320) { target.y = -20; target.x = Math.random()*260+20; }
+					ctx.fillText("🍎", target.x, target.y);
+					if(Math.abs(mouse.x - target.x) < 35 && Math.abs(mouse.y - target.y) < 35) {
+						playSound('point');
+						updateScore(1, scoreDisplay);
+						target.y = -50;
+						target.x = Math.random()*260+20;
+					}
+				}
+
+				// --- MODUS: UFO (Dodger) ---
+				if (type === 'dodger') {
+					ctx.fillText("🛸", mouse.x, mouse.y);
+					if(Math.random() < 0.05) objects.push({x: Math.random()*300, y: -20});
+					objects.forEach((en, i) => {
+						en.y += 4;
+						ctx.fillText("☄️", en.x, en.y);
+						if(Math.sqrt((en.x-mouse.x)**2 + (en.y-mouse.y)**2) < 30) {
+							gamePoints = Math.max(0, gamePoints - 0.1);
+						}
+						if(en.y > 320) objects.splice(i, 1);
+					});
+					updateScore(0.02, scoreDisplay);
+				}
+
+				// --- MODUS: BLASE (Grower) ---
+				if (type === 'grower') {
+					ctx.fillText("🫧", target.x, target.y);
+					ctx.beginPath();
+					ctx.arc(target.x, target.y, target.r, 0, Math.PI*2);
+					ctx.strokeStyle = "#2563eb";
+					ctx.lineWidth = 4;
+					ctx.stroke();
+				}
+
+				// Maus-Cursor (Highlight)
+				ctx.globalCompositeOperation = 'destination-over';
+				ctx.beginPath();
+				ctx.arc(mouse.x, mouse.y, 20, 0, Math.PI*2);
+				ctx.fillStyle = "rgba(59, 130, 246, 0.2)";
+				ctx.fill();
+				ctx.globalCompositeOperation = 'source-over';
+
+			}, 1000/60);
+		}
 
         function updateScore(p, displayId) {
             gamePoints += p; document.getElementById(displayId).innerText = `${Math.floor(gamePoints)} / 10`;
