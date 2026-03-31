@@ -40,9 +40,11 @@
                     <div class="bg-blue-50 p-5 rounded-xl border border-blue-100">
                         <label class="block text-base font-bold text-blue-800 mb-2 underline">Kurzanleitung:</label>
                         <ul class="text-sm text-blue-900 space-y-1 list-disc ml-5 leading-relaxed font-medium">
-							<li>Wähle <b>PDF</b> für KI-Analyse oder <b>CSV</b> für Import.</li>
-                            <li>Nutze <b>Vorlagen</b> für vordefinierte Themengebiete.</li>
-							<li>Nach der halben Fragenanzahl wartet eine <b>Spielpause</b>!</li>
+							<li>Wähle <b>PDF</b> für KI-Analyse, <b>CSV</b> für schnellen Import oder <b>Vorlage</b> um ein bereitgestellt Vorlage zu laden.</li>
+							<li>Nutze <b>Drag & Drop</b> zum Hochladen der Dateien.</li>
+							<li>Wähle beim Fragengenrator <b>(KI-Analyse)</b> die gewünschte Fragenanzahl.</li>
+							<li>Nach der halben Fragenanzahl wartet eine <b>Spielpause</b> auf dich!</li>
+							<li>Lerne durch direktes Feedback & Sound nach jeder Antwort.</li>
                         </ul>
                     </div>
 
@@ -100,7 +102,7 @@
 
         <div id="status" class="hidden text-center p-12 bg-white rounded-2xl shadow-md border border-slate-100">
             <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 mx-auto mb-4"></div>
-            <p id="status-text" class="text-slate-700 font-bold italic">Fragen werden geladen...</p>
+            <p id="status-text" class="text-slate-700 font-bold italic">PDF wird analysiert und Fragen werden erstellt...</p>
         </div>
 
         <div id="quiz-container" class="hidden bg-white shadow-2xl rounded-3xl p-8 border border-slate-200">
@@ -228,14 +230,12 @@
 		function restartCurrentQuiz() {
 			if (quizData.length === 0) return goToHome();
 			
-			// 1. Fragen neu mischen
+			// Alles neu mischen vor dem Neustart
 			shuffleArray(quizData);
-			
-			// 2. Antworten innerhalb jeder Frage neu mischen
 			quizData.forEach(q => {
-				const correctText = q.options[q.answer]; // Richtige Antwort merken
-				shuffleArray(q.options); // Optionen mischen
-				q.answer = q.options.indexOf(correctText); // Neuen Index der richtigen Antwort finden
+				const correctText = q.options[q.answer];
+				shuffleArray(q.options);
+				q.answer = q.options.indexOf(correctText);
 			});
 
 			resetStats();
@@ -259,18 +259,41 @@
             document.getElementById('csv-import').value = "";
         }
 
-        async function startQuizGeneration() {
-            resetStats();
-			const file = document.getElementById('pdf-file').files[0]; if (!file) return alert("PDF fehlt!");
-            toggleCard('status');
-            try {
-                const base64 = (await toBase64(file)).split(',')[1];
-                const res = await fetch('/api/quiz', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pdfBase64: base64, questionCount: document.getElementById('question-count').value }) });
-                quizData = await res.json(); 
-                toggleCard('quiz-container'); 
-                showQuestion();
-            } catch (err) { alert("Fehler!"); goToHome(); }
-        }
+		async function startQuizGeneration() {
+			resetStats();
+			const file = document.getElementById('pdf-file').files[0]; 
+			if (!file) return alert("PDF fehlt!");
+			
+			toggleCard('status');
+			try {
+				const base64 = (await toBase64(file)).split(',')[1];
+				const res = await fetch('/api/quiz', { 
+					method: 'POST', 
+					headers: { 'Content-Type': 'application/json' }, 
+					body: JSON.stringify({ 
+						pdfBase64: base64, 
+						questionCount: document.getElementById('question-count').value 
+					}) 
+				});
+				
+				let data = await res.json(); 
+
+				// --- NEU: PDF-ERGEBNISSE MISCHEN ---
+				shuffleArray(data); // Fragen-Reihenfolge würfeln
+				data.forEach(q => {
+					const correctText = q.options[q.answer]; // Richtige Antwort sichern
+					shuffleArray(q.options); // Antwortmöglichkeiten würfeln
+					q.answer = q.options.indexOf(correctText); // Index neu setzen
+				});
+				
+				quizData = data; // Gemischte Daten speichern
+				toggleCard('quiz-container'); 
+				showQuestion();
+			} catch (err) { 
+				alert("Fehler bei der KI-Analyse!"); 
+				goToHome(); 
+			}
+		}
 
         function showQuestion() {
             if (currentIndex >= quizData.length) { showRes(); return; }
