@@ -280,10 +280,12 @@
 			
 			// Spiel-Variablen
 			let objects = []; 
-			let player = { x: 150, y: 150, vY: 0 }; // vY für Sprungphysik
-			let target = { x: Math.random() * 240 + 30, y: -20, r: 25 }; 
-			let mouse = { x: 150, y: 150 };
-			let frames = 0;
+			let player = { 	x: 150, y: 150, vY: 0 }; // vY für Sprungphysik
+			let target = { 	x: Math.random() * 200 + 50, 
+							y: Math.random() * 200 + 50, 
+							r: 25 }; 
+			let mouse = { 	x: 150, y: 150 };
+			let frames = 	0;
 
 			// Steuerung
 			canvas.onpointermove = (e) => {
@@ -345,6 +347,7 @@
 							gamePoints = Math.max(0, gamePoints - 0.1);
 							ctx.fillStyle = "rgba(255,0,0,0.1)";
 							ctx.fillRect(0,0,300,300);
+							playSound('wrong');
 						}
 						if(obj.x < -50) objects.splice(i, 1);
 					});
@@ -354,27 +357,42 @@
 				// --- MODUS: FÄNGER (Catcher) ---
 				if (type === 'catcher') {
 					target.y += 4;
-					if(target.y > 320) { target.y = -20; target.x = Math.random()*260+20; }
-					ctx.fillText("🍎", target.x, target.y);
 					ctx.fillStyle = "#e2e8f0";
-					if(Math.abs(mouse.x - target.x) < 35 && Math.abs(mouse.y - target.y) < 35) {
+					
+					// Apfel hat den Boden berührt (Verfehlt)
+					if (target.y > 300) { 
+						playSound('wrong'); // Sound für Fehler abspielen
+						hitEffect = 0.3;    // Optional: Kurzes rotes Aufleuchten
+						target.y = -20; 
+						target.x = Math.random() * 260 + 20; 
+						gamePoints = Math.max(0, gamePoints - 0.5); // Optional: Punktabzug bei Verfehlen
+					}
+					// Zeichnen
+					ctx.fillText("🍎", target.x, target.y);
+					
+					// Apfel gefangen (Treffer)
+					if (Math.abs(mouse.x - target.x) < 35 && Math.abs(mouse.y - target.y) < 35) {
 						playSound('point');
 						updateScore(1, scoreDisplay);
 						target.y = -50;
-						target.x = Math.random()*260+20;
+						target.x = Math.random() * 260 + 20;
 					}
 				}
 
 				// --- MODUS: UFO (Dodger) ---
 				if (type === 'dodger') {
+					ctx.fillStyle = "#e2e8f0"; //volle Farben
 					ctx.fillText("🛸", mouse.x, mouse.y);
-					ctx.fillStyle = "#e2e8f0";
+					
+					//Kometen Zeichnen
 					if(Math.random() < 0.05) objects.push({x: Math.random()*300, y: -20});
 					objects.forEach((en, i) => {
 						en.y += 4;
 						ctx.fillText("☄️", en.x, en.y);
+
 						if(Math.sqrt((en.x-mouse.x)**2 + (en.y-mouse.y)**2) < 30) {
 							gamePoints = Math.max(0, gamePoints - 0.1);
+							playSound('wrong'); // Sound für Fehler abspielen
 						}
 						if(en.y > 320) objects.splice(i, 1);
 					});
@@ -383,8 +401,8 @@
 
 				// --- MODUS: BLASE (Grower) ---
 				if (type === 'grower') {
-					ctx.fillText("🫧", target.x, target.y);
 					ctx.fillStyle = "#e2e8f0";
+					ctx.fillText("🫧", target.x, target.y);
 					ctx.beginPath();
 					ctx.arc(target.x, target.y, target.r, 0, Math.PI*2);
 					ctx.strokeStyle = "#2563eb";
