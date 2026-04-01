@@ -359,7 +359,7 @@
 				// PFERDE-SPRUNG
 				if (type === 'horse' && player.y >= 250) {
 					player.vY = -12;
-					playSound('point');
+					//updateScore(1, scoreDisplay); // <--- Hier einfügen für 1 Punkt pro Sprung
 				}
 				// BLASEN-WACHSTUM (Grower)
 				if (type === 'grower') {
@@ -388,31 +388,44 @@
 
 				/** 1.Minispiel Pferderennen (Sidescroller) **/
 				if (type === 'horse') {
-					// Boden
+					// Boden Zeichnen
 					ctx.fillStyle = "#e2e8f0";
 					ctx.fillRect(0, 280, 300, 20);
-					// Physik
+					
+					// Physik Gravitation & Sprung
 					player.vY += 0.7; 
 					player.y += player.vY; // Gravitation
 					if (player.y > 250) { player.y = 250; player.vY = 0; }
+					
 					// Hindernisse
 					frames++;
-					if(frames % 70 === 0) objects.push({x: 320, y: 265});
-					// Zeichnen
+					if(frames % 70 === 0) objects.push({x: 320, y: 265, passed: false });// Neu: Tracker für Punktvergabe (passed)
+					
+					// Pferd Zeichnen
 					ctx.fillText("🐎", 50, player.y);
+					
+					// Hindernisse verarbeiten
 					objects.forEach((obj, i) => {
-						obj.x -= 5;
+						obj.x -= 5; // Geschwindigkeit der Hindernisse
 						ctx.fillText("🚧", obj.x, obj.y);
-						// Kollision
-						if (obj.x > 30 && obj.x < 70 && player.y > 220) {
-							gamePoints = Math.max(0, gamePoints - 0.1);
-							ctx.fillStyle = "rgba(255,0,0,0.1)";
-							ctx.fillRect(0,0,300,300);
-							playSound('wrong');
-						}
-						if(obj.x < -50) objects.splice(i, 1);
-					});
-					updateScore(0.02, scoreDisplay);
+					
+					// KOLLISIONSPRÜFUNG
+					if (obj.x > 30 && obj.x < 70 && player.y > 220) {
+                        gamePoints = Math.max(0, gamePoints - 0.5); // Punktabzug bei Kollision
+                        ctx.fillStyle = "rgba(255,0,0,0.2)";
+                        ctx.fillRect(0, 0, 300, 300);
+                        playSound('wrong');
+                    }
+					// PUNKTVERGABE: Wenn das Hindernis erfolgreich passiert wurde
+                    if (obj.x < 30 && !obj.passed) {
+                        obj.passed = true; 
+                        updateScore(1, scoreDisplay); // Gibt 1 Punkt pro Hindernis
+                        playSound('point');
+                    }
+
+                    // Entfernen von Hindernissen außerhalb des Bildschirms
+                    if(obj.x < -50) objects.splice(i, 1);
+                    });
 				}
 
 				/** 2.Minispiel Apfelfänger (Steuerung) **/
