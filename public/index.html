@@ -146,22 +146,22 @@
 					<!--Schaltfläche Pferderennen-->
 						<button onclick="setupGame('horse', 'home-canvas')" class="p-2 border-2 rounded-xl bg-white hover:border-blue-500 transition-all flex flex-col items-center shadow-sm">
 							<span class="text-xl">🐎</span>
-							<span class="text-[8px] font-bold uppercase">Pferd</span>
+							<span class="text-[8px] font-bold uppercase">Pferderennen</span>
 						</button>
 					<!--Schaltfläche Apfelfangen-->
 						<button onclick="setupGame('catcher', 'home-canvas')" class="p-2 border-2 rounded-xl bg-white hover:border-blue-500 transition-all flex flex-col items-center shadow-sm">
 							<span class="text-xl">🍎</span>
-							<span class="text-[8px] font-bold uppercase">Fänger</span>
+							<span class="text-[8px] font-bold uppercase">Apfelfänger</span>
 						</button>
 					<!--Schaltfläche UFO-Spiel-->
 						<button onclick="setupGame('dodger', 'home-canvas')" class="p-2 border-2 rounded-xl bg-white hover:border-blue-500 transition-all flex flex-col items-center shadow-sm">
 							<span class="text-xl">🛸</span>
-							<span class="text-[8px] font-bold uppercase">Ufo</span>
+							<span class="text-[8px] font-bold uppercase">UFO-Spiel</span>
 						</button>
 					<!--Schaltfläche BLASEN-WACHSTUM-->
 						<button onclick="setupGame('grower', 'home-canvas')" class="p-2 border-2 rounded-xl bg-white hover:border-blue-500 transition-all flex flex-col items-center shadow-sm">
 							<span class="text-xl">🫧</span>
-							<span class="text-[8px] font-bold uppercase">Blase</span>
+							<span class="text-[8px] font-bold uppercase">Blasen-ploppen</span>
 						</button>
 					</div>
 
@@ -204,9 +204,9 @@
                 <h2 class="text-2xl font-black text-blue-600 mb-6 uppercase italic">Spielpause! ⚡</h2>
                 <div id="quiz-game-selection" class="grid grid-cols-2 gap-3 mb-6">
                     <button onclick="setupGame('horse', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-blue-500 font-bold transition-all">🐎 Pferderennen</button>
-                    <button onclick="setupGame('catcher', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-emerald-500 font-bold transition-all">🍎 Fänger</button>
-                    <button onclick="setupGame('dodger', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-red-500 font-bold transition-all">🚀 Ufo</button>
-                    <button onclick="setupGame('grower', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-amber-500 font-bold transition-all">🫧 Blase</button>
+                    <button onclick="setupGame('catcher', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-emerald-500 font-bold transition-all">🍎 Apfelfänger</button>
+                    <button onclick="setupGame('dodger', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-red-500 font-bold transition-all">🚀 UFO-Spiel</button>
+                    <button onclick="setupGame('grower', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-amber-500 font-bold transition-all">🫧 Blasen-ploppen</button>
                 </div>
                 <div id="active-game-area" class="hidden">
                     <canvas id="game-canvas" width="300" height="300" class="mx-auto"></canvas>
