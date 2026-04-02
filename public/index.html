@@ -3,48 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Quiz Master Pro 2.8.5 - ZOLL Edition</title>
+    <title>AI Quiz Master Pro 2.9.0 - ZOLL Edition</title>
     <link rel="icon" href="https://fav.farm/🧠" />
+	<link rel="stylesheet" href="style.css">
 	
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 	
-    <style>
-		/* CSS: Definitionen für Animationen und UI-Komponenten */
-		/* Sanfter Übergang für den Fortschrittsbalken */
-        #progress-bar { transition: width 0.4s ease-in-out; }
-		
-		/* Styling für die Spiele (Canvas) */
-        #game-canvas, #home-canvas { 
-            cursor: none; 
-            background: #ffffff; 
-            border-radius: 1.5rem; 
-            border: 4px solid #e2e8f0; 
-            touch-action: none; 
-        }
-		
-		/* Animationen für das Einblenden von Elementen */
-        .animate-slideIn { animation: slideIn 0.4s ease-out; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-		
-        .option-btn:disabled { opacity: 0.8; cursor: not-allowed; }
-		
-		#pdf-preview-box { transition: all 0.3s ease; max-height: 200px; overflow: hidden; }
-        .mistake-card { animation: slideIn 0.3s ease-out; border-left-width: 4px; }
-		
-		/* Spezifisches Layout für das Mini-Game auf der Startseite (Trainings-Zone) */
-		#home-canvas { 
-			width: 300px;  /* Von 150px auf 300px erhöht */
-			height: 300px; /* Von 150px auf 300px erhöht */
-			background: #ffffff; 
-			border-radius: 1.5rem; /* Abrundung an Quiz-Canvas angepasst */
-			border: 4px solid #e2e8f0; /* Rahmendicke an Quiz-Canvas angepasst */
-			display: block;
-			margin: 0 auto;
-			touch-action: none;
-		}
-		
-    </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-900 pb-20">
 
@@ -56,7 +21,7 @@
 		
 	<!--Überschrift-->
         <div class="bg-slate-50 text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.8.5 🧠 </h1>
+            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.9.0 🧠 </h1>
             <p class="text-slate-500 italic font-bold">Lernen mit System & Spielspaß ©ZOLL-Rentner</p>
         </div>
 
@@ -251,7 +216,7 @@
 
         // Initialisierung von Audio-Kontext für Soundeffekte        
         let quizData = [], currentIndex = 0, score = 0, userMistakes = []; 
-		let gamePoints = 0, gameActive = false, gameDone = false, gameInterval;
+
 		let isMuted = localStorage.getItem('quiz_muted') === 'true';
 
 		/** --- AUDIO LOGIK --- **/
@@ -311,71 +276,9 @@
             reader.readAsArrayBuffer(file);
         }
 
-		/** --- SPIELE ENGINE (CANVAS) Hauptmenu --- **/		
-		function showHomeGameSelection() {
-			gameActive = false;
-			clearInterval(gameInterval);
-			document.getElementById('home-game-selection').classList.remove('hidden');
-			document.getElementById('home-active-game').classList.add('hidden');
-		}
 
-        // --- Minispiele Logik ---
-		function setupGame(type, canvasId) {
-			// UI-Reset für Spielstart
-			if(canvasId === 'home-canvas') {
-				document.getElementById('home-game-selection').classList.add('hidden');
-				document.getElementById('home-active-game').classList.remove('hidden');
-			}
-			gameActive = true; gamePoints = 0;
-			const scoreDisplay = canvasId === 'home-canvas' ? 'home-game-score' : 'game-score';
-			document.getElementById(scoreDisplay).innerText = "0 / 10";
 
-			// UI-Wechsel: Auswahl verstecken, Spielbereich zeigen
-			if(canvasId === 'game-canvas') { 
-				document.getElementById('quiz-game-selection').classList.add('hidden'); 
-				document.getElementById('active-game-area').classList.remove('hidden'); 
-			}
 
-			const canvas = document.getElementById(canvasId);
-			const ctx = canvas.getContext('2d');
-			
-			// Spiel-Variablen, Spiel-Objekte & Physik
-			let objects = []; 
-			let player = { 	x: 150, y: 150, vY: 0 }; // vY für Sprungphysik
-			let target = { 	x: Math.random() * 200 + 50, 
-							y: Math.random() * 200 + 50, 
-							r: 25 }; 
-			let mouse = { 	x: 150, y: 150 };
-			let frames = 	0;
-
-			// Steuerung, Eingabe-Events (Maus & Touch)
-			canvas.onpointermove = (e) => {
-				const r = canvas.getBoundingClientRect();
-				mouse.x = e.clientX - r.left;
-				mouse.y = e.clientY - r.top;
-			};
-
-			canvas.onpointerdown = (e) => {
-				// PFERDE-SPRUNG
-				if (type === 'horse' && player.y >= 250) {
-					player.vY = -12;
-					//updateScore(1, scoreDisplay); // <--- Hier einfügen für 1 Punkt pro Sprung
-				}
-				// BLASEN-WACHSTUM (Grower)
-				if (type === 'grower') {
-					const d = Math.sqrt((mouse.x - target.x)**2 + (mouse.y - target.y)**2);
-					if (d < target.r) {
-						target.r += 15;
-						if(target.r > 70) {
-							playSound('point');
-							updateScore(1, scoreDisplay);
-							target.r = 25;
-							target.x = Math.random() * 200 + 50;
-							target.y = Math.random() * 200 + 50;
-						}
-					}
-				}
-			};
 
 			// Main Game Loop (60 FPS)
 			gameInterval = setInterval(() => {
@@ -790,5 +693,7 @@
 		
 		};
     </script>
+	<script src="games.js"></script>
+    <script src="quiz.js"></script>
 </body>
 </html>
