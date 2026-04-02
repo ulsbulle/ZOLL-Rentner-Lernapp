@@ -1,72 +1,216 @@
-/** --- SPIELE ENGINE --- **/
-let gamePoints = 0;
-let gameActive = false;
-let gameDone = false;
-let gameInterval;
-
-// --- Minispiele Logik ---
-function setupGame(type, canvasId) {
-	// UI-Reset für Spielstart
-	if(canvasId === 'home-canvas') {
-		document.getElementById('home-game-selection').classList.add('hidden');
-		document.getElementById('home-active-game').classList.remove('hidden');
-	}
-	gameActive = true; 
-	gamePoints = 0;
-	const scoreDisplay = canvasId === 'home-canvas' ? 'home-game-score' : 'game-score';
-	document.getElementById(scoreDisplay).innerText = "0 / 10";
-
-	// UI-Wechsel: Auswahl verstecken, Spielbereich zeigen
-	if(canvasId === 'game-canvas') { 
-		document.getElementById('quiz-game-selection').classList.add('hidden'); 
-		document.getElementById('active-game-area').classList.remove('hidden'); 
-	}
-
-	const canvas = document.getElementById(canvasId);
-	const ctx = canvas.getContext('2d');
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Quiz Master Pro 2.9.0 - ZOLL Edition</title>
+    <link rel="icon" href="https://fav.farm/🧠" />
+	<link rel="stylesheet" href="style.css">
 	
-	// Spiel-Variablen, Spiel-Objekte & Physik
-	let objects = []; 
-	let player = { 	x: 150, y: 150, vY: 0 }; // vY für Sprungphysik
-	let target = { 	x: Math.random() * 200 + 50, 
-					y: Math.random() * 200 + 50, 
-					r: 25 }; 
-	let mouse = { 	x: 150, y: 150 };
-	let frames = 	0;
-
-	// Steuerung, Eingabe-Events (Maus & Touch)
-	canvas.onpointermove = (e) => {
-		const r = canvas.getBoundingClientRect();
-		mouse.x = e.clientX - r.left;
-		mouse.y = e.clientY - r.top;
-	};
-
-	canvas.onpointerdown = (e) => {
-		// PFERDE-SPRUNG
-		if (type === 'horse' && player.y >= 250) {
-			player.vY = -12;
-			//updateScore(1, scoreDisplay); // <--- Hier einfügen für 1 Punkt pro Sprung
-		}
-		// BLASEN-WACHSTUM (Grower)
-		if (type === 'grower') {
-			const d = Math.sqrt((mouse.x - target.x)**2 + (mouse.y - target.y)**2);
-			if (d < target.r) {
-				target.r += 15;
-				if(target.r > 70) {
-					playSound('point');
-					updateScore(1, scoreDisplay);
-					target.r = 25;
-					target.x = Math.random() * 200 + 50;
-					target.y = Math.random() * 200 + 50;
-				}
-			}
-		}
-	};
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 	
-	/** --- SPIELE ENGINE (CANVAS) Hauptmenu --- **/		
-function showHomeGameSelection() {
-	gameActive = false;
-	clearInterval(gameInterval);
-	document.getElementById('home-game-selection').classList.remove('hidden');
-	document.getElementById('home-active-game').classList.add('hidden');
-}
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-900 pb-20">
+
+	<!--Mute / Unmute Schaltfläche-->
+    <div class="max-w-2xl mx-auto py-10 px-4">
+		<div class="sticky top-0 flex justify-center mb-2 pt-4">
+                <button onclick="toggleMute()" id="mute-btn" class="p-2 bg-white border border-slate-200 rounded-lg shadow-sm text-xl hover:bg-slate-100 transition-all">🔊</button>
+		</div>
+		
+	<!--Überschrift-->
+        <div class="bg-slate-50 text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">🧠 AI Quiz Master 2.9.0 🧠 </h1>
+            <p class="text-slate-500 italic font-bold">Lernen mit System & Spielspaß ©ZOLL-Rentner</p>
+        </div>
+
+	<!--Aufbau Hauptapp-->
+        <div id="setup-card" class="space-y-6">
+            <div class="bg-white shadow-xl rounded-2xl p-8 border border-slate-200">
+                <div class="space-y-6">
+                    <div class="bg-blue-50 p-5 rounded-xl border border-blue-100">
+					<!--Kurzanleitung-->
+                        <label class="block text-base font-bold text-blue-800 mb-2 underline">Kurzanleitung:</label>
+                        <ul class="text-sm text-blue-900 space-y-1 list-disc ml-5 leading-relaxed font-medium">
+							<li>Wähle <b>PDF</b> für KI-Analyse, <b>CSV</b> für schnellen Import oder <b>Vorlage</b> um ein bereitgestellt Vorlage zu laden.</li>
+							<li>Nutze <b>Drag & Drop</b> zum Hochladen der Dateien.</li>
+							<li>Wähle beim Fragengenrator <b>(KI-Analyse)</b> die gewünschte Fragenanzahl.</li>
+							<li>Nach der halben Fragenanzahl wartet eine <b>Spielpause</b> auf dich!</li>
+							<li>Lerne durch direktes Feedback & Sound nach jeder Antwort.</li>
+                        </ul>
+                    </div>
+					
+				<!--Dropdownmenu zum Modus auswahl, PDF, CSV, Vorlage, Training-->
+                    <div class="p-4 bg-white rounded-xl border border-slate-200">
+                        <label for="Modus" class="block text-sm font-bold text-slate-700 mb-2">Modus wählen:</label>
+                        <select id="Modus" class="w-full p-3 rounded-lg border-2 border-blue-100 focus:border-blue-500 outline-none font-medium bg-white">
+                            <option value="PDF" selected>📄 PDF analysieren (KI)</option>
+                            <option value="CSV">📂 CSV laden (Import)</option>
+                            <option value="TEMPLATE">📚 Vorlagen laden (Server)</option>
+							<option value="TRAINING">🎮 Trainings-Zone (Minispiele)</option>
+                        </select>
+                    </div>
+
+				<!--Wenn PDF ausgewählt wurde-->
+                   <div id="section-pdf" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+							<!--Anzahl der Fragen zum Eintragen bzw. per hoch und runter-->
+                                <label class="block text-sm font-bold text-slate-700 mb-2">Fragenanzahl</label>
+                                <input type="number" id="question-count" min="1" max="20" value="10" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+                            </div>
+							<!--Schaltfläche um die PDF zu wählen bzw. hineinzuziehen-->
+                            <div id="drop-zone" class="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center hover:border-blue-400 transition-all cursor-pointer bg-slate-50"
+                                 onclick="document.getElementById('pdf-file').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                                <input type="file" id="pdf-file" accept="application/pdf" class="hidden" onchange="previewPDF(this)">
+                                <span id="file-name" class="text-xs text-slate-600 font-bold italic">PDF WÄHLEN / DROP</span>
+                            </div>
+                        </div>
+						<!--Vorschau der ersten Seite der PDF wenn PDF hochgeladen-->
+                        <div id="pdf-preview-box" class="hidden mt-4 border-2 border-slate-100 rounded-xl bg-slate-50 flex flex-col items-center p-2">
+                            <canvas id="pdf-canvas" class="shadow-md rounded border border-white max-w-full h-auto"></canvas>
+                        </div>
+                        <button onclick="startQuizGeneration()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl transition-all shadow-lg mt-4 uppercase">🚀 Quiz generieren</button>
+                    </div>
+
+				<!--Wenn CSV ausgewählt wurde-->
+                    <div id="section-csv" class="hidden animate-slideIn">
+					<!--Schaltfläche um die CSV zu wählen bzw. hineinzuziehen-->
+                        <div id="drop-zone-csv" class="bg-emerald-50 border-2 border-dashed border-emerald-200 rounded-2xl p-8 text-center cursor-pointer"
+                         onclick="document.getElementById('csv-import').click()" ondragover="handleDragOverCSV(event)" ondragleave="handleDragLeaveCSV(event)" ondrop="handleDropCSV(event)">
+                            <div class="text-4xl mb-3">📊</div>
+                            <p class="text-emerald-700 font-bold mb-4 text-lg">CSV hierher ziehen oder klicken</p>
+                            <input type="file" id="csv-import" accept=".csv, text/csv, text/plain, application/vnd.ms-excel" class="hidden" onchange="importCSV(this)">
+                            <span class="bg-emerald-600 text-white py-2 px-6 rounded-xl font-bold">Datei wählen</span>
+                        </div>
+                    </div>
+
+				<!--Wenn Vorlage ausgewählt wurde-->
+                    <div id="section-template" class="hidden animate-slideIn space-y-3">
+                        <p class="text-sm font-bold text-slate-600 uppercase mb-2">Verfügbare Themen:</p>
+						<!--Einfügen der Themen die auf dem Server verfügbar sind mit Pfad, je Thema eine Schaltfläche-->
+                        <button onclick="loadTemplate('templates/1mal1.csv')" class="w-full p-4 border-2 rounded-xl bg-white hover:border-blue-500 hover:bg-blue-50 text-left font-bold transition-all flex justify-between items-center group">
+                            <span>🧮 1x1 (100 Fragen)</span>
+                            <span class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">Starten →</span>
+                        </button>
+                        <button onclick="loadTemplate('templates/Verbrauchsteuer.csv')" class="w-full p-4 border-2 rounded-xl bg-white hover:border-blue-500 hover:bg-blue-50 text-left font-bold transition-all flex justify-between items-center group">
+                            <span>⛽ Verbrauchsteuern (10 Fragen)</span>
+                            <span class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">Starten →</span>
+                        </button>
+                    </div>
+					
+				<!--Wenn Training ausgewählt wurde-->
+					<div id="section-training" class="hidden animate-slideIn flex flex-col items-center">
+					<div class="w-[300px] bg-blue-600 p-2 rounded-t-2xl mb-2 flex justify-between items-center shadow-md">
+						<h3 class="text-white font-bold text-[10px]">Training</h3>
+						<span id="home-game-score" class="text-white font-mono font-bold text-[10px] bg-white/20 px-1.5 py-0.5 rounded">0/10</span>
+					</div>
+
+					<div id="home-game-selection" class="grid grid-cols-2 gap-1.5 w-[300px]">
+					<!--Schaltfläche Pferderennen-->
+						<button onclick="setupGame('horse', 'home-canvas')" class="p-2 border-2 rounded-xl bg-white hover:border-blue-500 transition-all flex flex-col items-center shadow-sm">
+							<span class="text-xl">🐎</span>
+							<span class="text-[8px] font-bold uppercase">Pferderennen</span>
+						</button>
+					<!--Schaltfläche Apfelfangen-->
+						<button onclick="setupGame('catcher', 'home-canvas')" class="p-2 border-2 rounded-xl bg-white hover:border-blue-500 transition-all flex flex-col items-center shadow-sm">
+							<span class="text-xl">🍎</span>
+							<span class="text-[8px] font-bold uppercase">Apfelfänger</span>
+						</button>
+					<!--Schaltfläche UFO-Spiel-->
+						<button onclick="setupGame('dodger', 'home-canvas')" class="p-2 border-2 rounded-xl bg-white hover:border-blue-500 transition-all flex flex-col items-center shadow-sm">
+							<span class="text-xl">🛸</span>
+							<span class="text-[8px] font-bold uppercase">UFO-Spiel</span>
+						</button>
+					<!--Schaltfläche BLASEN-WACHSTUM-->
+						<button onclick="setupGame('grower', 'home-canvas')" class="p-2 border-2 rounded-xl bg-white hover:border-blue-500 transition-all flex flex-col items-center shadow-sm">
+							<span class="text-xl">🫧</span>
+							<span class="text-[8px] font-bold uppercase">Blasen-ploppen</span>
+						</button>
+					</div>
+
+					<!--Aussehen Spielevorschau und Schaltfläche Wechseln-->
+					<div id="home-active-game" class="hidden flex flex-col items-center">
+						<div class="relative bg-slate-50 rounded-2xl p-1 border border-slate-200 shadow-inner">
+							<canvas id="home-canvas" width="300" height="300"></canvas>
+						</div>
+							<button onclick="showHomeGameSelection()" class="mt-4 w-full py-3 bg-slate-800 text-white rounded-lg text-sm font-bold uppercase tracking-tighter">
+								↩️ Wechseln
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+        </div>
+       
+		<!--Wartelayout für das Laden-->
+        <div id="status" class="hidden text-center p-12 bg-white rounded-2xl shadow-md border border-slate-100">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 mx-auto mb-4"></div>
+            <p id="status-text" class="text-slate-700 font-bold italic">Fragen werden erstellt...</p>
+        </div>
+
+		<!--Layout für den Quizbereich-->
+        <div id="quiz-container" class="hidden bg-white shadow-2xl rounded-3xl p-8 border border-slate-200">
+            <div id="quiz-content">
+                <div class="w-full bg-slate-100 rounded-full h-2 mb-6"><div id="progress-bar" class="bg-blue-600 h-2 rounded-full" style="width: 0%"></div></div>
+                <span id="q-count" class="text-[10px] font-bold text-blue-500 uppercase tracking-widest"></span>
+                <h2 id="question-text" class="text-xl font-bold text-slate-800 my-6"></h2>
+                <div id="options" class="space-y-3"></div>
+                <div id="feedback-area" class="hidden mt-8 p-6 rounded-2xl border-2 animate-slideIn text-center">
+                    <p id="feedback-text" class="text-lg font-bold mb-4"></p>
+					<br>
+                    <button id="next-q-btn" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl">Nächste Frage →</button>
+                </div>
+            </div>
+
+			<!--Layout für den Spielpause und Spielauswahl-->
+            <div id="game-screen" class="hidden text-center py-4 animate-slideIn">
+                <h2 class="text-2xl font-black text-blue-600 mb-6 uppercase italic">Spielpause! ⚡</h2>
+                <div id="quiz-game-selection" class="grid grid-cols-2 gap-3 mb-6">
+                    <button onclick="setupGame('horse', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-blue-500 font-bold transition-all">🐎 Pferderennen</button>
+                    <button onclick="setupGame('catcher', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-emerald-500 font-bold transition-all">🍎 Apfelfänger</button>
+                    <button onclick="setupGame('dodger', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-red-500 font-bold transition-all">🚀 UFO-Spiel</button>
+                    <button onclick="setupGame('grower', 'game-canvas')" class="p-4 border-2 rounded-2xl bg-white hover:border-amber-500 font-bold transition-all">🫧 Blasen-ploppen</button>
+                </div>
+                <div id="active-game-area" class="hidden">
+                    <canvas id="game-canvas" width="300" height="300" class="mx-auto"></canvas>
+                    <div id="game-score" class="mt-4 font-black text-blue-600 text-4xl italic">0 / 10</div>
+                </div>
+            </div>
+
+			<!--Layout Abschlussauswertung, und bei falschen Antworten die richtige Antworten ausgeben-->
+            <div id="result-screen" class="hidden text-center py-6">
+				<div class="text-6xl mb-4 text-green-500">🏆</div>
+                <h2 class="text-3xl font-bold text-slate-800 mb-2 font-black">AUSWERTUNG</h2>
+                <p id="score-display" class="text-2xl text-blue-600 mb-8 font-black"></p>
+                <div id="mistake-analysis" class="mb-8 space-y-3 text-left max-h-80 overflow-y-auto pr-2"></div>
+                <div class="grid grid-cols-1 gap-3">
+                    <button onclick="restartCurrentQuiz()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg uppercase tracking-wider">🔄 Quiz Neustarten</button>
+                    <button onclick="goToHome()" class="w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-200 transition-colors">🏠 Hauptmenü</button>
+                    <button id="csv-export-btn" onclick="exportCSV()" class="w-full bg-white border border-slate-200 text-slate-500 py-2 rounded-xl text-sm font-bold hover:bg-slate-50">📥 CSV Export</button>
+                </div>
+            </div>
+        </div>
+
+		<!--Layout für den Verlauf (Ergebnisse der letzen runden in diesem Browser), + löschen -->
+        <div id="history-container" class="mt-12">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                <h3 class="font-extrabold text-slate-800 text-sm uppercase tracking-widest flex items-center gap-2">
+                    📊 Letzte Ergebnisse
+                </h3>
+                <button onclick="if(confirm('Verlauf wirklich löschen?')) clearHistory()" class="text-red-400 hover:text-red-600 text-xs font-bold underline transition-colors">
+                    Löschen
+                </button>
+            </div>
+            <div id="history-list" class="space-y-3">
+            </div>
+        </div>
+    </div>
+
+	<!-- Scripte laden-->
+	<script src="games.js"></script>
+    <script src="quiz.js"></script>	
+
+</body>
+</html>
