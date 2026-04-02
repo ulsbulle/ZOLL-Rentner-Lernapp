@@ -75,8 +75,16 @@ async function startQuizGeneration() {
 	if (!file) return alert("PDF fehlt!");
 	
 	toggleCard('status');
+	const statusText = document.getElementById('status-text');
+    statusText.innerText = "PDF wird analysiert...";
+	
 	try {
 		const base64 = (await toBase64(file)).split(',')[1];
+		
+		//Timeout-Schutz vorbereiten 30 Sektionen
+		const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);		
+				
 		const res = await fetch('/api/quiz', { 
 			method: 'POST', 
 			headers: { 'Content-Type': 'application/json' }, 
@@ -86,9 +94,19 @@ async function startQuizGeneration() {
 			}) 
 		});
 		
+		clearTimeout(timeoutId); // Timeout löschen, da Antwort kam
+		
+		// PRÜFUNG: War der Server-Antwort-Status erfolgreich?
+        if (!res.ok) {
+            let errorMsg = "Server-Fehler";
+            if (res.status === 413) errorMsg = "Die PDF-Datei ist zu groß für die KI-Analyse.";
+            if (res.status === 504 || res.status === 500) errorMsg = "Der Server antwortet nicht (Timeout).";
+            throw new Error(errorMsg);
+        }
+		
 		let data = await res.json(); 
 
-		// --- NEU: PDF-ERGEBNISSE MISCHEN ---
+		// PDF-ERGEBNISSE MISCHEN ---
 		shuffleArray(data); // Fragen-Reihenfolge würfeln
 		data.forEach(q => {
 			const correctText = q.options[q.answer]; // Richtige Antwort sichern
@@ -99,10 +117,20 @@ async function startQuizGeneration() {
 		quizData = data; // Gemischte Daten speichern
 		toggleCard('quiz-container'); 
 		showQuestion();
+		
 	} catch (err) { 
-		alert("Fehler bei der KI-Analyse!"); 
-		goToHome(); 
-	}
+		// Differenzierte Fehlermeldung
+        let userMessage = "Fehler: ";
+        if (err.name === 'AbortError') {
+            userMessage += "Die Analyse dauert zu lange. Versuche es mit einer kleineren PDF.";
+        } else {
+            userMessage += err.message;
+        }
+
+        console.error("Quiz-Error:", err); // Für Entwickler in der Konsole
+        alert(userMessage); // Für den Endnutzer
+        goToHome(); 
+    }
 }
 
 // Anzeige der aktuellen Frage
@@ -209,11 +237,16 @@ async function loadTemplate(url) {
     toggleCard('status');
     try {
         const response = await fetch(url);
-        if (!response.ok) throw new Error();
+		
+        if (!response.ok) {
+            throw new Error(`Vorlage konnte nicht geladen werden (Status: ${response.status})`);
+        }
+		
         const text = await response.text();
         parseCSVData(text);
     } catch (err) {
-        alert("Vorlage konnte nicht geladen werden."); goToHome();
+        alert("Fehler beim Laden der Vorlage: " + err.message);
+        goToHome();
     }
 }
 
