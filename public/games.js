@@ -192,5 +192,5 @@ function showHomeGameSelection() {
 // Score im Spiel aktualisieren
 function updateScore(p, displayId) {
     gamePoints += p; document.getElementById(displayId).innerText = `${Math.floor(gamePoints)} / 10`;
-    if (gamePoints >= 10) { gameActive = false; clearInterval(gameInterval); setTimeout(() => (displayId === 'home-game-score' ? closeHomeGame() : showQuestion()), 800); }
+    if (gamePoints >= 10) { gameActive = false; clearInterval(gameInterval); setTimeout(() => (displayId === 'home-game-score' ? showHomeGameSelection() : showQuestion()), 800); }
 }
