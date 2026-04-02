@@ -1,6 +1,6 @@
 // --- LOGIK-TEIL ---
 /** --- GLOBALER ZUSTAND --- **/			
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js'; //laden der Bibliothek
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 // Initialisierung von Audio-Kontext für Soundeffekte        
