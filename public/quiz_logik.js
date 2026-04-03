@@ -296,6 +296,7 @@ function goToHome() {
     document.getElementById('file-name').innerText = "PDF WÄHLEN / DROP";
     document.getElementById('pdf-file').value = "";
     document.getElementById('csv-import').value = "";
+	document.getElementById('download-section').classList.remove('hidden');
 }
 
 //aktuelles Quiz Neustarten
@@ -352,6 +353,7 @@ function clearHistory() { localStorage.removeItem('quiz_history'); renderHistory
     document.getElementById('section-csv').classList.toggle('hidden', this.value !== 'CSV'); 
     document.getElementById('section-template').classList.toggle('hidden', this.value !== 'TEMPLATE'); 
 	document.getElementById('section-training').classList.toggle('hidden', this.value !== 'TRAINING'); // NEU
+	document.getElementById('section-downloads').classList.toggle('hidden', this.value !== 'DOWNLOADS');
 	
 	// Falls ein Spiel auf dem Home-Canvas läuft, stoppen wenn man den Modus wechselt
 	if(this.value !== 'TRAINING') {
@@ -375,45 +377,30 @@ function handleDragLeaveCSV(e) {
 //Downloadbereich Offline
 async function loadDownloadFiles() {
     const listElement = document.getElementById('file-list');
-    
-    if (!listElement) {
-        console.error("Fehler: Element mit ID 'file-list' wurde im HTML nicht gefunden!");
-        return;
-    }
-
     try {
         const response = await fetch('/api/files');
         const files = await response.json();
 
-        console.log("Dateien vom Server erhalten:", files);
-
-        if (!files || files.length === 0) {
-            listElement.innerHTML = '<li class="text-slate-400 text-sm italic p-2">Keine Dateien im Download-Ordner gefunden.</li>';
+        if (files.length === 0) {
+            listElement.innerHTML = '<li class="text-slate-400 text-sm">Keine Dateien verfügbar.</li>';
             return;
         }
 
-        // HTML generieren
-        const html = files.map(file => `
-            <li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-blue-50 transition-colors border border-slate-100">
+        listElement.innerHTML = files.map(file => `
+            <li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-blue-50 transition-colors group">
                 <span class="text-slate-700 font-medium truncate">${file}</span>
                 <a href="/downloads/${file}" download 
-                   class="bg-blue-600 text-white px-3 py-1 rounded-md text-xs font-bold hover:bg-blue-700 transition-all shadow-sm">
+                   class="bg-blue-100 text-blue-600 px-3 py-1 rounded-md text-xs font-bold hover:bg-blue-600 hover:text-white transition-all">
                    Laden ↓
                 </a>
             </li>
         `).join('');
-
-        listElement.innerHTML = html;
-        console.log("Liste wurde erfolgreich befüllt.");
-
     } catch (error) {
-        console.error("Fehler beim Laden der Dateiliste:", error);
-        listElement.innerHTML = '<li class="text-red-400 text-sm p-2">Fehler beim Laden der Liste.</li>';
+        listElement.innerHTML = '<li class="text-red-400 text-sm">Fehler beim Laden der Liste.</li>';
     }
 }
 
-// Teste dies direkt in der Konsole (F12) deiner Webseite:
-fetch('/api/files').then(res => res.json()).then(console.log);
+
 
 // Initialisierung beim Laden
 window.onload = () => {
@@ -429,6 +416,7 @@ window.onload = () => {
 	document.getElementById('section-csv').classList.add('hidden');
 	document.getElementById('section-template').classList.add('hidden');
 	document.getElementById('section-training').classList.add('hidden');
+	document.getElementById('section-downloads').classList.add('hidden');
 
 	renderHistory(); 
 	updateMuteUI();
