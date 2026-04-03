@@ -398,7 +398,8 @@ async function loadDownloadFiles() {
     }
 }
 
-
+// Teste dies direkt in der Konsole (F12) deiner Webseite:
+fetch('/api/files').then(res => res.json()).then(console.log);
 
 // Initialisierung beim Laden
 window.onload = () => {
