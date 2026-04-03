@@ -398,13 +398,14 @@ function handleDragLeaveCSV(e) {
 
 //Downloadbereich Offline
 async function loadDownloadFiles() {
-    const listElement = document.getElementById('file-list');
+    const downloadList = document.getElementById('file-list');
 	const templateList = document.getElementById('template-list');
 	
     try {
         const response = await fetch('/api/files');
         const files = await response.json();
 
+		// Falls keine Dateien da sind oder die API leer antwortet
 		if (!files || files.length === 0) {
             if(downloadList) downloadList.innerHTML = '<li class="text-slate-400 text-sm">Keine Dateien verfügbar.</li>';
             if(templateList) templateList.innerHTML = '<p class="text-slate-400 text-sm italic">Keine Vorlagen gefunden.</p>';
