@@ -63,6 +63,28 @@ app.post('/api/quiz', async (req, res) => {
     }
 });
 
+import fs from 'fs'; // Dateisystem-Modul importieren
+
+// 1. Ordner als statisch markieren (damit Dateien direkt verlinkbar sind)
+app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
+
+// 2. Endpunkt erstellen, der die Dateiliste zurückgibt
+app.get('/api/files', (req, res) => {
+    const downloadPath = path.join(__dirname, 'downloads');
+    
+    // Prüfen, ob Ordner existiert
+    if (!fs.existsSync(downloadPath)) {
+        return res.json([]); 
+    }
+
+    fs.readdir(downloadPath, (err, files) => {
+        if (err) return res.status(500).json({ error: "Fehler beim Lesen" });
+        // Nur echte Dateien zurückgeben (keine versteckten Systemdateien)
+        const fileList = files.filter(file => !file.startsWith('.'));
+        res.json(fileList);
+    });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server läuft auf Port ${PORT} mit Gemini 2.5 Support`);
 });
