@@ -299,6 +299,19 @@ function goToHome() {
 	document.getElementById('download-section').classList.remove('hidden');
 }
 
+//Downlaod ausblenden
+function toggleDownloads(show) {
+    const downloadSection = document.getElementById('download-section');
+    if (downloadSection) {
+        if (show) {
+            downloadSection.classList.remove('hidden');
+        } else {
+            downloadSection.classList.add('hidden');
+        }
+    }
+}
+
+
 //aktuelles Quiz Neustarten
 function restartCurrentQuiz() {
 	if (quizData.length === 0) return goToHome();
