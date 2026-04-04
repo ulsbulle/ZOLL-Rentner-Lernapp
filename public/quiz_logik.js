@@ -399,6 +399,7 @@ function handleDragLeaveCSV(e) {
 //Downloadbereich Offline
 async function loadDownloadFiles() {
     const downloadList = document.getElementById('file-list');
+	const downloadList2 = document.getElementById('file2-list');
 	const templateList = document.getElementById('template-list');
 	
     try {
@@ -408,6 +409,7 @@ async function loadDownloadFiles() {
 		// Falls keine Dateien da sind oder die API leer antwortet
 		if (!files || files.length === 0) {
             if(downloadList) downloadList.innerHTML = '<li class="text-slate-400 text-sm">Keine Dateien verfügbar.</li>';
+			if(downloadLis2t) downloadList2.innerHTML = '<li class="text-slate-400 text-sm">Keine Dateien verfügbar.</li>';
             if(templateList) templateList.innerHTML = '<p class="text-slate-400 text-sm italic">Keine Vorlagen gefunden.</p>';
             return;
         }
@@ -421,6 +423,9 @@ async function loadDownloadFiles() {
                    Laden ↓
                 </a>
             </li>
+        `).join('');
+		
+		downloadList2.innerHTML = files.map(file => `
 			<li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-blue-50 transition-colors group">
                 <span class="text-slate-700 font-medium truncate">${file}</span>
                 <a href="/downloads/${file}" download 
