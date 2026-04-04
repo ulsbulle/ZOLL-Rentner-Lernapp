@@ -75,8 +75,8 @@ app.post('/api/quiz', async (req, res) => {
 // Endpunkt, der die Dateiliste aus dem 'templates' Ordner zurückgibt
 app.get('/api/files', (req, res) => {
     // Wir priorisieren hier den 'templates' Ordner für die automatische Auflistung
-    const templatePath = path.join(__dirname, 'templates');
-    const downloadsPath = path.join(__dirname, 'downloads');
+    const templatedir = path.join(__dirname, 'templates');
+    const downloadsdir = path.join(__dirname, 'downloads');
     
     // Dateien aus Templates lesen
     if (fs.existsSync(templatesDir)) {
@@ -92,7 +92,6 @@ app.get('/api/files', (req, res) => {
     }
 
     res.json(allFiles);
-});
 });
 
 // Server Start
