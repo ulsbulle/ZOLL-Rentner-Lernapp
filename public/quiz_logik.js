@@ -457,9 +457,6 @@ try {
         if(downloadList) downloadList.innerHTML = '<li class="text-red-400 text-sm">Fehler beim Laden der Liste.</li>';
     }
 }
-}
-
-
 
 // Initialisierung beim Laden
 window.onload = () => {
