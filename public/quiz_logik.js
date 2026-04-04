@@ -431,8 +431,7 @@ try {
                     </a>
                 </li>
             `).join('');
-            if(lernDateien.length === 0) downloadList.innerHTML = '<li class="text-slate-400 text-sm italic">Keine Lernmaterialien gefunden.</li>';
-        }
+       }
 		
         // 2. Sonstige Downloads füllen (Alles außer PDF/CSV)
         if(downloadList2) {
@@ -445,8 +444,12 @@ try {
                     </a>
                 </li>
             `).join('');
-            if(sonstigeDateien.length === 0) downloadList2.innerHTML = '<li class="text-slate-400 text-sm italic">Keine sonstigen Downloads verfügbar.</li>';
+            
+		// Falls keine sonstigen Dateien da sind, zeige einen Hinweis
+        if(sonstigeDateien.length === 0) {
+                downloadList2.innerHTML = '<li class="text-slate-400 text-sm italic p-2">Keine sonstigen Dateien gefunden.</li>';
         }
+    }
 
         // 3. Vorlagen-Bereich füllen (Nur .csv Dateien)
         if(templateList) {
@@ -461,7 +464,6 @@ try {
 
     } catch (error) {
         console.error("Fehler beim Laden der Dateien:", error);
-        if(downloadList) downloadList.innerHTML = '<li class="text-red-400 text-sm">Fehler beim Laden der Liste.</li>';
     }
 }
 
