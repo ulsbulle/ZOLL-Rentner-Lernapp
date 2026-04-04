@@ -468,7 +468,7 @@ try {
 window.onload = () => {
 	// Setzt das Dropdown beim Laden explizit auf PDF
 	const modusSelect = document.getElementById('Modus');
-	modusSelect.value = 'PDF';
+	if(modusSelect) modusSelect.value = 'PDF';
 	
 	//Downloadbereich
 	loadDownloadFiles(); // Einfach direkt hier aufrufen
