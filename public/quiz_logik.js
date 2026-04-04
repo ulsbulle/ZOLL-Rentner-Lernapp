@@ -413,8 +413,11 @@ try {
             return;
         }
 
-		// --- DEFINITIONEN ---
+		// --- Festlegung der Lsiten ---
+        // Liste 1: Nur PDF und CSV (Lernmaterial)
         const lernDateien = files.filter(f => f.toLowerCase().endsWith('.pdf') || f.toLowerCase().endsWith('.csv'));
+        
+        // Liste 2: Alles andere (z.B. .html, .zip, .exe)
         const sonstigeDateien = files.filter(f => !f.toLowerCase().endsWith('.pdf') && !f.toLowerCase().endsWith('.csv'));
 
         // 1. Lernmaterialien füllen (nur PDFs und CSVs)
