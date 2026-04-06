@@ -401,50 +401,46 @@ async function loadDownloadFiles() {
     const downloadList = document.getElementById('file-list');
     const downloadList2 = document.getElementById('file2-list');
     const templateList = document.getElementById('template-list');
-    
+
     try {
-        // Abruf der beiden getrennten Endpunkte
         const [resT, resD] = await Promise.all([
             fetch('/api/files/templates'),
             fetch('/api/files/downloads')
         ]);
         
-        if (!resT.ok || !resD.ok) throw new Error("Fehler beim Laden der Dateien");
+        if (!resT.ok || !resD.ok) return;
 
         const templates = await resT.json();
         const downloads = await resD.json();
 
-        // 1. Lernmaterialien (Templates)
         if (downloadList) {
-            downloadList.innerHTML = templates.length > 0 ? templates.map(file => `
+            downloadList.innerHTML = templates.map(file => `
                 <li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                    <span class="text-slate-700">📄 ${file}</span>
-                    <a href="/templates/${file}" download class="bg-blue-100 text-blue-600 px-3 py-1 rounded-md text-xs font-bold">Laden ↓</a>
-                </li>`).join('') : '<li class="text-slate-400 text-sm italic">Keine Dateien gefunden.</li>';
+                    <span>📄 ${file}</span>
+                    <a href="/templates/${file}" download class="text-blue-600 font-bold">Laden ↓</a>
+                </li>`).join('');
         }
 
-        // 2. Vorlagen-Buttons (nur CSV)
         if (templateList) {
             const csvFiles = templates.filter(f => f.toLowerCase().endsWith('.csv'));
-            templateList.innerHTML = csvFiles.length > 0 ? csvFiles.map(file => `
-                <button onclick="loadTemplate('/templates/${file}')" class="w-full p-4 border-2 rounded-xl bg-white hover:border-blue-500 text-left font-bold transition-all flex justify-between items-center">
+            templateList.innerHTML = csvFiles.map(file => `
+                <button onclick="loadTemplate('/templates/${file}')" class="w-full p-4 border-2 rounded-xl bg-white hover:border-blue-500 font-bold flex justify-between">
                     <span>📊 ${file.replace('.csv', '')}</span>
-                    <span class="text-blue-500">Starten →</span>
-                </button>`).join('') : '<p class="text-slate-400 text-center">Keine CSV-Vorlagen gefunden.</p>';
+                    <span>Starten →</span>
+                </button>`).join('');
         }
 
-        // 3. Sonstige Downloads
         if (downloadList2) {
-            downloadList2.innerHTML = downloads.length > 0 ? downloads.map(file => `
+            downloadList2.innerHTML = downloads.map(file => `
                 <li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                    <span class="text-slate-700">📦 ${file}</span>
-                    <a href="/downloads/${file}" download class="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-bold">Download ↓</a>
-                </li>`).join('') : '<li class="text-slate-400 text-sm italic">Keine Dateien gefunden.</li>';
+                    <span>📦 ${file}</span>
+                    <a href="/downloads/${file}" download class="text-slate-800 font-bold">Download ↓</a>
+                </li>`).join('');
         }
     } catch (error) {
-        console.error("Fehler im Frontend:", error);
+        console.error("Fehler beim Laden der Listen:", error);
     }
-}
+} // Stelle sicher, dass hier alle Klammern korrekt geschlossen sind
 			
 
 // Initialisierung beim Laden
