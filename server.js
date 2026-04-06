@@ -72,7 +72,7 @@ app.post('/api/quiz', async (req, res) => {
 
 /** --- DATEI-SYSTEM ENDPUNKTE --- **/
 
-// Endpunkt, der die Dateiliste aus dem 'templates' Ordner zurückgibt
+// 1. Endpunkt, der die Dateiliste aus dem 'templates' Ordner zurückgibt
 app.get('/api/files', (req, res) => {
     // Wir priorisieren hier den 'templates' Ordner für die automatische Auflistung
     const templatePath = path.join(__dirname, 'templates');
@@ -95,8 +95,21 @@ app.get('/api/files', (req, res) => {
     });
 });
 
+// 2. Endpunkt für Sonstige Downloads (Inhalt aus /downloads)
+app.get('/api/files/downloads', (req, res) => {
+    const dirPath = path.join(__dirname, 'downloads');
+    
+    if (!fs.existsSync(dirPath)) return res.json([]);
+
+    fs.readdir(dirPath, (err, files) => {
+        if (err) return res.status(500).json({ error: "Fehler beim Lesen der Downloads" });
+        res.json(files.filter(file => !file.startsWith('.')));
+    });
+});
+
 // Server Start
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server läuft auf Port ${PORT}`);
-    console.log(`Statische Dateien werden aus /templates und /downloads serviert.`);
+    console.log(`📁 Templates werden aus /templates serviert`);
+	console.log(`📁 Sonstiges wird aus /downloads serviert`);
 });
