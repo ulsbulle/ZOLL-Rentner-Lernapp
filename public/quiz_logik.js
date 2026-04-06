@@ -411,52 +411,54 @@ try {
 		const resDownloads = await fetch('/api/files/downloads');
         const downloads = await resDownloads.json();
 
-		try {
-        // Daten von beiden Endpunkten abrufen
-        const [resT, resD] = await Promise.all([
-            fetch('/api/files/templates'),
-            fetch('/api/files/downloads')
-        ]);
-        
-        const templates = await resT.json();
-        const downloads = await resD.json();
-
-        // --- 1. VERFÜGBARE LERNMATERIALIEN (aus /templates) ---
-        if (downloadList) {
-            // Zeige alle Dateien aus dem templates-Ordner (CSVs und PDFs)
-            downloadList.innerHTML = templates.length > 0 ? templates.map(file => `
-                <li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-blue-50 transition-colors">
+		// --- Lernmaterialien & Vorlagen füllen (.csv & .pdf aus /templates) ---       
+		if (!files || files.length === 0) {
+			// Liste für den Download-Tab
+			downloadList.innerHTML = templates.map(file => `
+                <li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-blue-50 transition-colors group">
                     <span class="text-slate-700 font-medium truncate">📄 ${file}</span>
-                    <a href="/templates/${file}" download class="bg-blue-100 text-blue-600 px-3 py-1 rounded-md text-xs font-bold hover:bg-blue-600 hover:text-white transition-all">Laden ↓</a>
+                    <a href="/templates/${file}" download 
+                       class="bg-blue-100 text-blue-600 px-3 py-1 rounded-md text-xs font-bold hover:bg-blue-600 hover:text-white transition-all">
+                       Laden ↓
+                    </a>
                 </li>
-            `).join('') : '<li class="text-slate-400 text-sm italic">Keine Lernmaterialien gefunden.</li>';
+            `).join('');
+
+// Buttons für den Vorlagen-Tab (Nur CSVs)
+            if (templateList) {
+                const csvFiles = templates.filter(f => f.toLowerCase().endsWith('.csv'));
+                templateList.innerHTML = csvFiles.map(file => `
+                    <button onclick="loadTemplate('/templates/${file}')" class="w-full p-4 border-2 rounded-xl bg-white hover:border-blue-500 hover:bg-blue-50 text-left font-bold transition-all flex justify-between items-center group">
+                        <span>📊 ${file.replace('.csv', '')}</span>
+                        <span class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">Starten →</span>
+                    </button>
+                `).join('');
+            }
+        } else {
+            downloadList.innerHTML = '<li class="text-slate-400 text-sm italic">Keine Lernmaterialien gefunden.</li>';
         }
 
-        // --- 2. VORLAGEN-BUTTONS (nur .csv aus /templates) ---
-        if (templateList) {
-            const csvFiles = templates.filter(f => f.toLowerCase().endsWith('.csv'));
-            templateList.innerHTML = csvFiles.length > 0 ? csvFiles.map(file => `
-                <button onclick="loadTemplate('/templates/${file}')" class="w-full p-4 border-2 rounded-xl bg-white hover:border-blue-500 hover:bg-blue-50 text-left font-bold transition-all flex justify-between items-center group">
-                    <span>📊 ${file.replace('.csv', '')}</span>
-                    <span class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">Starten →</span>
-                </button>
-            `).join('') : '<p class="text-slate-400 text-center">Keine CSV-Vorlagen im Ordner /templates.</p>';
-        }
-
-        // --- 3. SONSTIGE DOWNLOADS (aus /downloads) ---
+        // --- Sonstige Downloads füllen (Alles aus /downloads) ---
         if (downloadList2) {
-            downloadList2.innerHTML = downloads.length > 0 ? downloads.map(file => `
-                <li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-gray-100 transition-colors">
-                    <span class="text-slate-700 font-medium truncate">📦 ${file}</span>
-                    <a href="/downloads/${file}" download class="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-bold hover:bg-black transition-all">Download ↓</a>
-                </li>
-            `).join('') : '<li class="text-slate-400 text-sm italic">Keine sonstigen Dateien gefunden.</li>';
+            if (downloads && downloads.length > 0) {
+                downloadList2.innerHTML = downloads.map(file => `
+                    <li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-blue-50 transition-colors group">
+                        <span class="text-slate-700 font-medium truncate">📦 ${file}</span>
+                        <a href="/downloads/${file}" download 
+                           class="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-bold hover:bg-black transition-all">
+                           Download ↓
+                        </a>
+                    </li>
+                `).join('');
+            } else {
+                downloadList2.innerHTML = '<li class="text-slate-400 text-sm italic p-2">Keine sonstigen Dateien gefunden.</li>';
+            }
         }
 
     } catch (error) {
-        console.error("Fehler beim Laden der Listen:", error);
+        console.error("Fehler beim Laden der Dateien:", error);
     }
-}
+}			
 			
 
 // Initialisierung beim Laden
