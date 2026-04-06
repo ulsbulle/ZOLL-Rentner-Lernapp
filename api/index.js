@@ -87,14 +87,13 @@ const getFilesFromDir = (folderName) => {
 };
 
 /** --- DATEI-SYSTEM ENDPUNKTE --- **/
-	app.get('/api/files/templates', (req, res) => {
-    const files = getFilesOnly('templates');
+app.get('/api/files/templates', (req, res) => {
+    const files = getFilesFromDir('templates'); // Funktionsname angepasst
     res.json(files);
 });
 
-// Endpunkt für 'downloads' (Sonstige Dateien)
-	app.get('/api/files/downloads', (req, res) => {
-    const files = getFilesOnly('downloads');
+app.get('/api/files/downloads', (req, res) => {
+    const files = getFilesFromDir('downloads'); // Funktionsname angepasst
     res.json(files);
 });
 
