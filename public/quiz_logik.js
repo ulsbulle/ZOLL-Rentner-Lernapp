@@ -56,7 +56,7 @@ async function startQuizGeneration() {
 			headers: { 'Content-Type': 'application/json' }, 
 			body: JSON.stringify({ 
 				pdfBase64: base64, 
-				questionCount: document.getElementById('question-count').value 
+				questionCount: document.getElementById('question-count').value,
 				customPrompt: customPrompt // NEU: Wird an das Backend gesendet
 			}) 
 		});
