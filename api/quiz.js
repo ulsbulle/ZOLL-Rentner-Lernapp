@@ -7,12 +7,16 @@ export default async function handler(req, res) {
     try {
         const { pdfBase64, questionCount, customPrompt } = req.body;
         const apiKey = process.env.GEMINI_API_KEY;
+		
+		if (!apiKey) throw new Error("API-Key fehlt in den Vercel-Umgebungsvariablen!");
 
-        // Validierung: Nur Text hinzufügen, wenn customPrompt existiert und nicht leer ist
+        // Prüfe, ob ein manueller Prompt mitgegeben wurde und bereite die Zusatzinstruktion vor
         const extraInstructions = (customPrompt && customPrompt.trim().length > 0) 
             ? ` Beachte unbedingt diese zusätzliche Benutzeranweisung: "${customPrompt.trim()}".` 
             : "";
 
+
+		// Die URL für die Gemini API
         const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
         const response = await fetch(url, {
@@ -42,10 +46,13 @@ export default async function handler(req, res) {
             });
         }
 
+        // Extrahiere den Textinhalt der KI-Antwort
         const resultText = data.candidates[0].content.parts[0].text;
         
-        // JSON säubern und senden
+        // JSON säubern (falls Markdown-Blocks vorhanden sind) und parsen
         const cleanJson = resultText.replace(/```json|```/g, "").trim();
+        
+        // Sende die fertigen Fragen zurück an das Frontend
         res.status(200).json(JSON.parse(cleanJson));
 
     } catch (error) {
