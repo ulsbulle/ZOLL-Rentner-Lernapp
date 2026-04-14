@@ -38,7 +38,7 @@ async function startQuizGeneration() {
 	
 	// Sicherstellen, dass das Feld existiert, bevor der Wert gelesen wird
 	const customPromptField = document.getElementById('custom-prompt');
-	const customPrompt = customPromptField ? customPromptField.value : "";
+	const customPrompt = customPromptField ? customPromptField.value.trim() : "";
 	
 	toggleCard('status');
 	const statusText = document.getElementById('status-text');
@@ -56,8 +56,8 @@ async function startQuizGeneration() {
 			headers: { 'Content-Type': 'application/json' }, 
 			body: JSON.stringify({ 
 				pdfBase64: base64, 
-				questionCount: document.getElementById('question-count').value,
-				customPrompt: customPrompt // NEU: Wird an das Backend gesendet
+				questionCount: document.getElementById('question-count').value, 
+				...(customPrompt && { customPrompt }) // Sendet customPrompt nur, wenn nicht leer
 			}) 
 		});
 		
