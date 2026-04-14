@@ -57,7 +57,7 @@ async function startQuizGeneration() {
 			body: JSON.stringify({ 
 				pdfBase64: base64, 
 				questionCount: document.getElementById('question-count').value, 
-				...(customPrompt && { customPrompt }) // Sendet customPrompt nur, wenn nicht leer
+				customPrompt: customPrompt // Wird nun korrekt übertragen
 			}) 
 		});
 		
