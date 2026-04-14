@@ -5,12 +5,14 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { pdfBase64, questionCount } = req.body;
+        const { pdfBase64, questionCount, customPrompt } = req.body;
         const apiKey = process.env.GEMINI_API_KEY;
 
-        if (!apiKey) throw new Error("API-Key fehlt in den Vercel-Umgebungsvariablen!");
+        // Validierung: Nur Text hinzufügen, wenn customPrompt existiert und nicht leer ist
+        const extraInstructions = (customPrompt && customPrompt.trim().length > 0) 
+            ? ` Beachte unbedingt diese zusätzliche Benutzeranweisung: "${customPrompt.trim()}".` 
+            : "";
 
-        // Die stabilste URL für die USA-Region
         const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
         const response = await fetch(url, {
@@ -20,10 +22,14 @@ export default async function handler(req, res) {
                 contents: [{
                     parts: [
                         { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
-                        { text: `Erstelle exakt ${questionCount} Multiple-Choice-Fragen auf Deutsch basierend auf diesem PDF. Antwort NUR als JSON-Array: [{"question":"Frage","options":["A","B","C","D"],"answer":0}]` }
+                        { 
+                            text: `Erstelle exakt ${questionCount} Multiple-Choice-Fragen auf Deutsch basierend auf diesem PDF.${extraInstructions} Antwort NUR als JSON-Array: [{"question":"Frage","options":["A","B","C","D"],"answer":0}]` 
+                        }
                     ]
                 }],
-                generationConfig: { }
+                generationConfig: { 
+                    responseMimeType: "application/json"
+                }
             })
         });
 
