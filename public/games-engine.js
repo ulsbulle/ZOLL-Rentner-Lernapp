@@ -93,6 +93,17 @@ function setupGame(type, canvasId) {
 	gameActive = true;
 	gamePoints = 0;
 	gameState.gameResult = null; // "win", "lose" oder null
+
+	//Werte AKTUELL aus den Dropdowns/Inputs holen
+    const scoreInput = document.getElementById("max-score-input"); // ID deines Dropdowns/Inputs
+    const difficultyInput = document.getElementById("difficulty-input"); // ID deines Dropdowns
+    
+    if (scoreInput) {
+        maxScore = parseInt(scoreInput.value);
+    }
+    if (difficultyInput) {
+        difficulty = parseFloat(difficultyInput.value);
+    }
 	
 	// Schwierigkeitsgrad und Ziel-Punktzahl speichern
     localStorage.setItem("gameDifficulty", difficulty);
