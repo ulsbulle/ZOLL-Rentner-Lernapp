@@ -92,13 +92,20 @@ const gameState = {
 // Spielstartfunktion (durch HTML aufgerufen)
 function setupGame(type, canvasId) {
 	gameActive = true;
-	gamePoints = 0;
+	window.gamePoints = 0; // Sicherstellen, dass es auf 0 steht
 	gameState.gameResult = null; // "win", "lose" oder null
 
 	//Werte AKTUELL aus den Dropdowns/Inputs holen
     const scoreInput = document.getElementById("max-score-input"); // ID deines Dropdowns/Inputs
     const difficultyInput = document.getElementById("difficulty-input"); // ID deines Dropdowns
     
+	// Fallbacks einbauen, damit niemals NaN entsteht
+    window.maxScore = (scoreInput && scoreInput.value) ? parseInt(scoreInput.value) : 10;
+    window.difficulty = (difficultyInput && difficultyInput.value) ? parseFloat(difficultyInput.value) : 1.0;
+    
+    if (isNaN(window.maxScore)) window.maxScore = 10;
+    if (isNaN(window.difficulty)) window.difficulty = 1.0;
+	
     if (scoreInput) {
         maxScore = parseInt(scoreInput.value);
     }
