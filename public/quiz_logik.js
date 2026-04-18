@@ -2,6 +2,11 @@
 /** --- GLOBALER ZUSTAND --- **/
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js"; //laden der Bibliothek
 
+// --- GLOBALER ZUSTAND ---
+window.gamePoints = 0;
+window.maxScore = 10;
+window.difficulty = 1.0;
+
 /** --- PDF VORSCHAU --- **/
 /**
  * PDF-Analyse via API.
@@ -138,9 +143,12 @@ function showQuestion() {
 		b.onclick = () => {
 			// Antwortprüfung
 			document.querySelectorAll(".option-btn").forEach((btn) => (btn.disabled = true));
+			
 			const isCorrect = i === q.answer;
 			const area = document.getElementById("feedback-area");
 			const txt = document.getElementById("feedback-text");
+			const nextBtn = document.getElementById("next-q-btn");
+			
 			if (isCorrect) {
 				score++;
 				playSound("correct");
@@ -160,7 +168,9 @@ function showQuestion() {
 				`;
 				txt.className = "text-red-600 font-bold";
 			}
-			area.classList.remove("hidden");
+			
+			// Feedback einblenden
+			feedbackArea.classList.remove("hidden");
 			
 			// --- FIX: Fokus auf Weiter-Button ---
 			nextBtn.onclick = () => {
@@ -168,6 +178,7 @@ function showQuestion() {
 				showQuestion();
 			};
 
+			// FOKUS-FIX: Verzögerter Fokus auf den Button
 			setTimeout(() => {
 				nextBtn.focus();
 			}, 50);
