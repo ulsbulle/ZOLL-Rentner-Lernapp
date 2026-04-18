@@ -145,8 +145,8 @@ function showQuestion() {
 			document.querySelectorAll(".option-btn").forEach((btn) => (btn.disabled = true));
 			
 			const isCorrect = i === q.answer;
-			const area = document.getElementById("feedback-area");
-			const txt = document.getElementById("feedback-text");
+			const feedbackArea = document.getElementById("feedback-area");
+			const feedbackText = document.getElementById("feedback-text");
 			const nextBtn = document.getElementById("next-q-btn");
 			
 			if (isCorrect) {
