@@ -5,7 +5,7 @@ export default async function handler(req, res) {
 	}
 
 	try {
-		const { pdfBase64, questionCount } = req.body;
+		const { pdfBase64, questionCount, customprompt } = req.body;
 		const apiKey = process.env.GEMINI_API_KEY;
 
 		if (!apiKey) throw new Error("API-Key fehlt in den Vercel-Umgebungsvariablen!");
@@ -22,8 +22,7 @@ export default async function handler(req, res) {
 						parts: [
 							{ inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
 							{
-								text: `Erstelle exakt ${questionCount} Multiple-Choice-Fragen auf Deutsch basierend auf diesem PDF. ${custom_prompt} Antwort NUR als JSON-Array: [{"question":"Frage","options":["A","B","C","D"],"answer":0}]`,
-								console.log (`Erstelle exakt ${questionCount} Multiple-Choice-Fragen auf Deutsch basierend auf diesem PDF. ${custom_prompt} Antwort NUR als JSON-Array:`)
+								text: `Erstelle exakt ${questionCount} Multiple-Choice-Fragen auf Deutsch basierend auf diesem PDF. ${customprompt} Antwort NUR als JSON-Array: [{"question":"Frage","options":["A","B","C","D"],"answer":0}]`,
 							},
 						],
 					},
