@@ -14,10 +14,51 @@ window.addEventListener("pointermove", (e) => {
 	pointerStart.y = e.y;
 });
 
+// Event-Listener für den Spielstart durch games-engine
+document.addEventListener("gameStarted", (e) => {
+	const { canvasId } = e.detail;
+	// Zielpunktzahl und Schwierigkeitsgrad auslesen
+	const scoreInput = document.getElementById("max-score-input");
+	const difficultyInput = document.getElementById("difficulty-select");
+	if (scoreInput && scoreInput.value) maxScore = Math.min(1000, parseInt(Math.max(50, scoreInput.value)));
+	if (difficultyInput && difficultyInput.value) difficulty = parseFloat(difficultyInput.value) || 1.0;
+	localStorage.setItem("gameDifficulty", difficulty);
+	localStorage.setItem("gameMaxScore", maxScore);
+	// UI-Wechsel: Spielbereich zeigen
+	let activeArea;
+	if (canvasId === "home-canvas") {
+		document.getElementById("home-game-selection").classList.add("hidden");
+		activeArea = document.getElementById("home-active-game");
+		activeArea.classList.remove("hidden");
+	} else if (canvasId === "game-canvas") {
+		document.getElementById("quiz-game-selection").classList.add("hidden");
+		activeArea = document.getElementById("active-game-area");
+		activeArea.classList.remove("hidden");
+	}
+	// Zum Spielfeld scrollen
+	if (activeArea) {
+		setTimeout(() => {
+			activeArea.scrollIntoView({ behavior: "smooth", block: "center" });
+		}, 100);
+	}
+	toggleTrainingControls(true);
+});
+
+// Event-Listener für das Beenden des Spiels durch games-engine
+document.addEventListener("exitGameRequested", (e) => {
+	const { canvasId } = e.detail;
+	if (canvasId === "home-canvas") {
+		showHomeGameSelection();
+	} else if (typeof showQuestion === "function") {
+		showQuestion();
+	}
+});
+
 // Speichert den gewählten Schwierigkeitsgrad aus dem Dropdown-Menü
 function updateDifficulty() {
 	const select = document.getElementById("difficulty-select");
 	difficulty = select.value;
+	localStorage.setItem("gameDifficulty", difficulty);
 }
 
 // Zielpunktzahl bearbeiten
@@ -54,6 +95,7 @@ function newMaxScore() {
 	if (newScore > 1000) newScore = 1000;
 
 	maxScore = newScore;
+	localStorage.setItem("gameMaxScore", maxScore);
 	scoreDisplay.innerText = `${maxScore} P`;
 
 	inputContainer.classList.add("hidden");
@@ -82,7 +124,6 @@ function toggleTrainingControls(lockStatus) {
 function showHomeGameSelection() {
 	gameActive = false;
 	cancelAnimationFrame(gameAnimationId);
-
 	document.getElementById("home-game-selection").classList.remove("hidden");
 	document.getElementById("home-active-game").classList.add("hidden");
 	toggleTrainingControls(false);

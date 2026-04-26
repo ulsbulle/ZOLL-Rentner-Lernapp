@@ -60,6 +60,65 @@ function createExplosion(state, x, y, color) {
 	}
 }
 
+// Endbildschirm zeichnen
+function drawEndScreen(ctx, result, btnRect) {
+	// Hintergrund-Overlay mit Farbverlauf
+	const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+	if (result === "win") {
+		gradient.addColorStop(0, "rgba(20, 50, 20, 0.95)");
+		gradient.addColorStop(1, "rgba(40, 100, 60, 0.9)");
+	} else {
+		gradient.addColorStop(0, "rgba(30, 20, 50, 0.95)");
+		gradient.addColorStop(1, "rgba(60, 40, 90, 0.9)");
+	}
+	ctx.fillStyle = gradient;
+	ctx.fillRect(0, 0, 300, 300);
+	// Weißer Rahmen
+	ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+	ctx.lineWidth = 4;
+	ctx.strokeRect(10, 10, 280, 280);
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+	// Sieg oder Niederlage
+	ctx.shadowBlur = 10;
+	if (result === "win") {
+		ctx.fillStyle = "#4ade80";
+		ctx.font = "bold 28px sans-serif";
+		ctx.fillText("🎉 GEWONNEN! 🎉", 150, 70);
+	} else {
+		ctx.fillStyle = "#f87171";
+		ctx.font = "bold 28px sans-serif";
+		ctx.fillText("😔 GAME OVER 😔", 150, 70);
+	}
+	// Punktzahl anzeigen
+	ctx.fillStyle = "#fbbf24";
+	ctx.font = "bold 22px sans-serif";
+	ctx.fillText(`${Math.floor(gamePoints)} / ${maxScore} Punkte`, 150, 110);
+	// Motivationstext
+	ctx.font = "14px sans-serif";
+	ctx.fillStyle = "white";
+	if (result === "win") {
+		ctx.fillText("👏 Super gemacht! Gib weiterhin so viel", 150, 145);
+		ctx.fillText("Gas wie beim Lernen! 🥳", 150, 165);
+	} else {
+		ctx.fillText("Bleib am Ball,", 150, 145);
+		ctx.fillText("genau wie beim Lernen! 😉", 150, 165);
+	}
+	// Button
+	ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
+	ctx.shadowBlur = 5;
+	ctx.shadowOffsetY = 3;
+	ctx.fillStyle = "#3b82f6";
+	ctx.beginPath();
+	ctx.roundRect(btnRect.x, btnRect.y, btnRect.w, btnRect.h, 12);
+	ctx.fill();
+	ctx.shadowBlur = 0;
+	ctx.shadowOffsetY = 0;
+	ctx.fillStyle = "white";
+	ctx.font = "bold 16px sans-serif";
+	ctx.fillText("Weiter", btnRect.x + btnRect.w / 2, btnRect.y + btnRect.h / 2);
+}
+
 // Konfiguration und Logik für die einzelnen Spiele
 const gamesConfig = {
 	// Pferdeparcours
