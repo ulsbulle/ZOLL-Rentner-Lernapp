@@ -1,4 +1,15 @@
 /* ==========================================
+   0. Tastenausblendung bei kleinen Bildschirmen
+   ========================================== */
+
+/* Versteckt die Tasten-Anzeige (Zahlen) auf Smartphones */
+@media (max-width: 640px) {
+    .option-btn span.font-mono {
+        display: none !important;
+    }
+}
+
+/* ==========================================
    1. DARK-MODUS (Via Invertierungs-Filter)
    ========================================== */
 
