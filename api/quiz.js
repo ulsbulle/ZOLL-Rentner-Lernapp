@@ -14,7 +14,7 @@ app.post('/api/quiz', async (req, res) => {
     console.log("--- Quiz-Anfrage gestartet ---");
     
     try {
-        const { pdfBase64, questionCount, custom_prompt } = req.body;
+        const { pdfBase64, questionCount, customprompt } = req.body;
         const apiKey = process.env.GEMINI_API_KEY;
 
         if (!apiKey) return res.status(500).json({ error: "Server-Konfigurationsfehler: API-Key fehlt." });
