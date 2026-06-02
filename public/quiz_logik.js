@@ -640,8 +640,6 @@ window.onload = () => {
 		modusSelect.onchange = function () {
 			const val = this.value;
 
-	//Downloadbereich
-	loadDownloadFiles(); // Einfach direkt hier aufrufen
 
 	// Stellt sicher, dass die richtigen Sektionen (PDF ein, Rest aus) angezeigt werden
 	document.getElementById("section-pdf").classList.remove("hidden");
@@ -650,6 +648,29 @@ window.onload = () => {
 	document.getElementById("section-training").classList.add("hidden");
 	document.getElementById("section-downloads").classList.add("hidden");
 
+	// Liste laden, wenn Downloads ODER Vorlagen gewählt werden
+			if (val === "DOWNLOADS" || val === "TEMPLATE") {
+				loadDownloadFiles();
+			}
+
+			// Falls ein Spiel auf dem Home-Canvas läuft, stoppen wenn man den Modus wechselt
+			if (val !== "TRAINING") {
+				gameActive = false;
+				if (typeof gameInterval !== "undefined") clearInterval(gameInterval);
+			}
+		};
+	}
+
+	// Downloadbereich & Listen beim Start initialisieren (mit Absicherung gegen Offline-Server)
+	loadDownloadFiles(); 
+
+	// Stellt sicher, dass die richtigen Sektionen (PDF ein, Rest aus) angezeigt werden
+	document.getElementById("section-pdf")?.classList.remove("hidden");
+	document.getElementById("section-csv")?.classList.add("hidden");
+	document.getElementById("section-template")?.classList.add("hidden");
+	document.getElementById("section-training")?.classList.add("hidden");
+	document.getElementById("section-downloads")?.classList.add("hidden");
+
 	renderHistory();
-	updateMuteUI();
+	if (typeof updateMuteUI === "function") updateMuteUI();
 };
