@@ -338,28 +338,50 @@ async function loadTemplate(url) {
 
 // --- Data Handling ---
 //CSV Laden und mischen
+// --- Data Handling ---
+// CSV Laden und mischen (Unterstützt jetzt Single- und Multiple-Choice)
 function parseCSVData(text) {
 	try {
 		const lines = text
 			.split(/\r?\n/)
 			.filter((l) => l.trim())
 			.slice(1);
+		
 		quizData = lines
 			.map((l) => {
 				const c = l.match(/(".*?"|[^;]+)(?=\s*;|\s*$)/g).map((s) => s.replace(/^"|"$/g, "").trim());
 				const opts = [c[1], c[2], c[3], c[4]];
-				const correctText = c[5];
+				const rawAnswer = c[5]; // Kann eine Zahl wie "2" oder eine Kette wie "0,2" sein
 
-				// Sofort beim Import mischen
-				shuffleArray(opts);
+				let targetIndices = [];
+
+				// PRÜFUNG: Ist die Antwortspalte mit Indizes (z.B. "0,2") oder mit Text gefüllt?
+				if (rawAnswer.includes(",") || (!isNaN(rawAnswer) && rawAnswer !== "")) {
+					// Falls es sich um Indizes handelt, spalten wir sie beim Komma auf
+					const originalIndices = rawAnswer.split(",").map(num => parseInt(num.trim()));
+					
+					// Da die Optionen gleich gemischt werden, sichern wir die korrekten Texte
+					const correctTexts = originalIndices.map(idx => opts[idx]).filter(t => t !== undefined);
+					
+					// Optionen mischen
+					shuffleArray(opts);
+					
+					// Neue Indizes nach dem Mischen ermitteln
+					targetIndices = correctTexts.map(text => opts.indexOf(text)).filter(idx => idx !== -1);
+				} else {
+					// Fallback für alten CSV-Stil (Reiner Antwort-Text statt Index in der Spalte)
+					const correctTexts = rawAnswer.split(",").map(t => t.trim());
+					shuffleArray(opts);
+					targetIndices = correctTexts.map(text => opts.indexOf(text)).filter(idx => idx !== -1);
+				}
 
 				return {
 					question: c[0],
 					options: opts,
-					answer: opts.indexOf(correctText),
+					answer: targetIndices, // Speichert die korrekten Indizes als Array ab
 				};
 			})
-			.filter((q) => q.answer !== -1);
+			.filter((q) => q.answer && q.answer.length > 0);
 
 		// Die Fragenliste selbst mischen
 		shuffleArray(quizData);
@@ -368,6 +390,7 @@ function parseCSVData(text) {
 		toggleCard("quiz-container");
 		showQuestion();
 	} catch (e) {
+		console.error("CSV-Parsing Fehler:", e);
 		alert("Daten fehlerhaft!");
 		goToHome();
 	}
