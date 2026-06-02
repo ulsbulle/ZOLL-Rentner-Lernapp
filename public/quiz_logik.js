@@ -87,7 +87,7 @@ async function startQuizGeneration() {
 		// PDF-ERGEBNISSE MISCHEN ---
 		shuffleArray(data); // Fragen-Reihenfolge würfeln
 		data.forEach((q) => {
-   		7/ Sicherheitsprüfung: Falls die KI nur eine Zahl/String statt eines Arrays geliefert hat
+   		// Sicherheitsprüfung: Falls die KI nur eine Zahl/String statt eines Arrays geliefert hat
     	if (!Array.isArray(q.answer)) {
         q.answer = [q.answer];
     	}
