@@ -86,9 +86,9 @@ async function startQuizGeneration() {
 		// PDF-ERGEBNISSE MISCHEN ---
 		shuffleArray(data); // Fragen-Reihenfolge würfeln
 		data.forEach((q) => {
-			const correctText = q.options[q.answer]; // Richtige Antwort sichern
+			const correctTexts = q.answer.map(index => q.options[index]); // Richtige Antwort sichern
 			shuffleArray(q.options); // Antwortmöglichkeiten würfeln
-			q.answer = q.options.indexOf(correctText); // Index neu setzen
+			q.answer = correctTexts.map(text => q.options.indexOf(text)); // Index neu setzen
 		});
 
 		quizData = data; // Gemischte Daten speichern
@@ -116,118 +116,148 @@ function showQuestion() {
 		return;
 	}
 
-	// Pausen-Trigger bei der Hälfte
-	if (currentIndex === Math.floor(quizData.length / 2) && !gameDone && quizData.length > 2) {
-		gameDone = true;
-		document.getElementById("quiz-content").classList.add("hidden");
-		document.getElementById("game-screen").classList.remove("hidden");
-		document.getElementById("quiz-game-selection").classList.remove("hidden");
-		document.getElementById("active-game-area").classList.add("hidden");
-		return;
-	}
 	document.getElementById("quiz-content").classList.remove("hidden");
 	document.getElementById("game-screen").classList.add("hidden");
 	document.getElementById("feedback-area").classList.add("hidden");
 	document.getElementById("result-screen").classList.add("hidden");
+
 	const q = quizData[currentIndex];
-	
-	document.getElementById("progress-bar").style.width = `${(currentIndex / quizData.length) * 100}%`;
-	document.getElementById("q-count").innerText = `Frage ${currentIndex + 1} von ${quizData.length}`;
-	
-	// --- NEU: Element holen und fokussieren ---
-	const qTextElem = document.getElementById("question-text");
-	qTextElem.innerText = q.question;
-	
-	// Setzt den Fokus auf den Fragentext für Screenreader/Tastaturnavigation
-	setTimeout(() => {
-		qTextElem.focus();
-	}, 50);	
-	
+
+	// Falls answer keine Liste ist, wird es zu einer Liste gemacht
+	if (!Array.isArray(q.answer)) {
+		q.answer = [q.answer];
+	}
+
+	document.getElementById("progress-bar").style.width =
+		`${(currentIndex / quizData.length) * 100}%`;
+
+	document.getElementById("q-count").innerText =
+		`Frage ${currentIndex + 1} von ${quizData.length}`;
+
+	document.getElementById("question-text").innerText = q.question;
+
 	const optDiv = document.getElementById("options");
 	optDiv.innerHTML = "";
-	q.options.forEach((opt, i) => {
+
+	let selectedAnswers = [];
+	let alreadyChecked = false;
+
+	q.options.slice(0, 4).forEach((opt, i) => {
 		const b = document.createElement("button");
+
 		b.className =
 			"option-btn w-full text-left p-4 rounded-xl border-2 border-slate-100 transition-all font-medium bg-white hover:border-blue-200 shadow-sm";
+
 		b.innerHTML = `
-			<span class="text-xs bg-slate-100 text-slate-400 px-2 py-1 rounded border border-slate-200 font-mono mr-2">Taste ${i + 1}</span>
+			<span class="text-xs bg-slate-100 text-slate-400 px-2 py-1 rounded border border-slate-200 font-mono mr-2">
+				Taste ${i + 1}
+			</span>
 			<span>${opt}</span>
 		`;
-		b.onclick = () => {
-			// Antwortprüfung
-			document.querySelectorAll(".option-btn").forEach((btn) => (btn.disabled = true));
-			
-			const isCorrect = i === q.answer;
-			const feedbackArea = document.getElementById("feedback-area");
-			const feedbackText = document.getElementById("feedback-text");
-			const nextBtn = document.getElementById("next-q-btn");
-			
-			if (isCorrect) {
-				score++;
-				window.gamePoints = score; // Punktzahl an Engine senden
-				if (typeof playSound === 'function') playSound("correct");
-				b.classList.add("border-green-500", "bg-green-50");
-				feedbackText.innerHTML = "✨ Richtig!";
-				feedbackText.className = "text-green-600 font-bold text-center";
-			} else {
-				userMistakes.push({ q: q.question, g: opt, c: q.options[q.answer] });
-				if (typeof playSound === 'function') playSound("wrong");
-				b.classList.add("border-red-500", "bg-red-50");
-				
-				// Die richtige Lösung grün markieren
-				const buttons = document.querySelectorAll(".option-btn");
-				if(buttons[q.answer]) buttons[q.answer].classList.add("border-green-400", "bg-green-50");
-				
-				feedbackText.innerHTML = `❌ Falsch. Richtig ist: <span class="underline">${q.options[q.answer]}</span>`;
-				feedbackText.className = "text-red-600 font-bold text-center";
-			}
-			
-			// Feedback einblenden
-			feedbackArea.classList.remove("hidden");
-			
-			// --- FIX: Fokus auf Weiter-Button ---
-			nextBtn.onclick = () => {
-				currentIndex++;
-				showQuestion();
-			};
 
-			// FOKUS-FIX: Verzögerter Fokus auf den Button
-			setTimeout(() => {
-				nextBtn.focus();
-			}, 50);
+		b.onclick = () => {
+			if (alreadyChecked) return;
+
+			if (selectedAnswers.includes(i)) {
+				selectedAnswers = selectedAnswers.filter(x => x !== i);
+				b.classList.remove("border-blue-500", "bg-blue-50");
+			} else {
+				if (selectedAnswers.length < 2) {
+					selectedAnswers.push(i);
+					b.classList.add("border-blue-500", "bg-blue-50");
+				}
+			}
 		};
+
 		optDiv.appendChild(b);
 	});
-		
-	// Globaler Listener für die Tastatur-Steuerung (Tasten 1, 2, 3, 4)
-	document.addEventListener("keydown", (e) => {
-	// Prüfen, ob das Quiz-Modul aktiv und nicht ausgeblendet ist
-	const quizContainer = document.getElementById("quiz-container");
-	const quizContent = document.getElementById("quiz-content");
-	
-	if (quizContainer && !quizContainer.classList.contains("hidden") && 
-		quizContent && !quizContent.classList.contains("hidden")) {
-		
-		// Tasten '1' bis '4' abfangen
+
+	const checkBtn = document.createElement("button");
+	checkBtn.innerText = "Antwort prüfen";
+	checkBtn.className =
+		"w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl";
+
+	function checkAnswer() {
+		if (selectedAnswers.length !== 2) {
+			alert("Bitte genau 2 Antworten auswählen!");
+			return;
+		}
+
+		alreadyChecked = true;
+
+		document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+		checkBtn.disabled = true;
+
+		const correctAnswers = [...q.answer].sort((a, b) => a - b);
+		const userAnswers = [...selectedAnswers].sort((a, b) => a - b);
+
+		const isCorrect =
+			JSON.stringify(correctAnswers) === JSON.stringify(userAnswers);
+
+		const buttons = document.querySelectorAll(".option-btn");
+
+		buttons.forEach((btn, index) => {
+			if (q.answer.includes(index)) {
+				btn.classList.add("border-green-500", "bg-green-50");
+			}
+
+			if (selectedAnswers.includes(index) && !q.answer.includes(index)) {
+				btn.classList.add("border-red-500", "bg-red-50");
+			}
+		});
+
+		const feedbackArea = document.getElementById("feedback-area");
+		const feedbackText = document.getElementById("feedback-text");
+		const nextBtn = document.getElementById("next-q-btn");
+
+		if (isCorrect) {
+			score++;
+			feedbackText.innerHTML = "✅ Richtig!";
+			feedbackText.className = "text-green-600 font-bold text-center";
+		} else {
+			const rightTexts = q.answer.map(index => q.options[index]).join(", ");
+
+			userMistakes.push({
+				q: q.question,
+				g: selectedAnswers.map(index => q.options[index]).join(", "),
+				c: rightTexts
+			});
+
+			feedbackText.innerHTML = `❌ Falsch. Richtig ist: ${rightTexts}`;
+			feedbackText.className = "text-red-600 font-bold text-center";
+		}
+
+		feedbackArea.classList.remove("hidden");
+
+		nextBtn.onclick = () => {
+			currentIndex++;
+			showQuestion();
+		};
+	}
+
+	checkBtn.onclick = checkAnswer;
+	optDiv.appendChild(checkBtn);
+
+	document.onkeydown = (e) => {
 		if (["1", "2", "3", "4"].includes(e.key)) {
-			const index = parseInt(e.key) - 1; // Umwandeln in 0-basierten Index (0, 1, 2, 3)
+			const index = parseInt(e.key) - 1;
 			const buttons = document.querySelectorAll(".option-btn");
-			
-			// Nur klicken, wenn der Button existiert und noch nicht deaktiviert ist
+
 			if (buttons[index] && !buttons[index].disabled) {
 				buttons[index].click();
 			}
 		}
 
-		// Optional: Mit der 'Enter'- oder 'Leertaste' zur nächsten Frage springen
-		if ((e.key === "Enter" || e.key === " ") && !document.getElementById("feedback-area").classList.contains("hidden")) {
-			e.preventDefault(); // Verhindert ungewolltes Scrollen bei der Leertaste
-			document.getElementById("next-q-btn").click();
+		if (e.key === "Enter") {
+			if (document.getElementById("feedback-area").classList.contains("hidden")) {
+				checkAnswer();
+			} else {
+				document.getElementById("next-q-btn").click();
+			}
 		}
-	}
-		
-	});
+	};
 }
+
 
 // Ergebnis-Zusammenfassung anzeigen
 function showRes() {
@@ -373,9 +403,9 @@ function restartCurrentQuiz() {
 	// Alles neu mischen vor dem Neustart
 	shuffleArray(quizData);
 	quizData.forEach((q) => {
-		const correctText = q.options[q.answer];
+		const correctTexts = q.answer.map(index => q.options[index]);
 		shuffleArray(q.options);
-		q.answer = q.options.indexOf(correctText);
+		q.answer = correctTexts.map(text => q.options.indexOf(text));
 	});
 
 	resetStats();
@@ -491,15 +521,15 @@ async function loadDownloadFiles() {
 			downloadList.innerHTML =
 				templates.length > 0
 					? templates
-							.map(
-								(file) => `
+						.map(
+							(file) => `
                 <li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-blue-50 transition-colors">
                     <span class="text-slate-700 font-medium truncate">📄 ${file}</span>
                     <a href="/templates/${file}" download class="bg-blue-100 text-blue-600 px-3 py-1 rounded-md text-xs font-bold hover:bg-blue-600 hover:text-white transition-all">Laden ↓</a>
                 </li>
             `,
-							)
-							.join("")
+						)
+						.join("")
 					: '<li class="text-slate-400 text-sm italic">Keine Lernmaterialien gefunden.</li>';
 		}
 
@@ -509,15 +539,15 @@ async function loadDownloadFiles() {
 			templateList.innerHTML =
 				csvFiles.length > 0
 					? csvFiles
-							.map(
-								(file) => `
+						.map(
+							(file) => `
                 <button onclick="loadTemplate('/templates/${file}')" class="w-full p-4 border-2 rounded-xl bg-white hover:border-blue-500 hover:bg-blue-50 text-left font-bold transition-all flex justify-between items-center group">
                     <span>📊 ${file.replace(".csv", "")}</span>
                     <span class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">Starten →</span>
                 </button>
             `,
-							)
-							.join("")
+						)
+						.join("")
 					: '<p class="text-slate-400 text-center">Keine CSV-Vorlagen gefunden.</p>';
 		}
 
@@ -526,15 +556,15 @@ async function loadDownloadFiles() {
 			downloadList2.innerHTML =
 				downloads.length > 0
 					? downloads
-							.map(
-								(file) => `
+						.map(
+							(file) => `
                 <li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-gray-100 transition-colors">
                     <span class="text-slate-700 font-medium truncate">📦 ${file}</span>
                     <a href="/downloads/${file}" download class="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-bold hover:bg-black transition-all">Download ↓</a>
                 </li>
             `,
-							)
-							.join("")
+						)
+						.join("")
 					: '<li class="text-slate-400 text-sm italic">Keine sonstigen Dateien gefunden.</li>';
 		}
 	} catch (error) {
