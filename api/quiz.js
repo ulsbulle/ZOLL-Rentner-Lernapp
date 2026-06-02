@@ -33,7 +33,7 @@ app.post('/api/quiz', async (req, res) => {
                     contents: [{
                         parts: [
                             { inlineData: { mimeType: "application/pdf", data: sanitizedPdf } },
-                            { text: `Erstelle exakt ${questionCount || 3} MC-Fragen auf Deutsch. ${custom_prompt || ""} Antwort NUR JSON-Array: [{"question":"Frage","options":["A","B","C","D"],"answer":0}]` }
+                            { text: `Erstelle exakt ${questionCount || 3} MC-Fragen auf Deutsch. ${custom_prompt || ""} Antwort NUR JSON-Array: [{"question":"Frage","options":["A","B","C","D"],"answer":[0,2]}]` }
                         ]
                     }],
                     generationConfig: { response_mime_type: "application/json" }
