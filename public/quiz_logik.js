@@ -629,26 +629,21 @@ async function loadDownloadFiles() {
 
 // Initialisierung beim Laden
 window.onload = () => {
-	// Setzt das Dropdown beim Laden explizit auf PDF
 	const modusSelect = document.getElementById("Modus");
-
+	
 	if (modusSelect) {
-		// Setzt das Dropdown beim Laden explizit auf PDF
-		modusSelect.value = "PDF";
-
-		// Hier wird die Auswahl-Logik sicher registriert:
+		// 1. Hier wird das Wechsel-Ereignis sauber registriert
 		modusSelect.onchange = function () {
 			const val = this.value;
 
+			// Blendet die Sektionen dynamisch je nach Auswahl ein oder aus
+			document.getElementById("section-pdf")?.classList.toggle("hidden", val !== "PDF");
+			document.getElementById("section-csv")?.classList.toggle("hidden", val !== "CSV");
+			document.getElementById("section-template")?.classList.toggle("hidden", val !== "TEMPLATE");
+			document.getElementById("section-training")?.classList.toggle("hidden", val !== "TRAINING");
+			document.getElementById("section-downloads")?.classList.toggle("hidden", val !== "DOWNLOADS");
 
-	// Stellt sicher, dass die richtigen Sektionen (PDF ein, Rest aus) angezeigt werden
-	document.getElementById("section-pdf").classList.remove("hidden");
-	document.getElementById("section-csv").classList.add("hidden");
-	document.getElementById("section-template").classList.add("hidden");
-	document.getElementById("section-training").classList.add("hidden");
-	document.getElementById("section-downloads").classList.add("hidden");
-
-	// Liste laden, wenn Downloads ODER Vorlagen gewählt werden
+			// Liste laden, wenn Downloads ODER Vorlagen gewählt werden
 			if (val === "DOWNLOADS" || val === "TEMPLATE") {
 				loadDownloadFiles();
 			}
@@ -659,18 +654,17 @@ window.onload = () => {
 				if (typeof gameInterval !== "undefined") clearInterval(gameInterval);
 			}
 		};
+
+		// 2. Standardwert beim Starten der Seite setzen
+		modusSelect.value = "PDF";
+		
+		// 3. Den Wechsel einmal simulieren, damit beim Start alles richtig ein- und ausgeblendet ist
+		modusSelect.dispatchEvent(new Event('change'));
 	}
 
-	// Downloadbereich & Listen beim Start initialisieren (mit Absicherung gegen Offline-Server)
-	loadDownloadFiles(); 
-
-	// Stellt sicher, dass die richtigen Sektionen (PDF ein, Rest aus) angezeigt werden
-	document.getElementById("section-pdf")?.classList.remove("hidden");
-	document.getElementById("section-csv")?.classList.add("hidden");
-	document.getElementById("section-template")?.classList.add("hidden");
-	document.getElementById("section-training")?.classList.add("hidden");
-	document.getElementById("section-downloads")?.classList.add("hidden");
-
+	// Verlauf und evtl. Audio-UI beim Laden initialisieren
 	renderHistory();
-	if (typeof updateMuteUI === "function") updateMuteUI();
+	if (typeof updateMuteUI === "function") {
+		updateMuteUI();
+	}
 };
