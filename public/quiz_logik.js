@@ -632,16 +632,16 @@ window.onload = () => {
 	const modusSelect = document.getElementById("Modus");
 	
 	if (modusSelect) {
-		// 1. Hier wird das Wechsel-Ereignis sauber registriert
+		// Event-Listener für das Umschalten registrieren
 		modusSelect.onchange = function () {
 			const val = this.value;
 
-			// Blendet die Sektionen dynamisch je nach Auswahl ein oder aus
-			document.getElementById("section-pdf")?.classList.toggle("hidden", val !== "PDF");
-			document.getElementById("section-csv")?.classList.toggle("hidden", val !== "CSV");
-			document.getElementById("section-template")?.classList.toggle("hidden", val !== "TEMPLATE");
-			document.getElementById("section-training")?.classList.toggle("hidden", val !== "TRAINING");
-			document.getElementById("section-downloads")?.classList.toggle("hidden", val !== "DOWNLOADS");
+			// Hier wird geprüft, was ausgewählt wurde (val) und NUR das wird angezeigt!
+			document.getElementById("section-pdf").classList.toggle("hidden", val !== "PDF");
+			document.getElementById("section-csv").classList.toggle("hidden", val !== "CSV");
+			document.getElementById("section-template").classList.toggle("hidden", val !== "TEMPLATE");
+			document.getElementById("section-training").classList.toggle("hidden", val !== "TRAINING");
+			document.getElementById("section-downloads").classList.toggle("hidden", val !== "DOWNLOADS");
 
 			// Liste laden, wenn Downloads ODER Vorlagen gewählt werden
 			if (val === "DOWNLOADS" || val === "TEMPLATE") {
@@ -654,17 +654,18 @@ window.onload = () => {
 				if (typeof gameInterval !== "undefined") clearInterval(gameInterval);
 			}
 		};
-
-		// 2. Standardwert beim Starten der Seite setzen
-		modusSelect.value = "PDF";
-		
-		// 3. Den Wechsel einmal simulieren, damit beim Start alles richtig ein- und ausgeblendet ist
-		modusSelect.dispatchEvent(new Event('change'));
 	}
 
-	// Verlauf und evtl. Audio-UI beim Laden initialisieren
+	// Downloadbereich beim Start initialisieren
+	loadDownloadFiles(); 
+
+	// Start-Zustand: Zeige PDF an, blende den Rest aus (genau wie in deinem Original-Code)
+	document.getElementById("section-pdf").classList.remove("hidden");
+	document.getElementById("section-csv").classList.add("hidden");
+	document.getElementById("section-template").classList.add("hidden");
+	document.getElementById("section-training").classList.add("hidden");
+	document.getElementById("section-downloads").classList.add("hidden");
+
+	// Verlauf rendern
 	renderHistory();
-	if (typeof updateMuteUI === "function") {
-		updateMuteUI();
-	}
 };
