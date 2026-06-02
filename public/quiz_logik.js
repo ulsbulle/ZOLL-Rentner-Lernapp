@@ -168,9 +168,9 @@ function showQuestion() {
 				selectedAnswers = selectedAnswers.filter(x => x !== i);
 				b.classList.remove("border-blue-500", "bg-blue-50");
 			} else {
-				if (selectedAnswers.length < 2) {
-					selectedAnswers.push(i);
-					b.classList.add("border-blue-500", "bg-blue-50");
+				if (selectedAnswers.length < q.answer.length) {
+    			selectedAnswers.push(i);
+  				b.classList.add("border-blue-500", "bg-blue-50");
 				}
 			}
 		};
@@ -184,10 +184,10 @@ function showQuestion() {
 		"w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl";
 
 	function checkAnswer() {
-		if (selectedAnswers.length !== 2) {
-			alert("Bitte genau 2 Antworten auswählen!");
-			return;
-		}
+    	if (selectedAnswers.length !== q.answer.length) {
+        	alert(`Bitte genau ${q.answer.length} Antwort(en) auswählen!`);
+        	return;
+    	}
 
 		alreadyChecked = true;
 
