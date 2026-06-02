@@ -631,7 +631,14 @@ async function loadDownloadFiles() {
 window.onload = () => {
 	// Setzt das Dropdown beim Laden explizit auf PDF
 	const modusSelect = document.getElementById("Modus");
-	if (modusSelect) modusSelect.value = "PDF";
+
+	if (modusSelect) {
+		// Setzt das Dropdown beim Laden explizit auf PDF
+		modusSelect.value = "PDF";
+
+		// Hier wird die Auswahl-Logik sicher registriert:
+		modusSelect.onchange = function () {
+			const val = this.value;
 
 	//Downloadbereich
 	loadDownloadFiles(); // Einfach direkt hier aufrufen
