@@ -81,14 +81,20 @@ async function startQuizGeneration() {
 			throw new Error(errorMsg);
 		}
 
+		// NEU / GEFIXT:
 		let data = await res.json();
 
 		// PDF-ERGEBNISSE MISCHEN ---
 		shuffleArray(data); // Fragen-Reihenfolge würfeln
 		data.forEach((q) => {
-			const correctTexts = q.answer.map(index => q.options[index]); // Richtige Antwort sichern
-			shuffleArray(q.options); // Antwortmöglichkeiten würfeln
-			q.answer = correctTexts.map(text => q.options.indexOf(text)); // Index neu setzen
+   		7/ Sicherheitsprüfung: Falls die KI nur eine Zahl/String statt eines Arrays geliefert hat
+    	if (!Array.isArray(q.answer)) {
+        q.answer = [q.answer];
+    	}
+
+    	const correctTexts = q.answer.map(index => q.options[index]); // Richtige Antwort sichern
+    	shuffleArray(q.options); // Antwortmöglichkeiten würfeln
+    	q.answer = correctTexts.map(text => q.options.indexOf(text)); // Index neu setzen
 		});
 
 		quizData = data; // Gemischte Daten speichern
