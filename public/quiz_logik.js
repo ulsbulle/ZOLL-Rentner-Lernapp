@@ -265,7 +265,6 @@ function showQuestion() {
 			};
 		}
 	}
-	}
 
 	checkBtn.onclick = checkAnswer;
 	optDiv.appendChild(checkBtn);
