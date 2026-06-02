@@ -34,7 +34,7 @@ app.post('/api/quiz', async (req, res) => {
                         parts: [
                             { inlineData: { mimeType: "application/pdf", data: sanitizedPdf } },
 
-{ text: `Erstelle exakt ${questionCount || 3} MC-Fragen auf Deutsch. Manche Fragen sollen 1 richtige Antwort haben, manche Fragen sollen genau 2 richtige Antworten haben (Mischung aus Single- und Multiple-Choice). ${custom_prompt || ""} Antwort NUR als gültiges JSON-Array im folgenden Format. Das 'answer'-Array enthält die Indizes der korrekten Optionen (z.B. [1] für eine richtige Antwort oder [0, 2] für zwei richtige Antworten): [{"question":"Frage","options":["A","B","C","D"],"answer":[1]}]` }
+                            { text: `Erstelle exakt ${questionCount || 3} MC-Fragen auf Deutsch. Manche Fragen sollen 1 richtige Antwort haben, manche Fragen sollen genau 2 richtige Antworten haben (Mischung aus Single- und Multiple-Choice). ${custom_prompt || ""} Antwort NUR als gültiges JSON-Array im folgenden Format. Das 'answer'-Array enthält die Indizes der korrekten Optionen (z.B. [1] für eine richtige Antwort oder [0, 2] für zwei richtige Antworten): [{"question":"Frage","options":["A","B","C","D"],"answer":[1]}]` }
                         ]
                     }],
                     generationConfig: { response_mime_type: "application/json" }
