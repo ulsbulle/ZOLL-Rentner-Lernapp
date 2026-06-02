@@ -239,6 +239,32 @@ function showQuestion() {
 			currentIndex++;
 			showQuestion();
 		};
+		// Berechnen, ob wir genau die Hälfte der Fragen erreicht haben
+		const halfQuiz = Math.floor(quizData.length / 2);
+
+		// Wenn wir die Hälfte erreicht haben UND das Spiel in dieser Runde noch nicht lief
+		if (currentIndex === halfQuiz && halfQuiz > 0 && !gameDone) {
+			nextBtn.innerText = "Spielen & Weiter ⚡";
+			nextBtn.onclick = () => {
+				// Wechsel zum Spiel-Bildschirm
+				document.getElementById("quiz-content").classList.add("hidden");
+				document.getElementById("game-screen").classList.remove("hidden");
+				
+				// Flag setzen, damit das Spiel pro Quiz-Durchlauf nur EINMAL triggert
+				gameDone = true; 
+				
+				// Index im Hintergrund erhöhen, damit es nach dem Spiel mit der nächsten Frage weitergeht
+				currentIndex++;
+			};
+		} else {
+			// Normaler Ablauf für alle anderen Fragen
+			nextBtn.innerText = "Nächste Frage →";
+			nextBtn.onclick = () => {
+				currentIndex++;
+				showQuestion();
+			};
+		}
+	}
 	}
 
 	checkBtn.onclick = checkAnswer;
