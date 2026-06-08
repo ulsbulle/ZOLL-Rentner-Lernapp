@@ -48,7 +48,7 @@ async function startQuizGeneration() {
 	if (!file) return alert("PDF fehlt!");
 
 	// NEU: Custom Prompt auslesen
-	const customPrompt = document.getElementById('custom-prompt').value
+	const customPrompt = document.getElementById("custom-prompt").value;
 
 	toggleCard("status");
 	const statusText = document.getElementById("status-text");
@@ -67,7 +67,7 @@ async function startQuizGeneration() {
 			body: JSON.stringify({
 				pdfBase64: base64,
 				questionCount: document.getElementById("question-count").value,
-				customPrompt: customPrompt // NEU: Wird an das Backend gesendet
+				customPrompt: customPrompt, // NEU: Wird an das Backend gesendet
 			}),
 		});
 
@@ -87,14 +87,14 @@ async function startQuizGeneration() {
 		// PDF-ERGEBNISSE MISCHEN ---
 		shuffleArray(data); // Fragen-Reihenfolge würfeln
 		data.forEach((q) => {
-   		// Sicherheitsprüfung: Falls die KI nur eine Zahl/String statt eines Arrays geliefert hat
-    	if (!Array.isArray(q.answer)) {
-        q.answer = [q.answer];
-    	}
+			// Sicherheitsprüfung: Falls die KI nur eine Zahl/String statt eines Arrays geliefert hat
+			if (!Array.isArray(q.answer)) {
+				q.answer = [q.answer];
+			}
 
-    	const correctTexts = q.answer.map(index => q.options[index]); // Richtige Antwort sichern
-    	shuffleArray(q.options); // Antwortmöglichkeiten würfeln
-    	q.answer = correctTexts.map(text => q.options.indexOf(text)); // Index neu setzen
+			const correctTexts = q.answer.map((index) => q.options[index]); // Richtige Antwort sichern
+			shuffleArray(q.options); // Antwortmöglichkeiten würfeln
+			q.answer = correctTexts.map((text) => q.options.indexOf(text)); // Index neu setzen
 		});
 
 		quizData = data; // Gemischte Daten speichern
@@ -134,11 +134,9 @@ function showQuestion() {
 		q.answer = [q.answer];
 	}
 
-	document.getElementById("progress-bar").style.width =
-		`${(currentIndex / quizData.length) * 100}%`;
+	document.getElementById("progress-bar").style.width = `${(currentIndex / quizData.length) * 100}%`;
 
-	document.getElementById("q-count").innerText =
-		`Frage ${currentIndex + 1} von ${quizData.length}`;
+	document.getElementById("q-count").innerText = `Frage ${currentIndex + 1} von ${quizData.length}`;
 
 	document.getElementById("question-text").innerText = q.question;
 
@@ -165,12 +163,12 @@ function showQuestion() {
 			if (alreadyChecked) return;
 
 			if (selectedAnswers.includes(i)) {
-				selectedAnswers = selectedAnswers.filter(x => x !== i);
+				selectedAnswers = selectedAnswers.filter((x) => x !== i);
 				b.classList.remove("border-blue-500", "bg-blue-50");
 			} else {
 				if (selectedAnswers.length < q.answer.length) {
-    			selectedAnswers.push(i);
-  				b.classList.add("border-blue-500", "bg-blue-50");
+					selectedAnswers.push(i);
+					b.classList.add("border-blue-500", "bg-blue-50");
 				}
 			}
 		};
@@ -180,25 +178,23 @@ function showQuestion() {
 
 	const checkBtn = document.createElement("button");
 	checkBtn.innerText = "Antwort prüfen";
-	checkBtn.className =
-		"w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl";
+	checkBtn.className = "w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl";
 
 	function checkAnswer() {
-    	if (selectedAnswers.length !== q.answer.length) {
-        	alert(`Bitte genau ${q.answer.length} Antwort(en) auswählen!`);
-        	return;
-    	}
+		if (selectedAnswers.length !== q.answer.length) {
+			alert(`Bitte genau ${q.answer.length} Antwort(en) auswählen!`);
+			return;
+		}
 
 		alreadyChecked = true;
 
-		document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+		document.querySelectorAll(".option-btn").forEach((btn) => (btn.disabled = true));
 		checkBtn.disabled = true;
 
 		const correctAnswers = [...q.answer].sort((a, b) => a - b);
 		const userAnswers = [...selectedAnswers].sort((a, b) => a - b);
 
-		const isCorrect =
-			JSON.stringify(correctAnswers) === JSON.stringify(userAnswers);
+		const isCorrect = JSON.stringify(correctAnswers) === JSON.stringify(userAnswers);
 
 		const buttons = document.querySelectorAll(".option-btn");
 
@@ -221,12 +217,12 @@ function showQuestion() {
 			feedbackText.innerHTML = "✅ Richtig!";
 			feedbackText.className = "text-green-600 font-bold text-center";
 		} else {
-			const rightTexts = q.answer.map(index => q.options[index]).join(", ");
+			const rightTexts = q.answer.map((index) => q.options[index]).join(", ");
 
 			userMistakes.push({
 				q: q.question,
-				g: selectedAnswers.map(index => q.options[index]).join(", "),
-				c: rightTexts
+				g: selectedAnswers.map((index) => q.options[index]).join(", "),
+				c: rightTexts,
 			});
 
 			feedbackText.innerHTML = `❌ Falsch. Richtig ist: ${rightTexts}`;
@@ -249,10 +245,10 @@ function showQuestion() {
 				// Wechsel zum Spiel-Bildschirm
 				document.getElementById("quiz-content").classList.add("hidden");
 				document.getElementById("game-screen").classList.remove("hidden");
-				
+
 				// Flag setzen, damit das Spiel pro Quiz-Durchlauf nur EINMAL triggert
-				gameDone = true; 
-				
+				gameDone = true;
+
 				// Index im Hintergrund erhöhen, damit es nach dem Spiel mit der nächsten Frage weitergeht
 				currentIndex++;
 			};
@@ -288,7 +284,6 @@ function showQuestion() {
 		}
 	};
 }
-
 
 // Ergebnis-Zusammenfassung anzeigen
 function showRes() {
@@ -371,7 +366,7 @@ function parseCSVData(text) {
 			.split(/\r?\n/)
 			.filter((l) => l.trim())
 			.slice(1);
-		
+
 		quizData = lines
 			.map((l) => {
 				const c = l.match(/(".*?"|[^;]+)(?=\s*;|\s*$)/g).map((s) => s.replace(/^"|"$/g, "").trim());
@@ -383,21 +378,21 @@ function parseCSVData(text) {
 				// PRÜFUNG: Ist die Antwortspalte mit Indizes (z.B. "0,2") oder mit Text gefüllt?
 				if (rawAnswer.includes(",") || (!isNaN(rawAnswer) && rawAnswer !== "")) {
 					// Falls es sich um Indizes handelt, spalten wir sie beim Komma auf
-					const originalIndices = rawAnswer.split(",").map(num => parseInt(num.trim()));
-					
+					const originalIndices = rawAnswer.split(",").map((num) => parseInt(num.trim()));
+
 					// Da die Optionen gleich gemischt werden, sichern wir die korrekten Texte
-					const correctTexts = originalIndices.map(idx => opts[idx]).filter(t => t !== undefined);
-					
+					const correctTexts = originalIndices.map((idx) => opts[idx]).filter((t) => t !== undefined);
+
 					// Optionen mischen
 					shuffleArray(opts);
-					
+
 					// Neue Indizes nach dem Mischen ermitteln
-					targetIndices = correctTexts.map(text => opts.indexOf(text)).filter(idx => idx !== -1);
+					targetIndices = correctTexts.map((text) => opts.indexOf(text)).filter((idx) => idx !== -1);
 				} else {
 					// Fallback für alten CSV-Stil (Reiner Antwort-Text statt Index in der Spalte)
-					const correctTexts = rawAnswer.split(",").map(t => t.trim());
+					const correctTexts = rawAnswer.split(",").map((t) => t.trim());
 					shuffleArray(opts);
-					targetIndices = correctTexts.map(text => opts.indexOf(text)).filter(idx => idx !== -1);
+					targetIndices = correctTexts.map((text) => opts.indexOf(text)).filter((idx) => idx !== -1);
 				}
 
 				return {
@@ -457,9 +452,9 @@ function restartCurrentQuiz() {
 	// Alles neu mischen vor dem Neustart
 	shuffleArray(quizData);
 	quizData.forEach((q) => {
-		const correctTexts = q.answer.map(index => q.options[index]);
+		const correctTexts = q.answer.map((index) => q.options[index]);
 		shuffleArray(q.options);
-		q.answer = correctTexts.map(text => q.options.indexOf(text));
+		q.answer = correctTexts.map((text) => q.options.indexOf(text));
 	});
 
 	resetStats();
@@ -575,15 +570,15 @@ async function loadDownloadFiles() {
 			downloadList.innerHTML =
 				templates.length > 0
 					? templates
-						.map(
-							(file) => `
+							.map(
+								(file) => `
                 <li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-blue-50 transition-colors">
                     <span class="text-slate-700 font-medium truncate">📄 ${file}</span>
                     <a href="/templates/${file}" download class="bg-blue-100 text-blue-600 px-3 py-1 rounded-md text-xs font-bold hover:bg-blue-600 hover:text-white transition-all">Laden ↓</a>
                 </li>
             `,
-						)
-						.join("")
+							)
+							.join("")
 					: '<li class="text-slate-400 text-sm italic">Keine Lernmaterialien gefunden.</li>';
 		}
 
@@ -593,15 +588,15 @@ async function loadDownloadFiles() {
 			templateList.innerHTML =
 				csvFiles.length > 0
 					? csvFiles
-						.map(
-							(file) => `
+							.map(
+								(file) => `
                 <button onclick="loadTemplate('/templates/${file}')" class="w-full p-4 border-2 rounded-xl bg-white hover:border-blue-500 hover:bg-blue-50 text-left font-bold transition-all flex justify-between items-center group">
                     <span>📊 ${file.replace(".csv", "")}</span>
                     <span class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">Starten →</span>
                 </button>
             `,
-						)
-						.join("")
+							)
+							.join("")
 					: '<p class="text-slate-400 text-center">Keine CSV-Vorlagen gefunden.</p>';
 		}
 
@@ -610,15 +605,15 @@ async function loadDownloadFiles() {
 			downloadList2.innerHTML =
 				downloads.length > 0
 					? downloads
-						.map(
-							(file) => `
+							.map(
+								(file) => `
                 <li class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-gray-100 transition-colors">
                     <span class="text-slate-700 font-medium truncate">📦 ${file}</span>
                     <a href="/downloads/${file}" download class="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-bold hover:bg-black transition-all">Download ↓</a>
                 </li>
             `,
-						)
-						.join("")
+							)
+							.join("")
 					: '<li class="text-slate-400 text-sm italic">Keine sonstigen Dateien gefunden.</li>';
 		}
 	} catch (error) {
@@ -629,7 +624,7 @@ async function loadDownloadFiles() {
 // Initialisierung beim Laden
 window.onload = () => {
 	const modusSelect = document.getElementById("Modus");
-	
+
 	if (modusSelect) {
 		// Event-Listener für das Umschalten registrieren
 		modusSelect.onchange = function () {
@@ -656,7 +651,7 @@ window.onload = () => {
 	}
 
 	// Downloadbereich beim Start initialisieren
-	loadDownloadFiles(); 
+	loadDownloadFiles();
 
 	// Start-Zustand: Zeige PDF an, blende den Rest aus (genau wie in deinem Original-Code)
 	document.getElementById("section-pdf").classList.remove("hidden");

@@ -14,6 +14,7 @@ let isMuted = localStorage.getItem("quiz_muted") === "true";
 function updateMuteUI() {
 	const btn = document.getElementById("mute-btn");
 	if (btn) btn.innerText = isMuted ? "🔇" : "🔊";
+	btn.title = isMuted ? "Ton einschalten" : "Ton stummschalten";
 }
 //spiechern der Einstellungen im localStorage
 function toggleMute() {

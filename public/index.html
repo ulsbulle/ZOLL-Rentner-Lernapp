@@ -19,10 +19,10 @@
 
 		<script src="https://cdn.tailwindcss.com"></script>
 		<script>
-    tailwind.config = {
-        darkMode: 'class',
-    }
-</script>
+			tailwind.config = {
+				darkMode: "class",
+			};
+		</script>
 
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 	</head>
@@ -34,6 +34,7 @@
 					onclick="toggleMute()"
 					id="mute-btn"
 					class="p-2 bg-white border border-slate-200 rounded-lg shadow-sm text-xl hover:bg-slate-100 transition-all"
+					title="Ton stummschalten"
 				>
 					🔊
 				</button>
@@ -41,7 +42,7 @@
 					onclick="toggleDarkMode()"
 					id="theme-btn"
 					class="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm text-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
-					title="Design wechseln"
+					title="Zu dunklem Design wechseln"
 				>
 					🌙
 				</button>
@@ -49,11 +50,11 @@
 					onclick="toggleContrast()"
 					id="contrast-btn"
 					class="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm text-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
-					title="Kontrastmodus"
+					title="Zu Kontrastmodus wechseln"
 				>
 					👁️
 				</button>
-		</div>
+			</div>
 
 			<!--Überschrift-->
 			<div class="bg-slate-50 text-center mb-10">
@@ -98,44 +99,96 @@
 						</div>
 
 						<!--Wenn PDF ausgewählt wurde-->
-						   <div id="section-pdf" class="space-y-4">
-								<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-									<div>
-										<div class="flex items-center gap-2 mb-2">
-											<label class="block text-sm font-bold text-slate-700">Fragenanzahl</label>
-											<button onclick="document.getElementById('ai-settings').classList.toggle('hidden')" 
-												class="text-slate-400 hover:text-blue-600 transition-all text-lg leading-none" 
-												title="KI-Optionen öffnen">
-												⚙️ <span class="text-[10px] uppercase font-bold">KI-Prompt</span>
-											</button>
-										</div>
-										<input type="number" id="question-count" min="1" max="20" value="4" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold">                 
+						<div id="section-pdf" class="space-y-4">
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div>
+									<div class="flex items-center gap-2 mb-2">
+										<label class="block text-sm font-bold text-slate-700">Fragenanzahl</label>
+										<button
+											onclick="document.getElementById('ai-settings').classList.toggle('hidden')"
+											class="text-slate-400 hover:text-blue-600 transition-all text-lg leading-none"
+											title="KI-Optionen öffnen"
+										>
+											⚙️ <span class="text-[10px] uppercase font-bold">KI-Prompt</span>
+										</button>
 									</div>
-										
-									<div id="drop-zone" class="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center hover:border-blue-400 transition-all cursor-pointer bg-slate-50"
-										 onclick="document.getElementById('pdf-file').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
-										<input type="file" id="pdf-file" accept="application/pdf" class="hidden" onchange="previewPDF(this)">
-										<span id="file-name" class="text-xs text-slate-600 font-bold italic">PDF WÄHLEN / DROP</span>
-									</div>
-								</div> 
-								<div id="ai-settings" class="hidden animate-slideIn w-full bg-slate-100 p-4 rounded-xl border border-slate-200 shadow-inner">
-									<label class="block text-[10px] font-black text-slate-500 uppercase mb-2 tracking-wider">
-										Individuelle KI-Anweisung (Optional):
-										<p>Vorgegebener Promt: Erstelle exakt </p> <p style="color: red;">"siehe Fragenanzahl"</p> <p> Multiple-Choice-Fragen auf Deutsch basierend auf diesem PDF. <p style="color: red;">"siehe manuelle Promteingabe"</p> Antwort NUR als JSON-Array: [{"question":"Frage","options":["A","B","C","D"],"answer":[0,2]}]</p>
-									</label>
-									<textarea id="custom-prompt" 
-										placeholder="Z.B. 'Fokussiere dich auf rechtliche Definitionen' oder 'Erstelle besonders schwere Fragen'..." 
-										class="w-full p-3 text-sm rounded-lg border border-slate-300 focus:border-blue-500 outline-none h-24 bg-white shadow-sm"></textarea>
+									<input
+										type="number"
+										id="question-count"
+										min="1"
+										max="20"
+										value="4"
+										class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold"
+									/>
 								</div>
 
-								<div id="pdf-preview-box" class="hidden mt-4 border-2 border-slate-100 rounded-xl bg-slate-50 flex flex-col items-center p-2">
-									<canvas id="pdf-canvas" class="shadow-md rounded border border-white max-w-full h-auto"></canvas>
+								<div
+									id="drop-zone"
+									class="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center hover:border-blue-400 transition-all cursor-pointer bg-slate-50"
+									onclick="document.getElementById('pdf-file').click()"
+									ondragover="handleDragOver(event)"
+									ondragleave="handleDragLeave(event)"
+									ondrop="handleDrop(event)"
+								>
+									<input
+										type="file"
+										id="pdf-file"
+										accept="application/pdf"
+										class="hidden"
+										onchange="previewPDF(this)"
+									/>
+									<span id="file-name" class="text-xs text-slate-600 font-bold italic"
+										>PDF WÄHLEN / DROP</span
+									>
 								</div>
-								
-								<button onclick="startQuizGeneration()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl transition-all shadow-lg mt-4 uppercase">
-									🚀 Quiz generieren
-								</button>
 							</div>
+							<div
+								id="ai-settings"
+								class="hidden animate-slideIn w-full bg-slate-100 p-4 rounded-xl border border-slate-200 shadow-inner"
+							>
+								<label class="block text-[10px] font-black text-slate-500 mb-2 tracking-wider">
+									<p style="font-style: bold">
+										Benutzerdefinierte Eränzung der KI-Anweisung (Optional):
+									</p>
+									<p style="font-style: italic">
+										»Erstelle exakt
+										<span style="font-style: normal; text-transform: uppercase; color: red"
+											>"siehe Fragenanzahl oben"</span
+										>
+										Multiple-Choice-Fragen auf Deutsch basierend auf diesem PDF.
+									</p>
+									<p style="font-style: normal; text-transform: uppercase; color: red">
+										"siehe Promteingabe unten"
+									</p>
+									<p style="font-style: italic">
+										Antworte NUR als JSON-Array:
+										[{"question":"Frage","options":["A","B","C","D"],"answer":[0,2]}]«
+									</p>
+								</label>
+								<textarea
+									id="custom-prompt"
+									placeholder="Z.B. 'Fokussiere dich auf rechtliche Definitionen' oder 'Erstelle besonders schwere Fragen'..."
+									class="w-full p-3 text-sm rounded-lg border border-slate-300 focus:border-blue-500 outline-none h-24 bg-white shadow-sm"
+								></textarea>
+							</div>
+
+							<div
+								id="pdf-preview-box"
+								class="hidden mt-4 border-2 border-slate-100 rounded-xl bg-slate-50 flex flex-col items-center p-2"
+							>
+								<canvas
+									id="pdf-canvas"
+									class="shadow-md rounded border border-white max-w-full h-auto"
+								></canvas>
+							</div>
+
+							<button
+								onclick="startQuizGeneration()"
+								class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl transition-all shadow-lg mt-4 uppercase"
+							>
+								🚀 Quiz generieren
+							</button>
+						</div>
 
 						<!--Wenn CSV ausgewählt wurde-->
 						<div id="section-csv" class="hidden animate-slideIn">
@@ -177,13 +230,18 @@
 								<h3
 									class="font-extrabold text-slate-800 text-sm uppercase tracking-widest flex items-center gap-2"
 								>
-									<a
-										href="downloads/APP/LernApp_Offline.html"
-										download="LernApp_Offline.html"
+									<button
+										type="button"
 										class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 transition-all"
+										onclick="
+											Object.assign(document.createElement('a'), {
+												href: 'downloads/APP/LernApp_Offline.html',
+												download: 'LernApp_Offline.html',
+											}).click()
+										"
 									>
 										📥 Offline-Version von "🧠 AI Quiz Master" herunterladen
-									</a>
+									</button>
 								</h3>
 							</div>
 
@@ -302,7 +360,7 @@
 								</div>
 								<button
 									onclick="showHomeGameSelection()"
-									class="mt-4 w-full py-3 bg-slate-800 text-white rounded-lg text-sm font-bold uppercase tracking-tighter"
+									class="mt-4 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold uppercase tracking-tighter"
 								>
 									↩️ Wechseln
 								</button>
@@ -450,6 +508,5 @@
 		<script src="games-utils.js"></script>
 		<script src="games-engine.js"></script>
 		<script src="DarkMode.js"></script>
-		
 	</body>
 </html>
