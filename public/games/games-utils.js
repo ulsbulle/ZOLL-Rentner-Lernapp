@@ -60,6 +60,71 @@ function createExplosion(state, x, y, color) {
 	}
 }
 
+// Startbildschirm zeichnen
+function drawStartScreen(ctx, type, btnRect) {
+	const config = gamesConfig[type];
+	if (!config) return;
+
+	// Dunkles, stilvolles Overlay über dem (bereits initialisierten) Spielhintergrund
+	ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+	ctx.fillRect(0, 0, 300, 300);
+
+	// Rahmen zeichnen
+	ctx.strokeStyle = "rgba(59, 130, 246, 0.4)";
+	ctx.lineWidth = 3;
+	ctx.strokeRect(10, 10, 280, 280);
+
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+
+	// Titel (Je nach Spiel)
+	const titles = { horse: "Pferdeparcours", catcher: "Früchtefänger", dodger: "Sternenslalom", grower: "BubbleBlow" };
+	ctx.fillStyle = "#3b82f6";
+	ctx.font = "bold 24px sans-serif";
+	ctx.fillText(titles[type] || "Mini-Spiel", 150, 45);
+
+	// Trennlinie
+	ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	ctx.moveTo(30, 70);
+	ctx.lineTo(270, 70);
+	ctx.stroke();
+
+	// Kurzanleitung Zeile für Zeile ausgeben
+	ctx.fillStyle = "#e2e8f0";
+	ctx.font = "13px sans-serif";
+	if (config.instructions) {
+		config.instructions.forEach((line, index) => {
+			// Erste Zeile hervorheben
+			if (index === 0) {
+				ctx.fillStyle = "#fbbf24";
+				ctx.font = "bold 14px sans-serif";
+			} else {
+				ctx.fillStyle = "#e2e8f0";
+				ctx.font = "13px sans-serif";
+			}
+			ctx.fillText(line, 150, 105 + index * 24);
+		});
+	}
+
+	// Start-Button zeichnen
+	ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+	ctx.shadowBlur = 6;
+	ctx.shadowOffsetY = 2;
+	ctx.fillStyle = "#22c55e"; // Grüner Start-Button
+	ctx.beginPath();
+	ctx.roundRect(btnRect.x, btnRect.y, btnRect.w, btnRect.h, 12);
+	ctx.fill();
+
+	// Schatten zurücksetzen für Text
+	ctx.shadowBlur = 0;
+	ctx.shadowOffsetY = 0;
+	ctx.fillStyle = "white";
+	ctx.font = "bold 16px sans-serif";
+	ctx.fillText("START", btnRect.x + btnRect.w / 2, btnRect.y + btnRect.h / 2);
+}
+
 // Endbildschirm zeichnen
 function drawEndScreen(ctx, result, btnRect) {
 	// Hintergrund-Overlay mit Farbverlauf
@@ -134,6 +199,14 @@ const gamesConfig = {
 	horse: {
 		syncPointerOnDown: true,
 		useDefaultKeyboard: false,
+		// Kurzanleitung ANFANG
+		instructions: [
+			"Reite durch den Parcours!",
+			"Weiche den Straßensperren aus.",
+			"Steuerung: LEERTASTE / W / ARROW_UP",
+			"oder wische auf dem Display nach oben.",
+		],
+		// Kurzanleitung ENDE
 		init: (state) => {
 			state.player = { x: 150, y: 265, vY: 0, isJumping: false, jumpHoldFrames: 0 };
 			state.clouds = [];
@@ -167,7 +240,7 @@ const gamesConfig = {
 			state.touchStartY = state.mouse.y;
 		},
 		onPointerUp: (e, state) => {
-			if (state.player.y < 265) return;
+			if (!state.touchStart || state.touchStartY === undefined || state.player.y < 265) return;
 			const duration = Math.max(30, Date.now() - state.touchStart);
 			const distY = state.touchStartY - state.mouse.y;
 			if (distY < 25) {
@@ -186,6 +259,9 @@ const gamesConfig = {
 				c.x -= c.speed * deltaTime;
 				if (c.x < -100) c.x = 350; // Reset am rechten Rand
 			});
+			// Abfangen bzw. zurücksetzen
+			// hier abbrechen, damit die Gravitation das Pferd nicht nach oben links setzt
+
 			// Sprünge und Gravitation
 			state.player.vY += 0.6 * Math.sqrt(difficulty) * deltaTime;
 			// Längerer Tastendruck --> höherer Sprung
@@ -289,6 +365,14 @@ const gamesConfig = {
 	catcher: {
 		syncPointerOnDown: false,
 		useDefaultKeyboard: true,
+		//Kurzanleitung Anfang
+		instructions: [
+			"Fange gesundes Essen!",
+			"Sammle Obst (+5P) & Gemüse (+10P).",
+			"Weiche Junkfood aus (-10P)!",
+			"Steuerung: Maus bewegen oder A / D / Pfeiltasten.",
+		],
+		//Kurzanleitung ENDE
 		init: (state) => {
 			state.foodTypes = [
 				["🍎", "🍐", "🍑", "🍊", "🍒", "🍇", "🍓", "🫐", "🍌", "🥝"], // 0: Obst
@@ -405,6 +489,14 @@ const gamesConfig = {
 	dodger: {
 		syncPointerOnDown: false,
 		useDefaultKeyboard: true,
+		//Kurzanleitung Anfang
+		instructions: [
+			"Fliege durch den Weltraum!",
+			"Weiche Asteroiden aus oder schieße sie ab.",
+			"Steuerung: Bewegen mit Maus/Tastatur.",
+			"Schießen: LEERTASTE / ENTER / Touch-Klick.",
+		],
+		//Kurzanleitung Ende
 		init: (state) => {
 			state.objects = [];
 			state.beam = [];
@@ -571,6 +663,14 @@ const gamesConfig = {
 	grower: {
 		syncPointerOnDown: true,
 		useDefaultKeyboard: true,
+		//Kurzanleitung Anfang
+		instructions: [
+			"Puste die Seifenblase auf!",
+			"Klicke auf die Blase, um sie zu vergrößern.",
+			"Bringe sie zum Platzen, bevor sie schrumpft!",
+			"Steuerung: Zielen mit Maus, Pusten mit Klick.",
+		],
+		//Kurzanleitung Ende
 		init: (state) => {
 			state.particles = [];
 			state.bgBubbles = [];

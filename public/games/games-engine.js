@@ -67,8 +67,21 @@ const gameState = {
 
 // Event Listener für Tastatur initialisieren
 window.addEventListener("keydown", (e) => {
-	if (!gameActive) return;
 	const key = e.key.toLowerCase();
+
+	// Wenn wir im Startbildschirm sind und Enter/Space gedrückt wird -> Spiel starten
+	if (!gameActive && gameState.gameResult === "start") {
+		if ([" ", "enter", "return"].includes(key)) {
+			e.preventDefault();
+			gameState.gameResult = null;
+			gameActive = true;
+			document.getElementById(gameState.canvasId).style.cursor = "none";
+		}
+		return;
+	}
+
+	if (!gameActive) return;
+
 	gameState.keys[key] = true;
 	if ([" ", "enter", "arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(key)) {
 		e.preventDefault();
@@ -97,6 +110,9 @@ window.addEventListener("keyup", (e) => {
 	}
 });
 
+// Startbutton einfügen
+gameState.startButtonRect = { x: 90, y: 215, w: 120, h: 40 };
+
 // Spielstartfunktion (durch HTML aufgerufen)
 function setupGame(type, canvasId) {
 	// Event zum Spielstart für UI-Vorbereitungen
@@ -115,9 +131,9 @@ function setupGame(type, canvasId) {
 	ctx.scale(canvas.width / 300, canvas.height / 300);
 
 	// Spielzustand initialisieren
-	gameActive = true;
+	gameActive = false;
 	gamePoints = 0;
-	gameState.gameResult = null;
+	gameState.gameResult = "start";
 	gameState.canvasId = canvasId;
 	if (pointerStart.x !== null) {
 		// Pointer auf letzte Koordinaten vor Spielaufruf setzen
@@ -130,6 +146,8 @@ function setupGame(type, canvasId) {
 	gameState.lerp.y = gameState.mouse.y;
 	gameState.activePointers.clear();
 	gameState.steeringPointerId = null;
+	gameState.touchStart = null;
+	gameState.touchStartY = null;
 	gameState.cursorStyle = "#3b82f633";
 	gameState.lastHit = 0;
 	gameState.damageTime = 0;
@@ -145,19 +163,44 @@ function setupGame(type, canvasId) {
 
 	// Event Listener für Pointer initialisieren
 	canvas.oncontextmenu = (e) => e.preventDefault();
+	// --- 1. EVENT: MOVE WÄHREND DES SPIELS ---
 	canvas.onpointermove = (e) => {
-		if (!gameActive) return;
+		const pointer = getCanvasPointer(e, canvas);
 
-		// = Bewegen nur bei Steuerungspointer
+		// A) Steuerung außerhalb des aktiven Spiels (Hover über Buttons & Hintergrund-Verfolgung)
+		if (!gameActive) {
+			let overBtn = false;
+			if (gameState.gameResult === "start") {
+				const btn = gameState.startButtonRect;
+				overBtn =
+					pointer.x >= btn.x &&
+					pointer.x <= btn.x + btn.w &&
+					pointer.y >= btn.y &&
+					pointer.y <= btn.y + btn.h;
+			} else if (gameState.gameResult) {
+				const btn = gameState.continueButtonRect;
+				overBtn =
+					pointer.x >= btn.x &&
+					pointer.x <= btn.x + btn.w &&
+					pointer.y >= btn.y &&
+					pointer.y <= btn.y + btn.h;
+			}
+			canvas.style.cursor = overBtn ? "pointer" : "default";
+
+			// Maus-Koordinaten tracken für die optische Interpolation im Hintergrund
+			gameState.mouse.x = pointer.x;
+			gameState.mouse.y = pointer.y;
+			return;
+		}
+
+		// B) Normales Bewegen im laufenden Spiel (nur bei gültigem Steuerungspointer)
 		if (e.pointerId === gameState.steeringPointerId || e.pointerType === "mouse") {
-			const pointer = getCanvasPointer(e, canvas);
-
-			// Canvasgrenzen einhalten
 			gameState.mouse.x = Math.max(15, Math.min(285, pointer.x));
 			gameState.mouse.y = Math.max(15, Math.min(285, pointer.y));
 		}
-	};
+	}; // Ende
 
+	// --- 2. EVENT: DOWN (KLICKEN) ---
 	canvas.onpointerdown = (e) => {
 		e.preventDefault();
 		gameState.activePointers.add(e.pointerId);
@@ -166,23 +209,26 @@ function setupGame(type, canvasId) {
 		// Aktuelle Pointer-Koordinaten berechnen
 		const pointer = getCanvasPointer(e, canvas);
 
-		// = Erster Touch / Nicht Multitouch --> Steuerungspointer setzen
-		if (gameState.steeringPointerId === null || e.pointerType === "mouse") {
-			gameState.steeringPointerId = e.pointerId;
-			if (gameState.activeGame.syncPointerOnDown) {
-				gameState.mouse.x = Math.max(15, Math.min(285, pointer.x));
-				gameState.mouse.y = Math.max(15, Math.min(285, pointer.y));
-			}
-			if (gameActive && gameState.activeGame.onPointerDown) {
-				gameState.activeGame.onPointerDown(e, gameState);
-			}
-		} else {
-			if (gameActive && e.pointerType !== "mouse" && gameState.activeGame.fire) {
-				gameState.activeGame.fire(gameState);
+		// A) Klick auf Start-Button im Startbildschirm
+		if (!gameActive && gameState.gameResult === "start") {
+			const btn = gameState.startButtonRect;
+			if (pointer.x >= btn.x && pointer.x <= btn.x + btn.w && pointer.y >= btn.y && pointer.y <= btn.y + btn.h) {
+				// Abfangen Pferd beim Start oben links
+				// if (gameState.activeGameType === "horse") {
+				// 	gameState.mouse.x = 150;
+				// 	gameState.mouse.y = 265;
+				// 	gameState.lerp.x = 150;
+				// 	gameState.lerp.y = 265;
+				// }
+
+				gameState.gameResult = null;
+				gameActive = true; // Spiel startet jetzt!
+				canvas.style.cursor = "none";
+				return;
 			}
 		}
 
-		// "Weiter"-Button, wenn das Spiel vorbei ist
+		// B) Klick auf "Weiter"-Button, wenn das Spiel vorbei ist
 		if (!gameActive && gameState.gameResult) {
 			const btn = gameState.continueButtonRect;
 			if (pointer.x >= btn.x && pointer.x <= btn.x + btn.w && pointer.y >= btn.y && pointer.y <= btn.y + btn.h) {
@@ -190,8 +236,27 @@ function setupGame(type, canvasId) {
 				return;
 			}
 		}
-	};
 
+		if (!gameActive) return; // Wenn Spiel nicht läuft, restliche Pointer-Logik blockieren
+
+		// C) Spielsteuerung im laufenden Spiel
+		if (gameState.steeringPointerId === null || e.pointerType === "mouse") {
+			gameState.steeringPointerId = e.pointerId;
+			if (gameState.activeGame.syncPointerOnDown) {
+				gameState.mouse.x = Math.max(15, Math.min(285, pointer.x));
+				gameState.mouse.y = Math.max(15, Math.min(285, pointer.y));
+			}
+			if (gameState.activeGame.onPointerDown) {
+				gameState.activeGame.onPointerDown(e, gameState);
+			}
+		} else {
+			if (e.pointerType !== "mouse" && gameState.activeGame.fire) {
+				gameState.activeGame.fire(gameState);
+			}
+		}
+	}; // Ende
+
+	// --- 3. EVENT: UP (LOSLASSEN) ---
 	canvas.onpointerup = (e) => {
 		e.preventDefault();
 		if (gameActive && gameState.activeGame && gameState.activeGame.onPointerUp) {
@@ -204,31 +269,35 @@ function setupGame(type, canvasId) {
 		if (canvas.hasPointerCapture(e.pointerId)) {
 			canvas.releasePointerCapture(e.pointerId);
 		}
-	};
+	}; // Ende
 
 	// Hauptschleife (Start der Spielanimation)
 	let lastTime = Date.now();
 	function loop() {
+		// ZUSTAND A: Wenn das Spiel NICHT aktiv läuft (Start- oder Endbildschirm)
 		if (!gameActive) {
-			// Beendet die Spielanimation
-			if (gameState.gameResult) {
-				drawEndScreen(ctx, gameState.gameResult, gameState.continueButtonRect);
-				const btn = gameState.continueButtonRect;
-				if (
-					gameState.mouse.x >= btn.x &&
-					gameState.mouse.x <= btn.x + btn.w &&
-					gameState.mouse.y >= btn.y &&
-					gameState.mouse.y <= btn.y + btn.h
-				) {
-					canvas.style.cursor = "pointer";
-				} else {
-					canvas.style.cursor = "default";
+			let now = Date.now();
+			let deltaTime = Math.min(3.0, (now - lastTime) / 16.66);
+			lastTime = now;
+
+			if (gameState.gameResult === "start") {
+				// Rendert zuerst den spezifischen Spielhintergrund verlangsamt
+				if (gameState.activeGame && gameState.activeGame.draw) {
+					if (gameState.activeGame.update) gameState.activeGame.update(gameState, deltaTime * 0.3);
+					gameState.activeGame.draw(ctx, gameState);
 				}
-				gameAnimationId = requestAnimationFrame(loop);
+				// Zeichnet das Start-Overlay darüber
+				drawStartScreen(ctx, gameState.activeGameType, gameState.startButtonRect);
+			} else if (gameState.gameResult) {
+				// Zeigt den Endbildschirm (Sieg / Niederlage)
+				drawEndScreen(ctx, gameState.gameResult, gameState.continueButtonRect);
 			}
-			return;
+
+			gameAnimationId = requestAnimationFrame(loop);
+			return; // Blockiert das Weiterlaufen in die Spielschleife
 		}
 
+		// ZUSTAND B: Wenn das Spiel AKTIV läuft
 		let now = Date.now();
 		let deltaTime = Math.min(3.0, (now - lastTime) / 16.66); // Faktor 1.0 bei 60 FPS
 		lastTime = now;
