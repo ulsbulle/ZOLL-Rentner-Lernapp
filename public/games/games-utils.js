@@ -4,9 +4,9 @@
 // Anzeige der Herzen entsprechend der Leben
 function drawHearts(ctx, state) {
 	ctx.font = "20px serif";
-	ctx.textAlign = "right";
+	ctx.textAlign = "left";
 	for (let i = 0; i < state.maxLives; i++) {
-		let xPos = 290 - i * 25;
+		let xPos = 260 - i * 25;
 		let yPos = 20;
 		if (i < state.lives - (state.recoveringHeart ? 1 : 0)) {
 			// Volle Herzen
@@ -64,25 +64,20 @@ function createExplosion(state, x, y, color) {
 function drawStartScreen(ctx, type, btnRect) {
 	const config = gamesConfig[type];
 	if (!config) return;
-
-	// Dunkles, stilvolles Overlay über dem (bereits initialisierten) Spielhintergrund
+	// Dunkles Overlay über dem Spielhintergrund
 	ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
 	ctx.fillRect(0, 0, 300, 300);
-
-	// Rahmen zeichnen
+	// Blauer Rahmen
 	ctx.strokeStyle = "rgba(59, 130, 246, 0.4)";
 	ctx.lineWidth = 3;
 	ctx.strokeRect(10, 10, 280, 280);
-
 	ctx.textAlign = "center";
 	ctx.textBaseline = "middle";
-
-	// Titel (Je nach Spiel)
+	// Titel
 	const titles = { horse: "Pferdeparcours", catcher: "Früchtefänger", dodger: "Sternenslalom", grower: "BubbleBlow" };
 	ctx.fillStyle = "#3b82f6";
 	ctx.font = "bold 24px sans-serif";
 	ctx.fillText(titles[type] || "Mini-Spiel", 150, 45);
-
 	// Trennlinie
 	ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
 	ctx.lineWidth = 1;
@@ -90,7 +85,6 @@ function drawStartScreen(ctx, type, btnRect) {
 	ctx.moveTo(30, 70);
 	ctx.lineTo(270, 70);
 	ctx.stroke();
-
 	// Kurzanleitung Zeile für Zeile ausgeben
 	ctx.fillStyle = "#e2e8f0";
 	ctx.font = "13px sans-serif";
@@ -107,7 +101,6 @@ function drawStartScreen(ctx, type, btnRect) {
 			ctx.fillText(line, 150, 105 + index * 24);
 		});
 	}
-
 	// Start-Button zeichnen
 	ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
 	ctx.shadowBlur = 6;
@@ -116,8 +109,7 @@ function drawStartScreen(ctx, type, btnRect) {
 	ctx.beginPath();
 	ctx.roundRect(btnRect.x, btnRect.y, btnRect.w, btnRect.h, 12);
 	ctx.fill();
-
-	// Schatten zurücksetzen für Text
+	// Schatten zurücksetzen
 	ctx.shadowBlur = 0;
 	ctx.shadowOffsetY = 0;
 	ctx.fillStyle = "white";
@@ -199,14 +191,14 @@ const gamesConfig = {
 	horse: {
 		syncPointerOnDown: true,
 		useDefaultKeyboard: false,
-		// Kurzanleitung ANFANG
+		// Kurzanleitung ANFANG -------->
 		instructions: [
 			"Reite durch den Parcours!",
 			"Weiche den Straßensperren aus.",
 			"Steuerung: LEERTASTE / W / ARROW_UP",
 			"oder wische auf dem Display nach oben.",
 		],
-		// Kurzanleitung ENDE
+		// Kurzanleitung ENDE <--------
 		init: (state) => {
 			state.player = { x: 150, y: 265, vY: 0, isJumping: false, jumpHoldFrames: 0 };
 			state.clouds = [];
@@ -259,9 +251,6 @@ const gamesConfig = {
 				c.x -= c.speed * deltaTime;
 				if (c.x < -100) c.x = 350; // Reset am rechten Rand
 			});
-			// Abfangen bzw. zurücksetzen
-			// hier abbrechen, damit die Gravitation das Pferd nicht nach oben links setzt
-
 			// Sprünge und Gravitation
 			state.player.vY += 0.6 * Math.sqrt(difficulty) * deltaTime;
 			// Längerer Tastendruck --> höherer Sprung
@@ -319,8 +308,36 @@ const gamesConfig = {
 			// Himmel
 			ctx.fillStyle = "#87ceeb";
 			ctx.fillRect(0, 0, 300, 300);
+			// Sonne
+			ctx.save();
+			// Leuchten
+			ctx.shadowColor = "#fff5bb";
+			ctx.shadowBlur = 15;
+			// Corona als kreisförmige Welle
+			ctx.globalAlpha = 0.8;
+			ctx.fillStyle = "#ffee88";
+			ctx.beginPath();
+			for (let i = 0; i <= 36; i++) {
+				const a = (i * Math.PI) / 18;
+				const r = 35 + Math.sin(a * 12 - state.frames * 0.1) * 5;
+				ctx.lineTo(250 + Math.cos(a) * r, 50 + Math.sin(a) * r);
+			}
+			ctx.closePath();
+			ctx.fill();
+			ctx.shadowBlur = 0;
+			ctx.globalAlpha = 1.0;
+			// Sonne
+			ctx.fillStyle = "#ffe655";
+			ctx.beginPath();
+			ctx.arc(250, 50, 30, 0, Math.PI * 2);
+			ctx.fill();
+			// Sonnenbrillen-Emoji
+			ctx.fillStyle = "#ffffff";
+			ctx.fillText("🕶️", 250, 45);
+			ctx.restore();
 			// Wolken aus je drei Kreisen
-			ctx.fillStyle = "#ffffffcc";
+			ctx.globalAlpha = 0.8;
+			ctx.fillStyle = "#ffffff";
 			state.clouds.forEach((c) => {
 				ctx.beginPath();
 				ctx.arc(c.x, c.y, c.size, 0, Math.PI * 2);
@@ -328,6 +345,7 @@ const gamesConfig = {
 				ctx.arc(c.x + c.size * 1.1, c.y, c.size * 0.8, 0, Math.PI * 2);
 				ctx.fill();
 			});
+			ctx.globalAlpha = 1.0;
 			// Boden
 			ctx.fillStyle = "#22c55e";
 			ctx.fillRect(0, 280, 300, 20);
@@ -365,14 +383,14 @@ const gamesConfig = {
 	catcher: {
 		syncPointerOnDown: false,
 		useDefaultKeyboard: true,
-		//Kurzanleitung Anfang
+		// Kurzanleitung ANFANG -------->
 		instructions: [
 			"Fange gesundes Essen!",
 			"Sammle Obst (+5P) & Gemüse (+10P).",
 			"Weiche Junkfood aus (-10P)!",
 			"Steuerung: Maus bewegen oder A / D / Pfeiltasten.",
 		],
-		//Kurzanleitung ENDE
+		// Kurzanleitung ENDE <--------
 		init: (state) => {
 			state.foodTypes = [
 				["🍎", "🍐", "🍑", "🍊", "🍒", "🍇", "🍓", "🫐", "🍌", "🥝"], // 0: Obst
@@ -489,14 +507,14 @@ const gamesConfig = {
 	dodger: {
 		syncPointerOnDown: false,
 		useDefaultKeyboard: true,
-		//Kurzanleitung Anfang
+		// Kurzanleitung ANFANG -------->
 		instructions: [
 			"Fliege durch den Weltraum!",
 			"Weiche Asteroiden aus oder schieße sie ab.",
 			"Steuerung: Bewegen mit Maus/Tastatur.",
 			"Schießen: LEERTASTE / ENTER / Touch-Klick.",
 		],
-		//Kurzanleitung Ende
+		// Kurzanleitung ENDE <--------
 		init: (state) => {
 			state.objects = [];
 			state.beam = [];
@@ -663,17 +681,18 @@ const gamesConfig = {
 	grower: {
 		syncPointerOnDown: true,
 		useDefaultKeyboard: true,
-		//Kurzanleitung Anfang
+		// Kurzanleitung ANFANG -------->
 		instructions: [
 			"Puste die Seifenblase auf!",
 			"Klicke auf die Blase, um sie zu vergrößern.",
 			"Bringe sie zum Platzen, bevor sie schrumpft!",
 			"Steuerung: Zielen mit Maus, Pusten mit Klick.",
 		],
-		//Kurzanleitung Ende
+		// Kurzanleitung ENDE <--------
 		init: (state) => {
 			state.particles = [];
 			state.bgBubbles = [];
+			state.fogClouds = [];
 			state.target = {
 				r: 20 + Math.random() * 15,
 				x: Math.random() * 200 + 50,
@@ -681,6 +700,15 @@ const gamesConfig = {
 				vX: (Math.random() - 0.5) * (1.5 * difficulty + gamePoints / maxScore),
 				vY: (Math.random() - 0.5) * (1.5 * difficulty + gamePoints / maxScore),
 			};
+			// Generierung der Nebelwolken
+			for (let i = 0; i < 4; i++) {
+				state.fogClouds.push({
+					x: Math.random() * 300,
+					y: Math.random() * 300,
+					r: 70 + Math.random() * 50,
+					speed: (Math.random() - 0.5) * 0.3,
+				});
+			}
 			// Generierung der Hintergrundblasen
 			for (let i = 0; i < 15; i++) {
 				state.bgBubbles.push({
@@ -691,7 +719,7 @@ const gamesConfig = {
 					wobble: Math.random() * Math.PI,
 				});
 			}
-			// Funktion zur Generierung der Zielblase
+			// Generierung der Zielblase
 			state.createBubble = () => {
 				state.target.r = 20 + Math.random() * 15;
 				state.target.x = Math.random() * 200 + 50;
@@ -703,7 +731,9 @@ const gamesConfig = {
 
 		// Event Handler & Pustelogik
 		fire: (state) => {
-			const dist = Math.sqrt((state.mouse.x - state.target.x) ** 2 + (state.mouse.y - state.target.y) ** 2);
+			let wobbleX = Math.sin(state.frames * 0.02 + state.target.y * 0.03) * 6;
+			let visualTargetX = state.target.x + wobbleX;
+			const dist = Math.sqrt((state.mouse.x - visualTargetX) ** 2 + (state.mouse.y - state.target.y) ** 2);
 			if (dist < state.target.r + 10) {
 				state.target.r += 15;
 				if (state.target.r > 70) {
@@ -726,6 +756,12 @@ const gamesConfig = {
 		// Logik
 		update: (state, deltaTime) => {
 			state.frames += 1 * deltaTime;
+			// Bewegung der Nebelwolken
+			state.fogClouds.forEach((f) => {
+				f.x += f.speed * deltaTime;
+				if (f.x < -150) f.x = 450;
+				if (f.x > 450) f.x = -150;
+			});
 			// Aufsteigen der Hintergrundblasen
 			state.bgBubbles.forEach((b) => {
 				b.y -= b.speed * deltaTime;
@@ -762,26 +798,70 @@ const gamesConfig = {
 
 		// Zeichnen
 		draw: (ctx, state) => {
+			// Initialisierung eines Hilfscanvas für Wackeleffekt
+			if (!state.offscreenCanvas) {
+				state.offscreenCanvas = document.createElement("canvas");
+				state.offscreenCanvas.width = 300;
+				state.offscreenCanvas.height = 300;
+			}
+			let octx = state.offscreenCanvas.getContext("2d");
 			// Wasserfarbverlauf
-			let waterGrad = ctx.createLinearGradient(0, 0, 0, 300);
-			waterGrad.addColorStop(0, "#bae6fd"); // Hellblau (Oberfläche)
-			waterGrad.addColorStop(1, "#0c4a6e"); // Dunkelblau (Tiefe)
-			ctx.fillStyle = waterGrad;
-			ctx.fillRect(0, 0, 300, 300);
-			// Aufsteigende Hintergrundblasen
-			ctx.fillStyle = "#ffffff33";
-			state.bgBubbles.forEach((b) => {
-				ctx.beginPath();
-				ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-				ctx.fill();
+			let waterGrad = octx.createLinearGradient(0, 0, 0, 300);
+			waterGrad.addColorStop(0, "#6b5d80"); // Perlviolett (Oberfläche)
+			waterGrad.addColorStop(0.5, "#026a52"); // Türkisgrün (Mitte)
+			waterGrad.addColorStop(1, "#292544"); // Mitternachtblau (Tiefe)
+			octx.fillStyle = waterGrad;
+			octx.fillStyle = waterGrad;
+			octx.fillRect(0, 0, 300, 300);
+			// Nebel
+			state.fogClouds.forEach((f) => {
+				octx.save();
+				octx.translate(f.x, f.y);
+				octx.scale(1, 0.3);
+				let grad = octx.createRadialGradient(0, 0, 0, 0, 0, f.r);
+				grad.addColorStop(0, "rgba(160, 160, 160, 0.4)");
+				grad.addColorStop(1, "rgba(160, 160, 160, 0)");
+				octx.fillStyle = grad;
+				octx.beginPath();
+				octx.arc(0, 0, f.r, 0, Math.PI * 2);
+				octx.fill();
+				octx.restore();
 			});
+			// Lichtkegel
+			let rayShift = Math.sin(state.frames / 100) * 15;
+			octx.fillStyle = "rgba(195, 181, 253, 0.1)";
+			octx.beginPath();
+			octx.moveTo(230 - rayShift, 0);
+			octx.lineTo(245 - rayShift, 0);
+			octx.lineTo(140 - rayShift, 300);
+			octx.lineTo(40 - rayShift, 300);
+			octx.closePath();
+			octx.fill();
+			octx.fillStyle = "rgba(45, 212, 190, 0.1)";
+			octx.beginPath();
+			octx.moveTo(240 - rayShift, 0);
+			octx.lineTo(255 - rayShift, 0);
+			octx.lineTo(230 + rayShift, 300);
+			octx.lineTo(130 + rayShift, 300);
+			octx.closePath();
+			octx.fill();
+			// Aufsteigende Hintergrundblasen
+			octx.fillStyle = "rgba(255, 255, 255, 0.4)";
+			octx.shadowColor = "#99f6e4";
+			octx.shadowBlur = 8;
+			state.bgBubbles.forEach((b) => {
+				octx.beginPath();
+				octx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+				octx.fill();
+			});
+			octx.shadowBlur = 0;
 			// Sandboden
-			ctx.fillStyle = "#fde68a";
-			ctx.beginPath();
-			ctx.ellipse(150, 310, 200, 40, 0, 0, Math.PI * 2);
-			ctx.fill();
+			octx.fillStyle = "#debc67";
+			octx.beginPath();
+			octx.ellipse(150, 310, 200, 40, 0, 0, Math.PI * 2);
+			octx.fill();
 			// Algen zeichnen
-			const algaeColors = ["#15803d", "#166534", "#3f6212"];
+			const algaeColors = ["#189546", "#1b793f", "#4e7916"];
 			const positions = [50, 90, 160, 210, 260];
 			positions.forEach((startX, i) => {
 				const col = algaeColors[i % 3];
@@ -789,61 +869,68 @@ const gamesConfig = {
 				const h = 12 + i;
 				const points = [];
 				// Halme
-				ctx.beginPath();
-				ctx.strokeStyle = col;
-				ctx.lineWidth = 3;
-				ctx.lineCap = "round";
-				ctx.moveTo(startX, 295);
+				octx.beginPath();
+				octx.strokeStyle = col;
+				octx.lineWidth = 3;
+				octx.lineCap = "round";
+				octx.moveTo(startX, 295);
 				for (let j = 1; j <= segments; j++) {
 					let sway = Math.sin(state.frames * 0.04 + i + j * 0.2) * (j * 1.5); // Schwingen der Halme
 					let nextX = startX + sway;
 					let nextY = 295 - j * h;
-					ctx.lineTo(nextX, nextY);
+					octx.lineTo(nextX, nextY);
 					points.push({ x: nextX, y: nextY, s: sway });
 				}
-				ctx.stroke();
+				octx.stroke();
 				// Blätter
-				ctx.fillStyle = col;
+				octx.fillStyle = col;
 				points.forEach((p, j) => {
 					if ((j + 1) % 2 === 0) {
-						ctx.save();
-						ctx.translate(p.x, p.y);
-						ctx.rotate(p.s * 0.05);
-						ctx.beginPath();
-						ctx.ellipse((j + 1) % 4 === 0 ? 5 : -5, 0, 6, 3, 0.5, 0, Math.PI * 2);
-						ctx.fill();
-						ctx.restore();
+						octx.save();
+						octx.translate(p.x, p.y);
+						octx.rotate(p.s * 0.05);
+						octx.beginPath();
+						octx.ellipse((j + 1) % 4 === 0 ? 5 : -5, 0, 6, 3, 0.5, 0, Math.PI * 2);
+						octx.fill();
+						octx.restore();
 					}
 				});
 			});
 			// Zielrahmen
-			ctx.beginPath();
-			ctx.arc(state.target.x, state.target.y, 70, 0, Math.PI * 2);
-			ctx.strokeStyle = "#2563eb1a";
-			ctx.setLineDash([5, 5]);
-			ctx.stroke();
-			ctx.setLineDash([]);
+			octx.beginPath();
+			octx.arc(state.target.x, state.target.y, 70, 0, Math.PI * 2);
+			octx.strokeStyle = "#2563eb1a";
+			octx.setLineDash([5, 5]);
+			octx.stroke();
+			octx.setLineDash([]);
 			// Explosionspartikel
 			state.particles.forEach((p) => {
-				ctx.save();
-				ctx.globalAlpha = p.alpha;
-				ctx.fillStyle = p.color;
-				ctx.beginPath();
-				ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-				ctx.fill();
-				ctx.restore();
+				octx.save();
+				octx.globalAlpha = p.alpha;
+				octx.fillStyle = p.color;
+				octx.beginPath();
+				octx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+				octx.fill();
+				octx.restore();
 			});
 			// Zielblase
 			let fontSize = state.target.r * 1.8;
-			ctx.font = `${fontSize}px serif`;
+			octx.font = `${fontSize}px serif`;
+			octx.textAlign = "center";
+			octx.textBaseline = "middle";
+			octx.shadowColor = "#ffffffcc"; // Weißes Leuchten
+			octx.shadowBlur = 15;
+			octx.fillStyle = "#ffffff";
+			octx.fillText("🫧", state.target.x, state.target.y);
+			octx.shadowBlur = 0;
+			// Wackeleffekt durch Zerschneiden der Hilfscanvas in horizontale Streifen und Projektion auf die echte Canvas
+			for (let y = 0; y < 300; y += 1) {
+				let wobbleX = Math.sin(state.frames * 0.02 + y * 0.03) * 6;
+				ctx.drawImage(state.offscreenCanvas, 0, y, 300, 1, wobbleX - 6, y, 312, 1);
+			}
+			// Cursor (Highlight)
 			ctx.textAlign = "center";
 			ctx.textBaseline = "middle";
-			ctx.shadowColor = "#ffffffcc"; // Weißes Leuchten
-			ctx.shadowBlur = 15;
-			ctx.fillStyle = "#ffffff";
-			ctx.fillText("🫧", state.target.x, state.target.y);
-			ctx.shadowBlur = 0;
-			// Cursor (Highlight)
 			ctx.beginPath();
 			ctx.arc(state.lerp.x, state.lerp.y, 27, 0, Math.PI * 2);
 			ctx.fillStyle = state.cursorStyle;
