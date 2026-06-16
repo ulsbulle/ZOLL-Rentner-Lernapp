@@ -388,7 +388,7 @@ const gamesConfig = {
 			"Fange gesundes Essen!",
 			"Sammle Obst (+5P) & Gemüse (+10P).",
 			"Weiche Junkfood aus (-10P)!",
-			"Steuerung: Maus bewegen oder A / D / Pfeiltasten.",
+			"Steuerung: Maus bewegen oder A / D / --> <--.",
 		],
 		// Kurzanleitung ENDE <--------
 		init: (state) => {
