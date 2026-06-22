@@ -285,7 +285,7 @@
 									</select>
 									<div class="flex items-center gap-2">
 										<button
-											onclick="scoreEdit()"
+											onclick="editMaxScore()"
 											id="home-game-score"
 											class="p-1.5 rounded-lg border-2 border-transparent focus:border-white/40 bg-white/20 hover:bg-white/30 transition-all cursor-pointer text-white text-mono font-bold uppercase"
 											title="Klicken zum Ändern"
@@ -306,7 +306,7 @@
 												placeholder="Max."
 											/>
 											<button
-												onclick="newMaxScore()"
+												onclick="setMaxScore()"
 												class="ml-1 hover:text-blue-600 text-white font-bold uppercase"
 											>
 												OK
@@ -325,25 +325,25 @@
 									<span class="text-xs font-bold uppercase">Pferdeparcours</span>
 								</button>
 								<button
-									onclick="setupGame('catcher', 'home-canvas')"
+									onclick="setupGame('fruit', 'home-canvas')"
 									class="p-4 border-2 rounded-xl bg-white hover:border-blue-500 transition-all flex flex-col items-center shadow-sm"
 								>
 									<span class="text-3xl mb-1">🍎</span>
 									<span class="text-xs font-bold uppercase">Früchtefänger</span>
 								</button>
 								<button
-									onclick="setupGame('dodger', 'home-canvas')"
+									onclick="setupGame('ufo', 'home-canvas')"
 									class="p-4 border-2 rounded-xl bg-white hover:border-blue-500 transition-all flex flex-col items-center shadow-sm"
 								>
 									<span class="text-3xl mb-1">🛸</span>
 									<span class="text-xs font-bold uppercase">Sternenslalom</span>
 								</button>
 								<button
-									onclick="setupGame('grower', 'home-canvas')"
+									onclick="setupGame('bubble', 'home-canvas')"
 									class="p-4 border-2 rounded-xl bg-white hover:border-blue-500 transition-all flex flex-col items-center shadow-sm"
 								>
 									<span class="text-3xl mb-1">🫧</span>
-									<span class="text-xs font-bold uppercase">BubbleBlow</span>
+									<span class="text-xs font-bold uppercase">BubbleBurst</span>
 								</button>
 							</div>
 
@@ -420,22 +420,22 @@
 							<span style="display: inline-block; transform: scaleX(-1)">🐎</span> Pferdeparcours
 						</button>
 						<button
-							onclick="setupGame('catcher', 'game-canvas')"
+							onclick="setupGame('fruit', 'game-canvas')"
 							class="p-4 border-2 rounded-2xl bg-white hover:border-emerald-500 font-bold transition-all"
 						>
 							🍎 Früchtefänger
 						</button>
 						<button
-							onclick="setupGame('dodger', 'game-canvas')"
+							onclick="setupGame('ufo', 'game-canvas')"
 							class="p-4 border-2 rounded-2xl bg-white hover:border-red-500 font-bold transition-all"
 						>
 							🛸 Sternenslalom
 						</button>
 						<button
-							onclick="setupGame('grower', 'game-canvas')"
+							onclick="setupGame('bubble', 'game-canvas')"
 							class="p-4 border-2 rounded-2xl bg-white hover:border-amber-500 font-bold transition-all"
 						>
-							🫧 BubbleBlow
+							🫧 BubbleBurst
 						</button>
 					</div>
 					<div id="active-game-area" class="hidden w-full max-w-[500px] mx-auto">
@@ -505,9 +505,9 @@
 		<!-- Scripte laden-->
 		<script src="quiz/quiz_logik.js"></script>
 		<script src="audio/audio.js"></script>
-		<script src="games/games-ui.js"></script>
-		<script src="games/games-utils.js"></script>
-		<script src="games/games-engine.js"></script>
+		<script type="module" src="audio/audio-manager.js"></script>
+		<script type="module" src="games/game-engine.js"></script>
+		<script type="module" src="games/game-ui.js"></script>
 		<script src="anzeigemodi/darkmode.js"></script>
 	</body>
 </html>
