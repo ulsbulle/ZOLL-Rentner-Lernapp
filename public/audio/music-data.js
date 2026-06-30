@@ -1,7 +1,7 @@
 // Platzhalter für die MusicData (Branch audio)
 // ------------------------------
 
-export class MusicData {
+export class musicData {
 	playSound(soundName) {
 		// Platzhalter
 	}
