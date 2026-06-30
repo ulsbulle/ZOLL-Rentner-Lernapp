@@ -1,7 +1,7 @@
 // Platzhalter für die AudioEngine (Branch audio)
 // ------------------------------
 
-export class audioEngine {
+export class AudioEngine {
 	playSound(soundName) {
 		// Platzhalter
 	}
