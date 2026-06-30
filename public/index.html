@@ -504,12 +504,12 @@
 
 		<!-- Scripte laden-->
 		<script type="module">
-			import { AudioEngine } from "./audio/audio-engine.js";
-			import { MusicData } from "./audio/music-data.js";
+			import { audioEngine } from "./audio/audio-engine.js";
+			import { musicData } from "./audio/music-data.js";
 
 			// Initialisierung der Audio-Engine bei erster Interaktion
-			window.audioEngine = AudioEngine;
-			window.musicData = MusicData;
+			window.audioEngine = audioEngine;
+			window.musicData = musicData;
 			document.body.addEventListener(
 				"click",
 				async () => {
