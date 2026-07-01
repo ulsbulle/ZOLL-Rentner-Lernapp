@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="de">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>MIDI-JSON/CSV-Konverter</title>
+		<script src="https://unpkg.com/@tonejs/midi"></script>
+		<style>
+			/* --- Farbdefinitionen --- */
+			:root {
+				--bg-body: #161618;
+				--surface: #2c2c2e;
+				--surface-light: #3a3a3c;
+				--surface-border-light: #48484a;
+				--surface-dark: #1c1c1e;
+
+				--text-main: #ffffff;
+				--text-muted: #8e8e93;
+				--text-code: #00ff66;
+
+				--accent-blue: #007bff;
+				--hover-blue: #0063cc;
+				--active-blue: #004a99;
+
+				--hover-border: #f2f2f7;
+				--active-border: #d1d1d6;
+			}
+
+			/* --- Globale Stile --- */
+			body {
+				font-family: sans-serif;
+				text-align: center;
+				background-color: var(--bg-body);
+				color: var(--text-main);
+			}
+			h1 {
+				font-size: 2rem;
+				color: var(--text-main);
+				margin-top: 20px;
+				margin-bottom: 40px;
+			}
+			p {
+				color: var(--text-muted);
+			}
+
+			/* --- Kontrollelemente --- */
+			.container {
+				width: 90%;
+				max-width: 1200px;
+				margin: 20px auto;
+				box-sizing: border-box;
+			}
+			.controls {
+				padding: 10px;
+				background-color: var(--surface);
+				border-radius: 12px;
+			}
+			select {
+				cursor: pointer;
+				margin: 10px;
+				padding: 10px;
+				font-size: 1rem;
+				background-color: var(--surface-light);
+				color: var(--text-main);
+				border: 1px solid var(--surface-border-light);
+				border-radius: 6px;
+			}
+			input[type="checkbox"] {
+				cursor: pointer;
+				margin-left: 30px;
+				accent-color: var(--accent-blue);
+			}
+			label {
+				color: var(--text-main);
+				font-size: 1rem;
+			}
+
+			/* --- Dropzone --- */
+			#drop-zone {
+				padding: 50px 20px;
+				cursor: pointer;
+				font-weight: bold;
+				color: var(--text-muted);
+				background-color: var(--surface-light);
+				border-radius: 8px;
+				border: 2px dashed var(--surface-border-light);
+				box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+				transition:
+					background-color 0.1s,
+					transform 0.1s;
+			}
+			#drop-zone:hover {
+				background-color: var(--hover-blue);
+				border-color: var(--hover-border);
+				color: var(--text-main);
+			}
+			#drop-zone.active {
+				background-color: var(--active-blue);
+				border-color: var(--active-border);
+				color: var(--text-main);
+				transform: scale(0.95);
+			}
+
+			/* --- Terminal --- */
+			textarea {
+				height: 400px;
+				padding: 15px;
+				background-color: var(--surface-dark);
+				color: var(--text-code);
+				font-family: monospace;
+				border: 1px solid var(--surface-border-light);
+				border-radius: 8px;
+				resize: vertical;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>MIDI-JSON/CSV-Konverter</h1>
+
+		<p>MIDI-Datei unten ablegen oder vorhandenen JSON/CSV-Code in das Textfenster einfügen:</p>
+
+		<div id="drop-zone" class="container">MIDI-Datei hier ablegen oder zur Dateiauswahl klicken.</div>
+		<input type="file" id="fileInput" accept=".mid,.midi" style="display: none" />
+
+		<div class="controls container">
+			<label for="format-select">Ausgabeformat:</label>
+			<select id="format-select">
+				<option value="json-single">JSON (Einzelzeilen)</option>
+				<option value="json-break">JSON (Zeilenumbrüche)</option>
+				<option value="csv">CSV (Semikolon)</option>
+			</select>
+
+			<input type="checkbox" id="sort-checkbox" checked />
+			<label class="checkbox-label" for="sort-checkbox">Ausgabe sortieren</label>
+		</div>
+
+		<textarea
+			id="terminal"
+			class="container"
+			spellcheck="false"
+			placeholder="Die Ausgabe erscheint hier..."
+		></textarea>
+
+		<script>
+			// Globale Konstanten und Objekte
+			// ------------------------------
+
+			// B-Tonarten
+			const FLAT_KEYS = [
+				"F major",
+				"Bb major",
+				"Eb major",
+				"Ab major",
+				"Db major",
+				"Gb major",
+				"d minor",
+				"g minor",
+				"c minor",
+				"f minor",
+				"bb minor",
+				"eb minor",
+			];
+
+			// Diatonische und chromatische Positionen der Stammtöne
+			const DIATONIC_MAP = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+			const CHROMATIC_MAP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+			// DOM-Referenzen
+			const dom = {
+				dropZone: document.getElementById("drop-zone"),
+				fileInput: document.getElementById("fileInput"),
+				formatSelect: document.getElementById("format-select"),
+				sortCheckbox: document.getElementById("sort-checkbox"),
+				terminal: document.getElementById("terminal"),
+			};
+
+			// Konverterzustand
+			const converterState = {
+				rawData: null,
+				currentData: null,
+				isConverting: false,
+			};
+
+			// Hilfsfunktionen
+			// ------------------------------
+
+			// Enharmonische Anpassungen basierend auf der Tonart
+			function respellNote(noteName, tonality) {
+				if (!tonality) return noteName;
+
+				const keySignature = `${tonality.key} ${tonality.scale}`;
+				let pitch = noteName.replace(/[0-9-]/g, "");
+				let octave = parseInt(noteName.replace(/[^0-9-]/g, ""));
+
+				if (FLAT_KEYS.includes(keySignature)) {
+					// Ersetzungen für Bb-Tonarten
+					if (pitch === "A#") pitch = "Bb";
+					if (pitch === "D#") pitch = "Eb";
+					if (pitch === "G#") pitch = "Ab";
+					if (pitch === "C#") pitch = "Db";
+					if (pitch === "F#") pitch = "Gb";
+
+					// Spezifische Anpassungen für As-Dur, Des-Dur, Ges-Dur und deren Moll-Parallelen
+					if (
+						["Ab major", "f minor", "Db major", "bb minor", "Gb major", "eb minor"].includes(keySignature)
+					) {
+						if (pitch === "B") {
+							pitch = "Cb";
+							octave++;
+						}
+					}
+					if (["Db major", "bb minor", "Gb major", "eb minor"].includes(keySignature)) {
+						if (pitch === "E") pitch = "Fb";
+					}
+					if (["Gb major", "eb minor"].includes(keySignature)) {
+						if (pitch === "A") pitch = "Bbb";
+					}
+				} else {
+					// Ersetzungen für Kreuz-Tonarten
+					if (["E major", "c# minor", "B major", "g# minor", "F# major", "d# minor"].includes(keySignature)) {
+						if (pitch === "G") pitch = "F##";
+					}
+					if (["B major", "g# minor", "F# major", "d# minor"].includes(keySignature)) {
+						if (pitch === "D") pitch = "C##";
+					}
+					if (["F# major", "d# minor"].includes(keySignature)) {
+						if (pitch === "A") pitch = "G##";
+					}
+				}
+				return pitch + octave;
+			}
+
+			// Tonhöhenbewertung zur Sortierung (diatonisch und chromatisch)
+			function getPitchValue(note) {
+				if (!note) return { diatonic: -999, chromatic: -999 };
+
+				// Splitten des Notennamens in Stammton, Versetzungszeichen und Oktave: "F##2" --> ["F##2", "F", "##", "2"]
+				const noteParts = note.match(/^([a-g])([#b]*)(-?\d+)/i);
+				if (!noteParts) return { diatonic: -999, chromatic: -999 };
+
+				// Suchtreffer Variablen zuweisen
+				const base = noteParts[1].toUpperCase();
+				const accidental = noteParts[2];
+				const octave = parseInt(noteParts[3], 10);
+
+				const diatonicValue = octave * 7 + DIATONIC_MAP[base];
+				let chromaticValue = octave * 12 + CHROMATIC_MAP[base];
+
+				for (const char of accidental) {
+					if (char === "#") chromaticValue++;
+					if (char === "b") chromaticValue--;
+				}
+				return { diatonic: diatonicValue, chromatic: chromaticValue };
+			}
+
+			// Datenverarbeitung
+			// ------------------------------
+
+			// Datenextraktion aus dem Textfeld (CSV oder JSON)
+			function parseCurrentText(text) {
+				text = text.trim();
+				if (!text) return null;
+
+				const isCSV = ["#TIMESIG", "#BPM", "#TUNING", "#LEVEL", "#EFFECTS", "instrument;"].some((prefix) =>
+					text.startsWith(prefix),
+				);
+
+				// CSV-Parsing
+				if (isCSV) {
+					const lines = text.split(/\r?\n/);
+					const musicData = {};
+
+					for (const line of lines) {
+						switch (true) {
+							case line.startsWith("#TIMESIG"):
+								musicData.measure = line.split("=")[1].trim() ?? "4/4";
+								break;
+
+							case line.startsWith("#BPM"):
+								musicData.bpm = parseFloat(line.split("=")[1]) ?? 120;
+								break;
+
+							case line.startsWith("#TUNING"):
+								musicData.tuning = parseFloat(line.split("=")[1]) ?? 440;
+								break;
+
+							case line.startsWith("#LEVEL"):
+								musicData.level = parseFloat(line.split("=")[1]) ?? 1.0;
+								break;
+
+							case line.startsWith("#EFFECTS"):
+								try {
+									musicData.effects = JSON.parse(line.substring(line.indexOf("=") + 1).trim());
+								} catch (e) {
+									musicData.effects = {};
+								}
+								break;
+
+							case line.startsWith("instrument;"):
+								break;
+
+							default:
+								if (!line.trim()) break;
+								const field = line.split(";");
+
+								// Array-Destructuring: CSV-Felder Variablen zuweisen
+								let instrument, type, gain, pan, bar, beat, duration, note, volume;
+								[instrument, type, gain, pan, bar, beat, duration, note, volume] = field;
+
+								// Instrumententrack anlegen, falls noch nicht vorhanden
+								if (!musicData[instrument]) {
+									musicData[instrument] = {
+										type: type,
+										gain: parseFloat(gain) || 0,
+										pan: parseFloat(pan) || 0,
+										notes: [],
+									};
+								}
+
+								// Noten- bzw. Sound-Ereignis einfügen
+								const noteEvent = {
+									bar: parseInt(bar),
+									beat: parseFloat(beat),
+									duration: parseFloat(duration),
+									volume: parseInt(volume),
+								};
+
+								const isUnpitched = note.startsWith("sound: ");
+								if (isUnpitched) noteEvent.sound = note.replace("sound: ", "");
+								else noteEvent.note = note;
+
+								musicData[instrument].notes.push(noteEvent);
+								break;
+						}
+					}
+					return musicData;
+				}
+
+				// JSON-Parsing
+				try {
+					let clean = text
+						.replace(/(export\s+)?(const|let|var)\s+\w+\s*=\s*/, "") // Variablen-Präfix entfernen
+						.replace(/;$/, "") // Semikolon am Ende entfernen
+						.trim();
+
+					// Kommentare entfernen
+					clean = clean.replace(/\/\/.*$/gm, "");
+					clean = clean.replace(/\/\*[\s\S]*?\*\//g, "");
+
+					// Objekt-Keys in doppelte Anführungszeichen setzen
+					clean = clean.replace(/([{,]\s*)([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
+
+					// Einfache Anführungszeichen in doppelte Anführungszeichen umwandeln
+					clean = clean.replace(/'([^']*)'/g, '"$1"');
+
+					// Überschüssige Kommata vor ] oder } entfernen
+					clean = clean.replace(/,\s*([\]}])/g, "$1");
+					clean = clean.replace(/,+\s*$/, "");
+
+					return JSON.parse(clean);
+				} catch (error) {
+					return null;
+				}
+			}
+
+			// Sortiert alle Noten chronologisch und nach Tonhöhe
+			function sortCurrentData() {
+				if (!converterState.currentData) return;
+
+				for (const key in converterState.currentData) {
+					// Globale Metadaten überspringen
+					if (["timeSig", "bpm", "tuning", "level", "effects"].includes(key)) continue;
+
+					// Ungültige Instrumententracks überspringen
+					const instrument = converterState.currentData[key];
+					if (!instrument || !Array.isArray(instrument.notes)) continue;
+
+					// Hierarchische Sortierung
+					instrument.notes.sort((a, b) => {
+						// 1. Sortierung nach Takt
+						if (a.bar !== b.bar) return a.bar - b.bar;
+
+						// 2. Sortierung nach Schlag
+						if (a.beat !== b.beat) return a.beat - b.beat;
+
+						// 3. Sortierung nach Tonhöhe
+						const elementA = a.note ? a.note : a.sound;
+						const elementB = b.note ? b.note : b.sound;
+						const pitchValueA = getPitchValue(elementA);
+						const pitchValueB = getPitchValue(elementB);
+						if (pitchValueA.diatonic !== pitchValueB.diatonic)
+							return pitchValueA.diatonic - pitchValueB.diatonic;
+						return pitchValueA.chromatic - pitchValueB.chromatic;
+					});
+				}
+			}
+
+			// Verarbeitung einer hochgeladenen MIDI-Datei
+			function processMidi(file) {
+				const reader = new FileReader();
+
+				// Event-Handler für beendeten Einlesevorgang
+				reader.onload = function (e) {
+					try {
+						// MIDI-Objekt erzeugen
+						const midi = new Midi(e.target.result);
+						const timeSignatureNumerator = midi.header.timeSignatures[0]?.timeSignature[0] || 4;
+						const timeSignatureDenominator = midi.header.timeSignatures[0]?.timeSignature[1] || 4;
+						const quartersPerBar = timeSignatureNumerator * (4 / timeSignatureDenominator);
+						const ticksPerQuarter = midi.header.ppq;
+
+						// Metadaten in neues Objekt überführen
+						const result = {
+							timeSig: `${timeSignatureNumerator}/${timeSignatureDenominator}`,
+							bpm: midi.header.tempos.length ? Math.round(midi.header.tempos[0].bpm) : 120,
+							tuning: 440,
+							level: 1.0,
+							effects: {},
+						};
+
+						// Konvertierung aller nichtleeren Tracks
+						midi.tracks.forEach((track, i) => {
+							if (!track.notes.length) return;
+
+							// Tracknamen bereinigen und ggf. nummerieren
+							const instrumentName = track.name
+								? track.name
+										.trim()
+										.toLowerCase()
+										.replace(/[^a-z0-9_]/g, "_")
+								: `track_${i}`;
+
+							// Kanal 10 ist Standard für Perkussion
+							const isPercussion = track.channel === 9;
+
+							// Instrumententrack anlegen, falls noch nicht vorhanden
+							if (!result[instrumentName]) {
+								result[instrumentName] = {
+									type: isPercussion ? "unpitched" : "pitched",
+									gain: 0,
+									pan: 0,
+									notes: [],
+								};
+							}
+
+							// Konvertierung aller Noten-/Sound-Events
+							const noteArray = track.notes.map((n) => {
+								const note = {
+									bar: Math.floor(n.ticks / ticksPerQuarter / quartersPerBar) + 1,
+									beat: parseFloat((((n.ticks / ticksPerQuarter) % quartersPerBar) + 1).toFixed(4)),
+									duration: parseFloat(((n.durationTicks + 1) / ticksPerQuarter).toFixed(4)),
+									volume: Math.round(n.velocity * 127),
+								};
+
+								if (isPercussion) note.sound = respellNote(n.name, midi.header.keySignatures[0]);
+								else note.note = respellNote(n.name, midi.header.keySignatures[0]);
+
+								return note;
+							});
+							result[instrumentName].notes = result[instrumentName].notes.concat(noteArray);
+						});
+
+						converterState.rawData = result;
+						updateTerminal();
+					} catch (error) {
+						dom.terminal.value = "Fehler: " + error.message;
+					}
+				};
+
+				// Datei als Array-Puffer einlesen
+				reader.readAsArrayBuffer(file);
+			}
+
+			// Codeausgabe
+			// ------------------------------
+
+			// Daten sortieren, konvertieren und ausgeben
+			function updateTerminal() {
+				if (!converterState.rawData) return;
+
+				// Tiefe Kopie (keine Referenz auf rawData)
+				converterState.currentData = JSON.parse(JSON.stringify(converterState.rawData));
+
+				// Sortieren der Daten
+				if (dom.sortCheckbox.checked) sortCurrentData();
+
+				// Konvertierung der Ausgabe
+				converterState.isConverting = true;
+				convertOutput();
+				converterState.isConverting = false;
+			}
+
+			// Schreibt die formatierten Daten in das Textfeld
+			function convertOutput() {
+				if (!converterState.currentData) return;
+				const format = dom.formatSelect.value;
+
+				if (format === "csv") {
+					// Header mit globalen Metadaten als Kommentaren
+					let csv = `#TIMESIG = ${converterState.currentData.timeSig ?? "4/4"}\n`;
+					csv += `#BPM = ${converterState.currentData.bpm ?? 120}\n`;
+					csv += `#TUNING = ${converterState.currentData.tuning ?? 440}\n`;
+					csv += `#LEVEL = ${converterState.currentData.level ?? 1.0}\n`;
+					csv += `#EFFECTS = ${JSON.stringify(converterState.currentData.effects ?? {})}\n`;
+					csv += `instrument;type;gain;pan;bar;beat;duration;note;volume\n`;
+
+					// Alle Instrumente/Tracks durchlaufen
+					for (const [instrument, instrumentData] of Object.entries(converterState.currentData)) {
+						// Metadaten und leere Daten überspringen
+						if (
+							["timeSig", "bpm", "tuning", "level", "effects"].includes(instrument) ||
+							!instrumentData ||
+							!Array.isArray(instrumentData.notes)
+						)
+							continue;
+
+						// Alle Noten-/Sound-Ereignisse durchlaufen
+						instrumentData.notes.forEach((n) => {
+							const event = n.note ? n.note : `sound: ${n.sound}`;
+							csv += `${instrument};${instrumentData.type};${instrumentData.gain ?? 0};${instrumentData.pan ?? 0};${n.bar};${n.beat};${n.duration};${event};${n.volume}\n`;
+						});
+					}
+					dom.terminal.value = csv;
+				} else {
+					// Umwandlung in einen JSON-String mit TAB als Einrückung
+					let json = JSON.stringify(converterState.currentData, null, "\t");
+
+					// Entfernt Anführungszeichen von Objekt-Keys, sofern keine Leer- oder Sonderzeichen enthalten sind
+					json = json.replace(/"([^"]+)":/g, (match, key) => {
+						return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key) ? `${key}:` : match; // Prüfen, ob key ohne Anführungszeichen ein valider Key ist
+					});
+
+					// Formatiert Objekte mit Noten-/Sounddaten (Suche nach "bar:").
+					json = json.replace(/\{([^{}]*bar:[^{}]*)\}/g, (match, inner) => {
+						// Entfernt überflüssige Leerzeichen
+						const event = inner.replace(/\s+/g, " ").trim();
+
+						// Einzeilige Ausgabe
+						if (format === "json-single") return `{ ${event} }`;
+
+						// Mehrzeilige Ausgabe
+						return `{\n${event
+							.split(/,\s*/)
+							.map((line) => "          " + line)
+							.join(",\n")}\n        }`;
+					});
+
+					dom.terminal.value = `export const musicData = ${json};`;
+				}
+			}
+
+			// Event-Listener
+			// ------------------------------
+
+			// Datenverarbeitung bei Änderung der Formateinstellungen
+			function onFormatChange() {
+				if (converterState.rawData) {
+					// bei vorhandenen Daten direkt Terminal aktualisieren
+					updateTerminal();
+				} else {
+					// sonst erst Terminaltext einlesen und Daten konvertieren
+					const newData = parseCurrentText(dom.terminal.value);
+					if (newData) {
+						converterState.rawData = newData;
+						updateTerminal();
+					}
+				}
+			}
+
+			// Dateiauswahldialog öffnen
+			dom.dropZone.addEventListener("click", () => dom.fileInput.click());
+
+			// Midi-Datei verarbeiten
+			dom.fileInput.addEventListener("change", (e) => {
+				if (e.target.files.length) processMidi(e.target.files[0]);
+			});
+
+			// Aktualisierung des Terminals bei Änderungen der Formateinstellungen
+			dom.formatSelect.addEventListener("change", onFormatChange);
+			dom.sortCheckbox.addEventListener("change", onFormatChange);
+
+			// Textfeld bei Änderungen neu einlesen
+			dom.terminal.addEventListener("input", () => {
+				if (converterState.isConverting) return;
+				const newData = parseCurrentText(dom.terminal.value);
+				if (newData) converterState.rawData = newData;
+			});
+
+			// Drag & Drop-Handler
+			dom.dropZone.addEventListener("dragover", (e) => {
+				e.preventDefault();
+				dom.dropZone.classList.add("active");
+			});
+
+			dom.dropZone.addEventListener("dragleave", () => {
+				dom.dropZone.classList.remove("active");
+			});
+
+			dom.dropZone.addEventListener("drop", (e) => {
+				e.preventDefault();
+				dom.dropZone.classList.remove("active");
+				if (e.dataTransfer.files.length) processMidi(e.dataTransfer.files[0]);
+			});
+		</script>
+	</body>
+</html>

@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="de">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>SoundLab</title>
+		<style>
+			/* --- Farbdefinitionen --- */
+			:root {
+				--bg-body: #161618;
+				--surface: #2c2c2e;
+				--surface-light: #3a3a3c;
+				--surface-border-light: #48484a;
+
+				--text-main: #ffffff;
+				--text-muted: #8e8e93;
+
+				--accent-blue: #007bff;
+				--hover-blue: #0063cc;
+				--active-blue: #004a99;
+
+				--accent-red: #ff1500;
+				--hover-red: #cc1100;
+				--active-red: #990d00;
+
+				--hover-border: #f2f2f7;
+				--active-border: #d1d1d6;
+
+				--key-white: #f2f2f7;
+				--key-black: #1c1c1e;
+			}
+
+			/* --- Globale Stile --- */
+			body {
+				font-family: sans-serif;
+				text-align: center;
+				background-color: var(--bg-body);
+				color: var(--text-main);
+			}
+			h1,
+			h2 {
+				margin-top: 20px;
+			}
+			h1 {
+				font-size: 2rem;
+				color: var(--text-main);
+			}
+			h2 {
+				font-size: 1.5rem;
+				color: var(--text-muted);
+			}
+
+			/* --- Kontrollelemente --- */
+			.controls {
+				margin: 20px;
+				padding: 10px;
+				background-color: var(--surface);
+				border-radius: 12px;
+				display: inline-block;
+			}
+			select {
+				cursor: pointer;
+				margin: 10px;
+				padding: 10px;
+				font-size: 1rem;
+				background-color: var(--surface-light);
+				color: var(--text-main);
+				border: 1px solid var(--surface-border-light);
+				border-radius: 6px;
+			}
+			button {
+				margin: 15px 5px;
+				padding: 12px 24px;
+				font-size: 1rem;
+				font-weight: bold;
+				cursor: pointer;
+				color: var(--text-main);
+				border: none;
+				border-radius: 6px;
+				transition:
+					background-color 0.1s,
+					transform 0.1s;
+			}
+			button:active {
+				transform: scale(0.95);
+			}
+			.play-button,
+			.stop-button {
+				background-color: var(--accent-blue);
+			}
+			.record-button {
+				background-color: var(--accent-red);
+			}
+			.play-button:hover,
+			.stop-button:hover {
+				background-color: var(--hover-blue);
+			}
+			.record-button:hover {
+				background-color: var(--hover-red);
+			}
+			.play-button.active {
+				background-color: var(--active-blue) !important;
+				box-shadow: inset 2px 3px 5px rgba(0, 0, 0, 0.5);
+			}
+			.record-button.active {
+				background-color: var(--active-red) !important;
+				box-shadow: inset 2px 3px 5px rgba(0, 0, 0, 0.5);
+			}
+
+			/* --- Klaviatur --- */
+			.keyboard {
+				display: flex;
+				justify-content: center;
+				margin: 20px;
+				user-select: none;
+				--key-width: min(50px, 8vw);
+			}
+			.key {
+				cursor: pointer;
+				display: flex;
+				justify-content: center;
+				align-items: flex-end;
+				position: relative;
+				padding-bottom: calc(var(--key-width) * 0.2);
+				font-size: clamp(0.6rem, calc(var(--key-width) * 0.3), 1rem);
+				font-weight: bold;
+				box-shadow: 0 3px 5px rgba(0, 0, 0, 0.7);
+				transition: background-color 0.1s;
+			}
+			.key.white {
+				z-index: 1;
+				width: var(--key-width);
+				height: calc(var(--key-width) * 4);
+				background-color: var(--key-white);
+				color: var(--key-black);
+				border-radius: 0 0 5px 5px;
+			}
+			.key.black {
+				z-index: 2;
+				width: calc(var(--key-width) * 0.64);
+				height: calc(var(--key-width) * 2.4);
+				background-color: var(--key-black);
+				color: var(--key-white);
+				margin: 0 calc(var(--key-width) * -0.32);
+				border-radius: 0 0 4px 4px;
+			}
+			.key:hover {
+				background-color: var(--hover-blue);
+				color: var(--text-main);
+			}
+			.key.active {
+				background-color: var(--active-blue) !important;
+				color: var(--text-main);
+				transform: scale(0.98);
+			}
+
+			/* --- Pads --- */
+			.pad-group {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 60px;
+				width: 100%;
+			}
+			@media (min-width: 1200px) {
+				.pad-group {
+					flex-direction: row;
+					justify-content: center;
+					align-items: flex-start;
+				}
+			}
+			.pad-container {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(calc(25% - 12px), 1fr));
+				gap: 12px;
+				max-width: 600px;
+				margin: 20px auto;
+				user-select: none;
+			}
+			.pad {
+				padding: 20px 10px;
+				cursor: pointer;
+				font-weight: bold;
+				background-color: var(--surface-light);
+				border-radius: 8px;
+				border: 2px solid var(--surface-border-light);
+				box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+				transition:
+					background-color 0.1s,
+					transform 0.1s;
+			}
+			.pad:hover {
+				background-color: var(--hover-blue);
+				border-color: var(--hover-border);
+			}
+			.pad.active {
+				background-color: var(--active-blue);
+				border-color: var(--active-border);
+				transform: scale(0.95);
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>SoundLab</h1>
+
+		<div class="controls">
+			<select id="song-select">
+				<option value="bubble">BubbleBurst</option>
+				<option value="fruit">Früchtefänger</option>
+				<option value="horse">Pferdeparcours</option>
+				<option value="ufo">Sternenslalom</option>
+				<option value="win">Sieg</option>
+				<option value="lose">Niederlage</option>
+			</select>
+
+			<select id="sound-select"></select>
+			<br />
+
+			<button id="play-button" class="play-button">▶ Play</button>
+			<button id="record-button" class="record-button">⬤ Record & Play</button>
+			<button id="stop-button" class="stop-button">⏹ Stop</button>
+			<br />
+
+			<p id="music-status" style="min-height: 1lh"></p>
+			<p id="pad-status" style="min-height: 1lh"></p>
+		</div>
+
+		<h2>Synthesizer</h2>
+
+		<div id="keyboard" class="keyboard"></div>
+
+		<div class="pad-group">
+			<div>
+				<h2>Drumpad</h2>
+				<div id="drumpad" class="pad-container"></div>
+			</div>
+			<div>
+				<h2>Soundpad</h2>
+				<div id="soundpad" class="pad-container"></div>
+			</div>
+		</div>
+
+		<script type="module">
+			import { musicData } from "../public/audio/music-data.js";
+			import { audioEngine } from "../public/audio/audio-engine.js";
+
+			// Soundmaps
+			// ------------------------------
+
+			// Zuordnung der Sounds zu Kategorien
+			const SOUND_CONFIG = {
+				CYMBAL_SOUNDS: ["hihat", "ride", "crash", "pandeiro", "agogo"],
+				DRUM_SOUNDS: ["bass", "snare", "tom", "surdo", "timbau", "caixa"],
+				SONG_MAP: {
+					bubble: {
+						PITCHED_SOUNDS: ["fantasia", "strings", "harp", "sine"],
+						SOUND_EFFECTS: ["blow", "bubble-burst", "bubble-implosion"],
+					},
+					fruit: {
+						PITCHED_SOUNDS: ["square", "brass", "fantasia", "chiffer", "saw"],
+						SOUND_EFFECTS: ["vegetable-caught", "fruit-caught", "fresh-missed", "junkfood-caught"],
+					},
+					horse: {
+						PITCHED_SOUNDS: ["chiffer", "square", "fantasia"],
+						UNPITCHED_SOUNDS: [
+							"agogo-high",
+							"agogo-low",
+							"pandeiro",
+							"caixa",
+							"caixa-rim",
+							"timbau-open",
+							"timbau-slap",
+							"timbau-bass",
+							"surdo-open",
+							"surdo-muted",
+						],
+						SOUND_EFFECTS: ["jump", "landed", "obstacle-hit"],
+					},
+					ufo: {
+						PITCHED_SOUNDS: ["saw", "square", "brass", "poly", "chiffer"],
+						UNPITCHED_SOUNDS: [
+							"hihat-closed",
+							"hihat-open",
+							"ride",
+							"crash",
+							"snare",
+							"bass",
+							"tom-high",
+							"tom-low",
+						],
+						SOUND_EFFECTS: ["laser", "no-ammo", "asteroid-destroyed", "asteroid-hit"],
+					},
+					win: {
+						PITCHED_SOUNDS: ["saw"],
+						SOUND_EFFECTS: ["correct", "wrong"],
+					},
+					lose: {
+						PITCHED_SOUNDS: ["sine"],
+						SOUND_EFFECTS: ["correct", "wrong"],
+					},
+				},
+			};
+
+			// Konfiguration der Klaviertasten
+			const PIANO_NOTES = [
+				{ note: "F3", label: "F", isBlack: false },
+				{ note: "F#3", label: "F♯", isBlack: true },
+				{ note: "G3", label: "G", isBlack: false },
+				{ note: "G#3", label: "G♯", isBlack: true },
+				{ note: "A3", label: "A", isBlack: false },
+				{ note: "Bb3", label: "B", isBlack: true },
+				{ note: "B3", label: "H", isBlack: false },
+				{ note: "C4", label: "C", isBlack: false },
+				{ note: "C#4", label: "C♯", isBlack: true },
+				{ note: "D4", label: "D", isBlack: false },
+				{ note: "D#4", label: "E♭", isBlack: true },
+				{ note: "E4", label: "E", isBlack: false },
+				{ note: "F4", label: "F", isBlack: false },
+				{ note: "F#4", label: "F♯", isBlack: true },
+				{ note: "G4", label: "G", isBlack: false },
+				{ note: "G#4", label: "G♯", isBlack: true },
+				{ note: "A4", label: "A", isBlack: false },
+				{ note: "Bb4", label: "B", isBlack: true },
+				{ note: "B4", label: "H", isBlack: false },
+				{ note: "C5", label: "C", isBlack: false },
+			];
+
+			// Initialisierung der Benutzeroberfläche
+			// ------------------------------
+
+			// DOM-Referenzen
+			const dom = {
+				songSelect: document.getElementById("song-select"),
+				soundSelect: document.getElementById("sound-select"),
+				playButton: document.getElementById("play-button"),
+				recordButton: document.getElementById("record-button"),
+				stopButton: document.getElementById("stop-button"),
+				musicStatus: document.getElementById("music-status"),
+				padStatus: document.getElementById("pad-status"),
+				keyboardContainer: document.getElementById("keyboard"),
+				drumpadContainer: document.getElementById("drumpad"),
+				soundpadContainer: document.getElementById("soundpad"),
+				drumpadWrap: document.getElementById("drumpad").parentElement,
+				soundpadWrap: document.getElementById("soundpad").parentElement,
+			};
+
+			// Update der Beutzeroberfläche
+			function updateUI(songName) {
+				const songConfig = SOUND_CONFIG.SONG_MAP[songName];
+
+				// Update des Soundselect-Dropdowns
+				dom.soundSelect.innerHTML = "";
+				dom.soundSelect.appendChild(new Option("⸺ Alle Sounds ⸺", "all"));
+
+				if (songConfig.PITCHED_SOUNDS) {
+					dom.soundSelect.appendChild(new Option("— Σ Melodie —", "melody"));
+					songConfig.PITCHED_SOUNDS.forEach((sound) => dom.soundSelect.appendChild(new Option(sound, sound)));
+				}
+				if (songConfig.UNPITCHED_SOUNDS) {
+					dom.soundSelect.appendChild(new Option("— Σ Perkussion —", "percussion"));
+
+					// Separate Filterung der Becken- und Trommel-Sounds
+					const cymbals = [
+						// 3. Duplikate entfernen
+						...new Set(
+							// 1. Filterung nach ...
+							songConfig.UNPITCHED_SOUNDS.filter(
+								// ...Soundnamenanfängen wie in Becken-Array
+								(sound) => SOUND_CONFIG.CYMBAL_SOUNDS.some((cymbal) => sound.startsWith(cymbal)),
+								// 2. Alles nach dem Bindestrich verwerfen
+							).map((sound) => sound.split("-")[0]),
+						),
+					];
+					const drums = [
+						...new Set(
+							songConfig.UNPITCHED_SOUNDS.filter((sound) =>
+								SOUND_CONFIG.DRUM_SOUNDS.some((drum) => sound.startsWith(drum)),
+							).map((sound) => sound.split("-")[0]),
+						),
+					];
+
+					if (cymbals.length > 0) {
+						dom.soundSelect.appendChild(new Option("– Σ Becken –", "cymbals"));
+						cymbals.forEach((sound) => dom.soundSelect.appendChild(new Option(sound, sound)));
+					}
+					if (drums.length > 0) {
+						dom.soundSelect.appendChild(new Option("– Σ Trommeln –", "drums"));
+						drums.forEach((sound) => dom.soundSelect.appendChild(new Option(sound, sound)));
+					}
+				}
+
+				// Update der Pads
+				dom.drumpadContainer.innerHTML = "";
+				dom.soundpadContainer.innerHTML = "";
+
+				if (songConfig.UNPITCHED_SOUNDS) {
+					dom.drumpadWrap.style.display = "block"; // sichtbar, wenn befüllt
+					songConfig.UNPITCHED_SOUNDS.forEach((sound) =>
+						createPad(sound, dom.drumpadContainer, "Perkussion"),
+					);
+				} else {
+					dom.drumpadWrap.style.display = "none"; // ausgeblendet, wenn leer
+				}
+				if (songConfig.SOUND_EFFECTS) {
+					dom.soundpadWrap.style.display = "block";
+					songConfig.SOUND_EFFECTS.forEach((sound) => createPad(sound, dom.soundpadContainer, "Effekt"));
+				} else {
+					dom.soundpadWrap.style.display = "none";
+				}
+			}
+
+			// Generierung eines Pads
+			function createPad(soundName, container, type) {
+				const pad = document.createElement("div");
+				pad.className = "pad";
+				pad.innerText = soundName;
+
+				// Event-Handler
+				const clickPad = (e) => {
+					e.preventDefault();
+					// Falls Maus, nur bei Linksklick fortfahren
+					if (e.type === "mousedown" && e.button !== 0) return;
+					pad.classList.add("active");
+
+					// Statuszeile aktualisieren
+					dom.padStatus.innerText = `Spielt ${type}... ${soundName}`;
+					audioEngine.playSoundEffect(soundName);
+				};
+
+				const leavePad = (e) => {
+					e.preventDefault();
+					pad.classList.remove("active");
+					dom.padStatus.innerText = "";
+				};
+
+				// Event-Listener
+				pad.addEventListener("mousedown", clickPad);
+				pad.addEventListener("mouseup", leavePad);
+				pad.addEventListener("mouseleave", leavePad);
+				pad.addEventListener("touchstart", clickPad, { passive: false });
+				pad.addEventListener("touchend", leavePad, { passive: false });
+				pad.addEventListener("touchcancel", leavePad, { passive: false });
+
+				container.appendChild(pad);
+			}
+
+			// Wiedergabe-Logik
+			// ------------------------------
+
+			// Filtern der Musikdaten entsprechend der Soundauswahl
+			function filterSongData(songName, soundName) {
+				const songData = musicData[songName];
+				if (!songData) return null;
+				if (soundName === "all") return songData;
+
+				// Kopieren der allgemeinen Song-Parameter
+				const filteredSongData = {
+					timeSig: songData.timeSig,
+					bpm: songData.bpm,
+					tuning: songData.tuning,
+					level: songData.level,
+					effects: songData.effects,
+				};
+
+				const songMap = SOUND_CONFIG.SONG_MAP[songName];
+				let hasTracks = false;
+
+				// Soundauswahl auf in Songdaten enthaltene Sounds anwenden
+				let selectedPitchedSounds = [];
+				let selectedUnpitchedSounds = [];
+				switch (soundName) {
+					case "melody":
+						selectedPitchedSounds = songMap.PITCHED_SOUNDS || [];
+						break;
+					case "percussion":
+						selectedUnpitchedSounds = songMap.UNPITCHED_SOUNDS || [];
+						break;
+					case "cymbals":
+						selectedUnpitchedSounds = (songMap.UNPITCHED_SOUNDS || []).filter((sound) =>
+							SOUND_CONFIG.CYMBAL_SOUNDS.some((cymbal) => sound.startsWith(cymbal)),
+						);
+						break;
+					case "drums":
+						selectedUnpitchedSounds = (songMap.UNPITCHED_SOUNDS || []).filter((sound) =>
+							SOUND_CONFIG.DRUM_SOUNDS.some((drum) => sound.startsWith(drum)),
+						);
+						break;
+					default:
+						selectedPitchedSounds = [soundName];
+						selectedUnpitchedSounds = [soundName];
+						break;
+				}
+
+				// Songdaten nach ausgewählten enthaltenen Sounds filtern
+				for (const key in songData) {
+					// Überspringen der Properties mit Konfigurationsdaten
+					if (["timeSig", "bpm", "tuning", "level", "effects"].includes(key)) continue;
+
+					const trackData = songData[key];
+					const trackName = key.split("_")[0]; // Split aufgrund doppelter Instrumente wie saw_2
+
+					switch (trackData.type) {
+						case "pitched":
+							// Bei "pitched" Track übernehmen
+							if (selectedPitchedSounds.includes(trackName)) {
+								filteredSongData[key] = trackData;
+								hasTracks = true;
+							}
+							break;
+						case "unpitched":
+							// Bei "unpitched" Notenevents mit ausgewählten Sounds aus Track filtern
+							const filteredNotes = trackData.notes.filter((notes) =>
+								selectedUnpitchedSounds.some((sound) => notes.sound.startsWith(sound)),
+							);
+							if (filteredNotes.length > 0) {
+								filteredSongData[key] = { ...trackData, notes: filteredNotes };
+								hasTracks = true;
+							}
+							break;
+					}
+				}
+				return hasTracks ? filteredSongData : null;
+			}
+
+			// Erzeugen eines Musikdaten-Objekts für live gespielte Noten
+			function playLiveMusic(songName, soundName, noteName) {
+				const songMap = SOUND_CONFIG.SONG_MAP[songName];
+
+				// Keine Wiedergabe bei ungültiger Auswahl (Padsound / Soundgruppe)
+				const isUnpitched = songMap.UNPITCHED_SOUNDS?.some((sound) => sound.startsWith(soundName));
+				const isSoundEffect = songMap.SOUND_EFFECTS?.includes(soundName);
+				const isSoundGroup = ["all", "melody", "percussion", "cymbals", "drums"].includes(soundName);
+				if (isUnpitched || isSoundEffect || isSoundGroup) {
+					alert("Kein Melodieinstrument ausgewählt.");
+					return;
+				}
+
+				const liveMusicData = {
+					timeSig: "4/4",
+					bpm: 120,
+					tuning: 440,
+					[soundName]: {
+						type: "pitched",
+						gain: 0,
+						pan: 0,
+						notes: [{ bar: 1, beat: 1, duration: 9999, volume: 64, note: noteName }], // Quasi unendlicher Ton
+					},
+				};
+				audioEngine.playMusic(liveMusicData, true, false, `${noteName} (${soundName})`);
+			}
+
+			// DOM & Event-Listener
+			// ------------------------------
+
+			document.addEventListener("DOMContentLoaded", () => {
+				// Audio-Engine bei erster Interaktion initialisieren
+				document.body.addEventListener(
+					"click",
+					async () => {
+						await audioEngine.init();
+					},
+					{ once: true },
+				);
+
+				// Benutzeroberfläche initialisieren und bei Songwechsel aktualisieren
+				updateUI(dom.songSelect.value);
+				dom.songSelect?.addEventListener("change", () => updateUI(dom.songSelect.value));
+
+				// Musik abspielen (Play-Button)
+				dom.playButton?.addEventListener("click", () => {
+					const playbackData = filterSongData(dom.songSelect.value, dom.soundSelect.value);
+					if (playbackData) {
+						dom.recordButton.classList.remove("active");
+						dom.playButton.classList.add("active");
+						audioEngine.playMusic(playbackData, true, false, dom.songSelect.value);
+					} else {
+						alert("Der Track enthält das gewählte Instrument nicht!");
+					}
+				});
+
+				// Musik aufnehmen (Record-Button)
+				dom.recordButton?.addEventListener("click", () => {
+					const playbackData = filterSongData(dom.songSelect.value, dom.soundSelect.value);
+					if (playbackData) {
+						dom.playButton.classList.add("active");
+						dom.recordButton.classList.add("active");
+						audioEngine.playMusic(playbackData, true, true, dom.songSelect.value);
+					} else {
+						alert("Der Track enthält das gewählte Instrument nicht!");
+					}
+				});
+
+				// Musik stoppen (Stop-Button)
+				dom.stopButton?.addEventListener("click", () => {
+					dom.playButton.classList.remove("active");
+					dom.recordButton.classList.remove("active");
+					audioEngine.stopMusic();
+				});
+
+				// Generierung der Klaviatur
+				PIANO_NOTES.forEach((noteData) => {
+					const key = document.createElement("div");
+					key.className = `key ${noteData.isBlack ? "black" : "white"}`;
+					key.innerText = noteData.label;
+
+					// Event-Handler
+					const startNote = (e) => {
+						e.preventDefault();
+						// Falls Maus, nur bei Linksklick fortfahren
+						if (e.type === "mousedown" && e.button !== 0) return;
+						key.classList.add("active");
+						playLiveMusic(dom.songSelect.value, dom.soundSelect.value, noteData.note);
+					};
+					const stopNote = (e) => {
+						e.preventDefault();
+						if (key.classList.contains("active")) {
+							key.classList.remove("active");
+							audioEngine.stopMusic();
+						}
+					};
+
+					// Event-Listener
+					key.addEventListener("mousedown", startNote);
+					key.addEventListener("mouseup", stopNote);
+					key.addEventListener("mouseleave", stopNote);
+					key.addEventListener("touchstart", startNote, { passive: false });
+					key.addEventListener("touchend", stopNote, { passive: false });
+					key.addEventListener("touchcancel", stopNote, { passive: false });
+
+					dom.keyboardContainer.appendChild(key);
+				});
+			});
+
+			// Event-Listener für Events aus der Audio-Engine
+			document.addEventListener("audioStarted", (e) => {
+				// Statuszeile aktualisieren
+				if (dom.musicStatus && e.detail) {
+					const isRecording = e.detail.record === true || dom.recordButton?.classList.contains("active");
+					const mode = isRecording ? "AUFNAHME..." : "Spielt...";
+					dom.musicStatus.innerText = `${mode} ${e.detail.songName}`;
+				}
+			});
+
+			document.addEventListener("audioStopped", () => {
+				dom.playButton?.classList.remove("active");
+				dom.recordButton?.classList.remove("active");
+				if (dom.musicStatus) dom.musicStatus.innerText = "";
+			});
+		</script>
+	</body>
+</html>

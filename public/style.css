@@ -1,0 +1,462 @@
+/* ==========================================
+   FARBDEFINITIONEN
+   ========================================== */
+:root {
+	/* LIGHTMODE (Standard) */
+	--bg-body: #f8fafc;
+	--bg-card: #ffffff;
+	--bg-hover: #f1f5f9;
+	--bg-hover-strong: #e2e8f0;
+
+	--text-main: #0f172a;
+	--text-muted: #475569;
+
+	--border-main: #e2e8f0;
+
+	--accent-bg: #eff6ff;
+	--accent-border: #dbeafe;
+	--accent-text: #2563eb;
+	--accent-main: #2563eb;
+	--accent-hover: #1d4ed8;
+
+	--success-bg: #ecfdf5;
+	--success-border: #a7f3d0;
+	--success-text: #059669;
+	--success-main: #059669;
+
+	--error-bg: #fef2f2;
+	--error-text: #dc2626;
+
+	--canvas-border: #e2e8f0;
+
+	/* Schatten */
+	--shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+	--shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+	--shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+	--shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+	--font-weight: normal;
+	--hr-display: block;
+}
+
+html.dark {
+	/* DARKMODE */
+	--bg-body: #12151a;
+	--bg-card: #1e2229;
+	--bg-hover: #2a2f38;
+	--bg-hover-strong: #333a45;
+
+	--text-main: #e2e8f0;
+	--text-muted: #94a3b8;
+
+	--border-main: #334155;
+
+	--accent-bg: #1e3a8a;
+	--accent-border: #1e40af;
+	--accent-text: #60a5fa;
+	--accent-main: #3b82f6;
+	--accent-hover: #2563eb;
+
+	--success-bg: #064e3b;
+	--success-border: #065f46;
+	--success-text: #34d399;
+	--success-main: #10b981;
+
+	--error-bg: #450a0a;
+	--error-text: #f87171;
+
+	--canvas-border: #334155;
+
+	--shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.6);
+	--shadow-md: 0 4px 8px rgba(0, 0, 0, 0.7);
+	--shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.8);
+	--shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.9);
+}
+
+/* HIGH CONTRAST LIGHTMODE */
+html.contrast:not(.dark) {
+	--c-bg: #ffffff;
+	--c-text: #000000;
+	--font-weight: 900;
+	--hr-display: none;
+}
+
+/* HIGH CONTRAST DARKMODE */
+html.dark.contrast {
+	--c-bg: #000000;
+	--c-text: #ffffff;
+	--font-weight: 900;
+	--hr-display: none;
+}
+
+/* ==========================================
+   TAILWIND ÜBERSCHREIBUNGEN
+   ========================================== */
+/* Basisdefinitionen */
+body {
+	background-color: var(--bg-body);
+	color: var(--text-main);
+	font-weight: var(--font-weight);
+}
+hr {
+	display: var(--hr-display);
+	border-color: var(--border-main);
+}
+
+/* CSV-Dropzone */
+#drop-zone-csv {
+	transition: all 0.3s ease;
+}
+#drop-zone-csv:hover {
+	border-color: #10b981 !important;
+	background-color: #d1fae5;
+}
+:is(.hover\:border-emerald-400, .hover\:border-green-400):hover {
+	border-color: #10b981 !important;
+}
+
+/*
+   DARKMODE
+   ========================================== */
+/* Hintergründe */
+html.dark:not(.contrast) :is(.bg-white, .bg-slate-50) {
+	background-color: var(--bg-card) !important;
+	color: var(--text-main) !important;
+}
+html.dark:not(.contrast) :is(.bg-slate-100, .bg-slate-200) {
+	background-color: var(--bg-hover) !important;
+	color: var(--text-main) !important;
+}
+html.dark:not(.contrast) .bg-blue-50 {
+	background-color: var(--accent-bg) !important;
+}
+html.dark:not(.contrast) .bg-red-50 {
+	background-color: var(--error-bg) !important;
+}
+html.dark:not(.contrast) .bg-blue-600 {
+	background-color: var(--accent-main) !important;
+	color: #fff !important;
+}
+html.dark:not(.contrast) .bg-emerald-600 {
+	background-color: var(--success-main) !important;
+	color: #fff !important;
+}
+
+/* Eingabefelder und Dropdowns */
+html.dark:not(.contrast) :is(input, textarea, #home-game-score, #score-input-container, #difficulty-select) {
+	background-color: var(--bg-card) !important;
+	color: var(--text-main) !important;
+	border-color: var(--border-main) !important;
+}
+html.dark:not(.contrast) :is(#home-game-score, #score-input-container, #difficulty-select) {
+	background-color: var(--bg-hover) !important;
+}
+html.dark:not(.contrast) :is(#max-score-input, #difficulty-select option) {
+	color: var(--text-main) !important;
+}
+html.dark:not(.contrast) #difficulty-select option {
+	background-color: var(--bg-card) !important;
+}
+
+/* CSV Dropzone */
+html.dark:not(.contrast) .bg-emerald-50 {
+	background-color: var(--success-bg) !important;
+}
+html.dark:not(.contrast) .border-emerald-200 {
+	border-color: var(--success-border) !important;
+}
+html.dark:not(.contrast) .text-emerald-700 {
+	color: var(--success-text) !important;
+}
+html.dark:not(.contrast) #drop-zone-csv:hover {
+	background-color: var(--success-border) !important;
+	border-color: var(--success-main) !important;
+}
+
+/* Textfarben */
+html.dark:not(.contrast) :is(.text-slate-900, .text-slate-800, .text-slate-700, .text-blue-900) {
+	color: var(--text-main) !important;
+}
+html.dark:not(.contrast) :is(.text-slate-600, .text-slate-500, .text-slate-400) {
+	color: var(--text-muted) !important;
+}
+html.dark:not(.contrast) :is(.text-blue-600, .text-blue-800) {
+	color: var(--accent-text) !important;
+}
+html.dark:not(.contrast) .text-red-600 {
+	color: var(--error-text) !important;
+}
+
+/* Rahmen & Schatten */
+html.dark:not(.contrast) :is(.border-slate-100, .border-slate-200, .border-slate-300) {
+	border-color: var(--border-main) !important;
+}
+html.dark:not(.contrast) .border-blue-100 {
+	border-color: var(--accent-border) !important;
+}
+html.dark:not(.contrast) .shadow-sm {
+	box-shadow: var(--shadow-sm) !important;
+}
+html.dark:not(.contrast) .shadow-md {
+	box-shadow: var(--shadow-md) !important;
+}
+html.dark:not(.contrast) .shadow-xl {
+	box-shadow: var(--shadow-xl) !important;
+}
+html.dark:not(.contrast) .shadow-2xl {
+	box-shadow: var(--shadow-2xl) !important;
+}
+
+/* Hovereffekte */
+html.dark:not(.contrast) .hover\:bg-red-100:hover {
+	background-color: #7f1d1d !important;
+	color: #fca5a5 !important;
+}
+html.dark:not(.contrast) .hover\:text-red-600:hover {
+	color: #fca5a5 !important;
+}
+html.dark:not(.contrast) .hover\:text-blue-600:hover {
+	color: var(--accent-text) !important;
+}
+html.dark:not(.contrast) .hover\:border-blue-400:hover {
+	border-color: var(--accent-text) !important;
+}
+html.dark:not(.contrast) :is(.hover\:border-emerald-400, .hover\:border-green-400):hover {
+	border-color: var(--success-main) !important;
+}
+html.dark:not(.contrast) :is(.hover\:bg-gray-100, .hover\:bg-slate-100, .hover\:bg-slate-200):hover {
+	background-color: var(--bg-hover-strong) !important;
+}
+html.dark:not(.contrast) .hover\:bg-slate-50:hover {
+	background-color: var(--bg-hover) !important;
+}
+html.dark:not(.contrast) .hover\:border-blue-200:hover {
+	border-color: var(--accent-text) !important;
+}
+html.dark:not(.contrast) .hover\:bg-blue-700:hover {
+	background-color: var(--accent-hover) !important;
+}
+
+/* Buttons */
+html.dark:not(.contrast) .option-btn.border-blue-500 {
+	border-color: var(--accent-main) !important;
+	background-color: var(--accent-bg) !important;
+}
+html.dark:not(.contrast) .option-btn.border-green-500 {
+	border-color: var(--success-main) !important;
+	background-color: var(--success-bg) !important;
+}
+html.dark:not(.contrast) .option-btn.border-red-500 {
+	border-color: var(--error-text) !important;
+	background-color: var(--error-bg) !important;
+}
+
+/* ==========================================
+   HIGH CONTRAST MODES
+   ========================================== */
+html.contrast {
+	background-color: var(--c-bg) !important;
+	color: var(--c-text) !important;
+}
+
+/* Alle Schriften fett */
+html.contrast :is(*, p, span, div, h1, h2, h3, label, input, select, button) {
+	font-weight: 900 !important;
+}
+
+/* Keine Schatten, Hintergründe & Transparenzen */
+html.contrast * {
+	box-shadow: none !important;
+	text-shadow: none !important;
+}
+html.contrast
+	:is(
+		.bg-white,
+		.bg-slate-50,
+		.bg-slate-100,
+		.bg-slate-200,
+		.bg-blue-50,
+		.bg-red-50,
+		.bg-emerald-50,
+		#setup-card > div,
+		.bg-white\/20,
+		.bg-white\/30,
+		.border-transparent
+	) {
+	background-color: var(--c-bg) !important;
+	color: var(--c-text) !important;
+	opacity: 1 !important;
+}
+
+/* Texte */
+html.contrast
+	:is(
+		.text-slate-900,
+		.text-slate-800,
+		.text-slate-700,
+		.text-slate-600,
+		.text-slate-500,
+		.text-slate-400,
+		.text-blue-600,
+		.text-blue-800,
+		.text-blue-900,
+		.text-red-600,
+		.text-blue-500,
+		.text-emerald-600,
+		.text-emerald-700,
+		.text-white
+	) {
+	color: var(--c-text) !important;
+}
+
+/* Ränder */
+html.contrast
+	:is(
+		.border,
+		.border-2,
+		.border-slate-100,
+		.border-slate-200,
+		.border-slate-300,
+		.border-blue-100,
+		.border-blue-200,
+		.border-blue-500,
+		.border-transparent
+	) {
+	border-color: var(--c-text) !important;
+	border-width: 2px !important;
+}
+
+/* Buttons & Inputs */
+html.contrast :is(button, .option-btn, #csv-export-btn, select, input, textarea, #Modus, #difficulty-select) {
+	background-color: var(--c-bg) !important;
+	color: var(--c-text) !important;
+	border: 2px solid var(--c-text) !important;
+	transition: none !important;
+	appearance: auto !important;
+}
+html.contrast :is(option, select option) {
+	background-color: var(--c-bg) !important;
+	color: var(--c-text) !important;
+}
+
+/* Spezielle Farben */
+html.contrast :is(.bg-blue-600, .bg-emerald-600) {
+	background-color: var(--c-bg) !important;
+	color: var(--c-text) !important;
+	border: 2px solid var(--c-text) !important;
+}
+
+/* Hovereffekte */
+html.contrast
+	:is(
+		button:hover,
+		.option-btn:hover,
+		button.bg-blue-600:hover,
+		button.bg-emerald-600:hover,
+		#csv-export-btn:hover,
+		select:hover,
+		#Modus:hover,
+		#difficulty-select:hover,
+		#drop-zone:hover,
+		#drop-zone-csv:hover
+	) {
+	background-color: var(--c-text) !important;
+	color: var(--c-bg) !important;
+	border-color: var(--c-text) !important;
+}
+html.contrast :is(#drop-zone:hover *, #drop-zone-csv:hover *) {
+	color: var(--c-bg) !important;
+	border-color: var(--c-bg) !important;
+}
+html.contrast #drop-zone-csv:hover .bg-emerald-600 {
+	color: var(--c-text) !important;
+	border-color: var(--c-text) !important;
+}
+html.contrast :is(.option-btn.border-blue-500, .option-btn.border-green-500, .option-btn.border-red-500) {
+	border: 4px solid var(--c-text) !important;
+	outline: 2px solid var(--c-text) !important;
+	outline-offset: 2px !important;
+}
+
+/* Highlights */
+html.contrast :is(.option-btn.border-blue-500, .option-btn.border-green-500) {
+	background-color: var(--c-text) !important;
+	color: var(--c-bg) !important;
+	border: 4px solid var(--c-text) !important;
+}
+html.contrast .option-btn.border-red-500 {
+	background-color: var(--c-bg) !important;
+	color: var(--c-text) !important;
+	border: 4px dashed var(--c-text) !important;
+}
+
+/* ==========================================
+   SPIELE-STYLING (Canvas)
+   ========================================== */
+#game-canvas,
+#home-canvas {
+	cursor: none;
+	background-color: #ffffff !important;
+	border: 4px solid var(--canvas-border) !important;
+	border-radius: 1.5rem;
+	touch-action: none;
+	display: block;
+	margin: 0 auto;
+	aspect-ratio: 1 / 1;
+	image-rendering: pixelated;
+	user-select: none;
+	-webkit-user-select: none;
+	-webkit-touch-callout: none;
+	color-scheme: light !important;
+	filter: none !important;
+}
+
+/* Spezifisches Layout für das Mini-Game auf der Startseite */
+#home-canvas {
+	width: 100%;
+	max-width: 500px;
+	height: auto;
+}
+
+/* ==========================================
+   UI-STYLING / -ANIMATIONEN
+   ========================================== */
+
+/* Sanfte Übergange */
+#progress-bar {
+	transition: width 0.4s ease-in-out;
+}
+#pdf-preview-box {
+	transition: all 0.3s ease;
+	max-height: 200px;
+	overflow: hidden;
+}
+.option-btn:disabled {
+	opacity: 0.8;
+	cursor: not-allowed;
+}
+
+/* Animationen für das Einblenden von Elementen */
+.animate-slideIn {
+	animation: slideIn 0.4s ease-out;
+}
+.mistake-card {
+	animation: slideIn 0.3s ease-out;
+	border-left-width: 4px;
+}
+@keyframes slideIn {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+/* Versteckt die Tasten-Anzeige auf kleinen Bildschirmen */
+@media (max-width: 640px) {
+	.option-btn span.font-mono {
+		display: none !important;
+	}
+}
