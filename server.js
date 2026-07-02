@@ -7,29 +7,27 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
-
-// Port flexibel halten (Nutzt 8080 oder den vom System vorgegebenen Port)
 const PORT = process.env.PORT || 8080;
 
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.urlencoded({ limit: '50mb', extended: true })); // Für Support von URL-encoded Payloads
 app.use(express.static('public'));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Statische Ordner für Zugriffe via http://.../templates/name.csv markieren
+// 1. Ordner als statisch markieren
+// Dies ermöglicht den Zugriff auf Dateien via http://.../templates/name.csv
+// Es wird sowohl im 'downloads' als auch im 'templates' Ordner gesucht
 app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
 app.use('/templates', express.static(path.join(__dirname, 'templates')));
 
-// Ping-Endpunkt zur Erreichbarkeitsprüfung
-app.get("/api/ping", (req, res) => res.status(200).send("Bereit"));
-
-/** --- ERWEITERTER QUIZ ENDPUNKT MIT GEMINI 2.5 FLASH --- **/
+/** --- QUIZ ENDPUNKT MIT GEMINI 2.5 FLASH (FOKUS: EINWORT-ANTWORTEN) --- **/
 app.post('/api/quiz', async (req, res) => {
-    // Dem Server (z.B. auf Render/Node) erlauben, sich bis zu 2.5 Min Zeit zu nehmen
+    // Dem Server erlauben, sich bis zu 2.5 Min Zeit zu nehmen
     req.setTimeout(150000);
-    console.log("--- Quiz-Anfrage mit erweiterten Fragentypen gestartet ---");
+    console.log("--- Quiz-Anfrage gestartet (Lücke/Freitext auf ein Wort begrenzt) ---");
 
     try {
         let { pdfBase64, questionCount, customprompt } = req.body;
@@ -42,7 +40,6 @@ app.post('/api/quiz', async (req, res) => {
             pdfBase64 = pdfBase64.split(',')[1];
         }
 
-        // Aufruf von Gemini 2.5 Flash
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
         console.log("Anfrage an Gemini 2.5 Flash wird gesendet...");
@@ -57,8 +54,8 @@ app.post('/api/quiz', async (req, res) => {
                         { 
                             text: `Du bist ein präziser Quiz-Generator. Deine Aufgabe ist es, aus dem bereitgestellten PDF-Dokument eine ausgewogene Mischung aus drei Fragentypen auf Deutsch zu generieren:
 1. "multiple" (Multiple Choice - EINE oder MEHRERE richtige Antworten möglich)
-2. "cloze" (Lückentext)
-3. "free" (Freitext / Offene Frage)
+2. "cloze" (Lückentext - Die Lösung MUSS aus exakt EINEM WORT bestehen)
+3. "free" (Freitext / Offene Frage - Die Lösung MUSS aus exakt EINEM WORT bestehen)
 
 Erstelle insgesamt exakt ${questionCount || 3} Fragen. ${customprompt || ""}
 
@@ -75,31 +72,29 @@ Für "multiple" (Multiple Choice):
 Für "cloze" (Lückentext):
 - "type": "cloze"
 - "question": "Der Text der Frage, bei dem das gesuchte Wort zwingend in eckigen Klammern steht, z.B.: Die Hauptstadt von Deutschland heißt [Berlin]."
-- "correct_text": "Das exakte Lösungswort aus der Klammer, z.B.: Berlin"
-- "options": [] (Muss ein leeres Array sein)
-- "answer": [] (Muss ein leeres Array sein)
+- "correct_text": "Das exakte Lösungswort aus der Klammer. Dieses MUSS zwingend ein einzelnes Wort sein (z.B. Berlin)."
+- "options": []
+- "answer": []
 
 Für "free" (Freitext):
 - "type": "free"
-- "question": "Eine offene Frage, die eine kurze, prägnante Textantwort erfordert."
-- "correct_text": "Die exakte Musterlösung / das erwartete Kernwort für den Abgleich."
-- "options": [] (Muss ein leeres Array sein)
-- "answer": [] (Muss ein leeres Array sein)
+- "question": "Eine offene Frage, die so formuliert ist, dass sie mit exakt EINEM EINZIGEN WORT beantwortet werden kann (z.B. 'Wie heißt das chemische Zeichen für Sauerstoff?')."
+- "correct_text": "Das gesuchte, einzelne Kernwort als Lösung (z.B. O)."
+- "options": []
+- "answer": []
 
-Generiere eine abwechslungsreiche Mischung dieser Typen, basierend auf dem bereitgestellten Inhalt. Achte bei Multiple Choice darauf, dass hin und wieder auch mehrere Antworten gleichzeitig wahr sind.` 
+WICHTIG: Achte bei 'cloze' und 'free' strengstens darauf, dass niemals Sätze oder Satzteile als Lösung gefordert werden, sondern immer nur ein prägnantes Einzelwort!` 
                         }
                     ]
                 }],
                 generationConfig: { 
                     response_mime_type: "application/json",
-                    temperature: 0.7 
+                    temperature: 0.6 
                 }
             })
         });
 
-        // --- UMFANGREICHE FEHLERBEHANDLUNG FÜR DEN NUTZER ---
-        
-        // 1. Quota erreicht (429)
+        // --- HIER DIE ERWEITERTE FEHLERBEHANDLUNG ---
         if (response.status === 429) {
             console.error("Quota-Limit überschritten.");
             return res.status(429).json({
@@ -107,7 +102,6 @@ Generiere eine abwechslungsreiche Mischung dieser Typen, basierend auf dem berei
             });
         }
 
-        // 2. Gemini überlastet oder sonstige Serverfehler (500+)
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
             console.error("Google API Fehler:", response.status, errData);
@@ -119,24 +113,14 @@ Generiere eine abwechslungsreiche Mischung dieser Typen, basierend auf dem berei
         const data = await response.json();
 
         if (!data.candidates || data.candidates.length === 0) {
-            console.error("Fehler von Google: Keine Kandidaten.");
-            return res.status(500).json({ error: "Keine Daten von Gemini erhalten." });
+            console.error("Fehler von Google:", JSON.stringify(data));
+            return res.status(500).json({ error: "Keine Daten von Gemini erhalten.", details: data });
         }
 
         let resultText = data.candidates[0].content.parts[0].text;
-        
-        // Zusätzlicher Schutz vor Markdown-Formatierungen, falls die KI sich nicht an JSON hält
         resultText = resultText.replace(/```json|```/g, "").trim();
         
-        try {
-            const quizData = JSON.parse(resultText);
-            res.status(200).json(quizData);
-        } catch (parseError) {
-            console.error("JSON-Parse-Fehler des KI-Outputs:", parseError.message);
-            res.status(500).json({
-                error: "Die KI hat ein ungültiges Datenformat gesendet. Bitte versuche es mit einem anderen PDF-Abschnitt."
-            });
-        }
+        res.status(200).json(JSON.parse(resultText));
 
     } catch (error) {
         console.error("Server-Fehler:", error.message);
@@ -144,7 +128,7 @@ Generiere eine abwechslungsreiche Mischung dieser Typen, basierend auf dem berei
     }
 });
 
-// Hilfsfunktion für Ordner-Auslesung (Beibehalten)
+// Hilfsfunktion (Vereinheitlicht)
 const getFilesFromDir = (folder) => {
     const dirPath = path.join(__dirname, folder);
     if (!fs.existsSync(dirPath)) {
@@ -157,7 +141,7 @@ const getFilesFromDir = (folder) => {
     });
 };
 
-/** --- DATEI-SYSTEM ENDPUNKTE (Unverändert Beibehalten) --- **/
+/** --- DATEI-SYSTEM ENDPUNKTE --- **/
 
 // Endpunkt für den 'templates' Ordner (Lernmaterialien)
 app.get('/api/files/templates', (req, res) => {
@@ -179,10 +163,10 @@ app.get('/api/files/downloads', (req, res) => {
     }
 });
 
-// Server Start (mit erweiterten Timeouts für große Dokumente)
+// Server Start
 const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server läuft auf Port ${PORT}`);
     console.log(`📁 Templates werden aus /templates serviert`);
-    console.log(`📁 Sonstiges wird aus /downloads serviert`);
+	console.log(`📁 Sonstiges wird aus /downloads serviert`);
 });
-server.timeout = 150000;
+server.timeout = 150000; // Erhöhtes globaler Server-Timeout
