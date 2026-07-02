@@ -1,327 +1,387 @@
-/**
- * QUIZ ENGINE
- * Steuert den Zustand des Quizzes, validiert Antworten (Multiple-Choice, 
- * Lückentext, Freitext) und verwaltet die Minispiel-Pausen sowie Resets.
- */
+// Quizengine und Logik mit Freitext- und Lückentext-Erweiterung
+import { shuffleArray, toBase64 } from "./quiz-utils.js";
+
 export class QuizEngine {
-    constructor() {
-        // Kern-Datenstrukturen
-        this.quizData = [];        // Enthält alle geladenen Fragen aus der CSV
-        this.currentIndex = 0;     // Aktueller Frage-Index
-        this.score = 0;            // Punktzahl des Spielers
-        this.gameDone = false;     // Marker, ob das Minispiel bereits absolviert wurde
+	constructor() {
+		this.quizData = [];
+		this.currentIndex = 0;
+		this.score = 0;
+		this.userMistakes = [];
+		this.gameDone = false;
+	}
 
-        // Brücke für externe Scripte schlagen
-        window.quizApp = this;
-        window.quizEngine = this;
-    }
+	resetStats() {
+		this.currentIndex = 0;
+		this.score = 0;
+		this.userMistakes = [];
+		this.gameDone = false;
+	}
 
-    /**
-     * Setzt die Statistiken der Engine zurück.
-     * Wird vom CSV-Loader/UI aufgerufen, um vor dem Laden neuer Fragen alles zu nullen.
-     */
-    resetStats() {
-        this.currentIndex = 0;
-        this.score = 0;
-        this.gameDone = false;
-        
-        // Anpassung an index.html: "options" statt "answer-container"
-        const answerContainer = document.getElementById("options");
-        if (answerContainer) answerContainer.innerHTML = "";
-        
-        // Blendet den Feedback-Bereich inklusive Weiter-Button aus
-        const feedbackArea = document.getElementById("feedback-area");
-        if (feedbackArea) feedbackArea.classList.add("hidden");
-        
-        console.log("Quiz-Statistiken erfolgreich zurückgesetzt.");
-    }
+	async startQuizGeneration(file, customPrompt) {
+		this.resetStats();
+		if (!file) return alert("PDF fehlt!");
 
-    /**
-     * Setzt das Quiz mit neuen Daten auf den Anfang zurück
-     * @param {Array} data - Array aus Fragen-Objekten
-     */
-    init(data) {
-        this.quizData = data;
-        this.resetStats(); 
-        this.showQuestion();
-    }
+		window.toggleCard("status");
+		const statusText = document.getElementById("status-text");
+		statusText.innerText = "PDF wird analysiert...";
 
-    // --- ALIAS ---
-    loadQuizData(data) {
-        this.init(data);
-    }
+		try {
+			const base64 = (await toBase64(file)).split(",")[1];
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-    /**
-     * Kern-Methode: Bereitet die UI vor und entscheidet anhand des Typs, 
-     * wie die Frage gerendert werden soll.
-     */
-    showQuestion() {
-        // 1. Prüfen, ob das Quiz vorbei ist
-        if (this.currentIndex >= this.quizData.length) {
-            this.showResults();
-            return;
-        }
+			const res = await fetch("/api/quiz", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					pdfBase64: base64,
+					questionCount: document.getElementById("question-count").value,
+					customPrompt: customPrompt,
+				}),
+			});
 
-        const currentQuestion = this.quizData[this.currentIndex];
+			clearTimeout(timeoutId);
 
-        // 2. UI-Elemente vorbereiten und leeren (Kompatibel mit index.html IDs)
-        const questionTextEl = document.getElementById("question-text");
-        const answerContainer = document.getElementById("options"); 
-        const nextBtn = document.getElementById("next-q-btn"); 
-        const feedbackArea = document.getElementById("feedback-area");
+			if (!res.ok) {
+				let errorMsg = "Server-Fehler";
+				if (res.status === 413) errorMsg = "Die PDF-Datei ist zu groß für die KI-Analyse.";
+				if (res.status === 504 || res.status === 500) errorMsg = "Der Server antwortet nicht (Timeout).";
+				throw new Error(errorMsg);
+			}
 
-        if (questionTextEl) questionTextEl.innerText = currentQuestion.question;
-        if (answerContainer) answerContainer.innerHTML = "";
-        if (feedbackArea) feedbackArea.classList.add("hidden"); // Wird erst nach Antwort sichtbar
+			let data = await res.json();
+			shuffleArray(data);
+			
+			data.forEach((q) => {
+				// Standard-Typ zuweisen, falls nicht vorhanden
+				if (!q.type) q.type = "multiple";
 
-        // Fortschrittsbalken & Zähler aktualisieren (falls im HTML vorhanden)
-        const progressBar = document.getElementById("progress-bar");
-        const qCount = document.getElementById("q-count");
-        if (progressBar && this.quizData.length > 0) {
-            progressBar.style.width = `${(this.currentIndex / this.quizData.length) * 100}%`;
-        }
-        if (qCount) {
-            qCount.innerText = `Frage ${this.currentIndex + 1} von ${this.quizData.length}`;
-        }
+				if (q.type === "multiple") {
+					if (!Array.isArray(q.answer)) {
+						q.answer = [q.answer];
+					}
+					const correctTexts = q.answer.map((index) => q.options[index]);
+					shuffleArray(q.options);
+					q.answer = correctTexts.map((text) => q.options.indexOf(text));
+				}
+			});
 
-        // 3. Dynamische Weiche je nach Fragetyp aus der CSV
-        switch (currentQuestion.type) {
-            case "choice":
-                this.renderChoiceQuestion(currentQuestion, answerContainer, nextBtn);
-                break;
-            case "cloze":
-                this.renderClozeQuestion(currentQuestion, answerContainer, nextBtn);
-                break;
-            case "text":
-                this.renderTextQuestion(currentQuestion, answerContainer, nextBtn);
-                break;
-            default:
-                console.error("Unbekannter Fragetyp:", currentQuestion.type);
-                this.currentIndex++;
-                this.showQuestion();
-        }
-    }
+			this.quizData = data;
+			window.toggleCard("quiz-container");
+			this.showQuestion();
+		} catch (err) {
+			let userMessage = "Fehler: ";
+			if (err.name === "AbortError") {
+				userMessage += "Die Analyse dauert zu lange. Versuche es mit einer kleineren PDF.";
+			} else {
+				userMessage += err.message;
+			}
+			console.error("Quiz-Error:", err);
+			alert(userMessage);
+			window.goToHome();
+		}
+	}
 
-    /**
-     * Rendert klassische Multiple-Choice-Fragen (Buttons)
-     */
-    renderChoiceQuestion(questionData, container, nextBtn) {
-        questionData.options.forEach((option, index) => {
-            const button = document.createElement("button");
-            button.className = "quiz-answer-btn w-full text-left p-3 my-2 border rounded-xl transition-all bg-white hover:bg-slate-100 font-medium shadow-sm border-slate-200";
-            button.innerText = option;
+	loadQuizData(data) {
+		if (!data) {
+			window.goToHome();
+			return;
+		}
+		this.quizData = data;
+		window.toggleCard("quiz-container");
+		this.showQuestion();
+	}
 
-            button.onclick = () => {
-                // Alle Buttons deaktivieren
-                Array.from(container.children).forEach(btn => btn.disabled = true);
+	// Hilfsfunktion zur Toleranzberechnung (Levenshtein-Distanz)
+	getSimilarity(s1, s2) {
+		let longer = s1.toLowerCase().trim();
+		let shorter = s2.toLowerCase().trim();
+		if (longer.length < shorter.length) {
+			let tmp = longer; longer = shorter; shorter = tmp;
+		}
+		let longerLength = longer.length;
+		if (longerLength === 0) return 1.0;
+		
+		let costs = new Array();
+		for (let i = 0; i <= longer.length; i++) {
+			let lastValue = i;
+			for (let j = 0; j <= shorter.length; j++) {
+				if (i == 0) costs[j] = j;
+				else {
+					if (j > 0) {
+						let newValue = costs[j - 1];
+						if (longer.charAt(i - 1) != shorter.charAt(j - 1))
+							newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+						costs[j - 1] = lastValue;
+						lastValue = newValue;
+					}
+				}
+			}
+			if (i > 0) costs[shorter.length] = lastValue;
+		}
+		return (longerLength - costs[shorter.length]) / parseFloat(longerLength);
+	}
 
-                // Da in quiz-utils.js 'answer' bei Choice-Fragen ein Array von Indices sein kann:
-                const isCorrect = Array.isArray(questionData.answer) 
-                    ? questionData.answer.includes(index) 
-                    : option.trim() === questionData.answer.trim();
+	showQuestion() {
+		if (this.currentIndex >= this.quizData.length) {
+			this.showRes();
+			return;
+		}
 
-                if (isCorrect) {
-                    button.classList.add("bg-green-100", "border-green-500", "text-green-800");
-                    this.score++;
-                    this.showFeedback(true, "Richtig!");
-                } else {
-                    button.classList.add("bg-red-100", "border-red-500", "text-red-800");
-                    
-                    // Richtige Antwort(en) zur Aufklärung grün markieren
-                    Array.from(container.children).forEach((btn, btnIdx) => {
-                        const isBtnCorrect = Array.isArray(questionData.answer)
-                            ? questionData.answer.includes(btnIdx)
-                            : btn.innerText.trim() === questionData.answer.trim();
-                        
-                        if (isBtnCorrect) {
-                            btn.classList.add("bg-green-100", "border-green-500", "text-green-800");
-                        }
-                    });
-                    this.showFeedback(false, `Falsch! Die richtige Antwort wäre gewesen: ${questionData.answer}`);
-                }
-                this.prepareNextStep(nextBtn);
-            };
-            container.appendChild(button);
-        });
-    }
+		document.getElementById("quiz-content").classList.remove("hidden");
+		document.getElementById("game-screen").classList.add("hidden");
+		document.getElementById("feedback-area").classList.add("hidden");
+		document.getElementById("result-screen").classList.add("hidden");
 
-    /**
-     * Rendert Lückentext-Fragen. Ersetzt ein Platzhalter-Wort im Text durch ein Input-Feld.
-     */
-    renderClozeQuestion(questionData, container, nextBtn) {
-        const wrapper = document.createElement("div");
-        wrapper.className = "p-4 w-full text-center";
+		const q = this.quizData[this.currentIndex];
+		if (!q.type) q.type = "multiple"; // Fallback
 
-        const textParts = questionData.question.split("[___]");
-        
-        if (textParts.length === 1) {
-            const label = document.createElement("p");
-            label.className = "mb-3 text-lg";
-            label.innerText = questionData.question;
-            wrapper.appendChild(label);
-        }
+		document.getElementById("progress-bar").style.width = `${(this.currentIndex / this.quizData.length) * 100}%`;
+		document.getElementById("q-count").innerText = `Frage ${this.currentIndex + 1} von ${this.quizData.length} (${q.type.toUpperCase()})`;
+		
+		const optDiv = document.getElementById("options");
+		optDiv.innerHTML = "";
 
-        const input = document.createElement("input");
-        input.type = "text";
-        input.placeholder = "Antwort eintippen...";
-        input.className = "border-2 border-slate-200 p-2 rounded-xl focus:outline-none focus:border-blue-500 text-center text-lg w-64 shadow-sm";
+		let alreadyChecked = false;
+		let checkAnswerFunc = () => {};
 
-        const submitBtn = document.createElement("button");
-        submitBtn.className = "mt-3 block mx-auto bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition font-bold shadow";
-        submitBtn.innerText = "Antwort prüfen";
+		// RENDERING BASIEREND AUF FRAGENTYP
+		if (q.type === "free") {
+			// FREITEXT MODUS
+			document.getElementById("question-text").innerText = q.question;
+			
+			const inputField = document.createElement("input");
+			inputField.type = "text";
+			inputField.id = "free-text-input";
+			inputField.placeholder = "Deine Antwort hier eingeben...";
+			inputField.className = "w-full p-4 rounded-xl border-2 border-slate-200 outline-none font-medium text-lg focus:border-blue-500 shadow-sm dark:bg-slate-800 dark:text-white";
+			optDiv.appendChild(inputField);
+			inputField.focus();
 
-        submitBtn.onclick = () => {
-            input.disabled = true;
-            submitBtn.disabled = true;
+			checkAnswerFunc = () => {
+				if (alreadyChecked) return;
+				alreadyChecked = true;
+				inputField.disabled = true;
 
-            const userAnswer = input.value.trim().toLowerCase();
-            const correctAnswer = String(questionData.answer).trim().toLowerCase();
+				const userAns = inputField.value.trim();
+				const correctAns = q.correct_text || "";
+				const similarity = this.getSimilarity(userAns, correctAns);
 
-            if (userAnswer === correctAnswer) {
-                input.classList.add("bg-green-100", "border-green-500", "text-green-800");
-                this.score++;
-                this.showFeedback(true, "Ausgezeichnet, das stimmt!");
-            } else {
-                input.classList.add("bg-red-100", "border-red-500", "text-red-800");
-                this.showFeedback(false, `Leider nicht ganz. Richtig ist: ${questionData.answer}`);
-            }
-            this.prepareNextStep(nextBtn);
-        };
+				let isCorrect = similarity >= 0.85; // 85% Übereinstimmung notwendig
+				let isAlmostCorrect = !isCorrect && similarity >= 0.65; // Toleranzbereich für "fast richtig"
 
-        if (textParts.length > 1) {
-            const questionTextEl = document.getElementById("question-text");
-            if (questionTextEl) questionTextEl.innerText = ""; 
-            const phrase = document.createElement("p");
-            phrase.className = "text-xl mb-4 text-slate-800 font-medium";
-            phrase.appendChild(document.createTextNode(textParts[0]));
-            phrase.appendChild(input);
-            phrase.appendChild(document.createTextNode(textParts[1]));
-            wrapper.appendChild(phrase);
-        } else {
-            wrapper.appendChild(input);
-        }
+				if (isCorrect || isAlmostCorrect) {
+					this.score += isCorrect ? 1 : 0.5; // Halber Punkt für "fast richtig"
+					inputField.classList.add(isCorrect ? "border-green-500" : "border-amber-500", isCorrect ? "bg-green-50" : "bg-amber-50");
+					document.getElementById("feedback-text").innerHTML = isCorrect ? "✅ Richtig!" : `⚠️ Fast richtig (Tippfehler)!<br>Lösung: <b>${correctAns}</b>`;
+					document.getElementById("feedback-text").className = isCorrect ? "text-green-600 font-bold text-center" : "text-amber-600 font-bold text-center";
+					if (window.audioEngine) window.audioEngine.playSoundEffect("correct");
+				} else {
+					this.userMistakes.push({ q: q.question, g: userAns || "[Keine Eingabe]", c: correctAns });
+					inputField.classList.add("border-red-500", "bg-red-50");
+					document.getElementById("feedback-text").innerHTML = `❌ Falsch. Richtig ist: <b>${correctAns}</b>`;
+					document.getElementById("feedback-text").className = "text-red-600 font-bold text-center";
+					if (window.audioEngine) window.audioEngine.playSoundEffect("wrong");
+				}
+				document.getElementById("feedback-area").classList.remove("hidden");
+			};
 
-        wrapper.appendChild(submitBtn);
-        container.appendChild(wrapper);
-    }
+		} else if (q.type === "cloze") {
+			// LÜCKENTEXT MODUS
+			// Erwartet Text-Format: "Das ist ein [Lückentext] mit System."
+			const regex = /\[(.*?)\]/g;
+			let placeholderText = q.question.replace(regex, "________");
+			document.getElementById("question-text").innerText = "Fülle die Lücke aus:\n" + placeholderText;
 
-    /**
-     * Rendert Freitext-Fragen mit einem offenen Textfeld
-     */
-    renderTextQuestion(questionData, container, nextBtn) {
-        const wrapper = document.createElement("div");
-        wrapper.className = "p-4 w-full text-center";
+			const inputField = document.createElement("input");
+			inputField.type = "text";
+			inputField.id = "cloze-input";
+			inputField.placeholder = "Gesuchtes Wort eingeben...";
+			inputField.className = "w-full p-4 rounded-xl border-2 border-slate-200 outline-none font-medium text-lg focus:border-blue-500 shadow-sm dark:bg-slate-800 dark:text-white";
+			optDiv.appendChild(inputField);
+			inputField.focus();
 
-        const input = document.createElement("input");
-        input.type = "text";
-        input.placeholder = "Deine Antwort...";
-        input.className = "border-2 border-slate-200 p-2 rounded-xl focus:outline-none focus:border-blue-500 text-lg w-full max-w-md text-center shadow-sm";
+			// Antwort extrahieren
+			const matches = [...q.question.matchAll(regex)];
+			const correctAns = matches[0] ? matches[0][1] : q.correct_text;
 
-        const submitBtn = document.createElement("button");
-        submitBtn.className = "mt-3 block mx-auto bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition font-bold shadow";
-        submitBtn.innerText = "Antwort absenden";
+			checkAnswerFunc = () => {
+				if (alreadyChecked) return;
+				alreadyChecked = true;
+				inputField.disabled = true;
 
-        submitBtn.onclick = () => {
-            input.disabled = true;
-            submitBtn.disabled = true;
+				const userAns = inputField.value.trim();
+				const similarity = this.getSimilarity(userAns, correctAns);
 
-            const userAnswer = input.value.trim().toLowerCase();
-            const correctAnswer = String(questionData.answer).trim().toLowerCase();
+				let isCorrect = similarity >= 0.85;
+				let isAlmostCorrect = !isCorrect && similarity >= 0.65;
 
-            if (userAnswer === correctAnswer) {
-                input.classList.add("bg-green-100", "border-green-500", "text-green-800");
-                this.score++;
-                this.showFeedback(true, "Perfekt beantwortet!");
-            } else {
-                input.classList.add("bg-red-100", "border-red-500", "text-red-800");
-                this.showFeedback(false, `Knapp daneben. Die richtige Antwort ist: ${questionData.answer}`);
-            }
-            this.prepareNextStep(nextBtn);
-        };
+				if (isCorrect || isAlmostCorrect) {
+					this.score += isCorrect ? 1 : 0.5;
+					inputField.classList.add(isCorrect ? "border-green-500" : "border-amber-500", isCorrect ? "bg-green-50" : "bg-amber-50");
+					document.getElementById("feedback-text").innerHTML = isCorrect ? "✅ Richtig!" : `⚠️ Fast richtig!<br>Lösung: <b>${correctAns}</b>`;
+					document.getElementById("feedback-text").className = isCorrect ? "text-green-600 font-bold text-center" : "text-amber-600 font-bold text-center";
+					if (window.audioEngine) window.audioEngine.playSoundEffect("correct");
+				} else {
+					this.userMistakes.push({ q: q.question, g: userAns || "[Keine Eingabe]", c: correctAns });
+					inputField.classList.add("border-red-500", "bg-red-50");
+					document.getElementById("feedback-text").innerHTML = `❌ Falsch. Richtig ist: <b>${correctAns}</b>`;
+					document.getElementById("feedback-text").className = "text-red-600 font-bold text-center";
+					if (window.audioEngine) window.audioEngine.playSoundEffect("wrong");
+				}
+				document.getElementById("feedback-area").classList.remove("hidden");
+			};
 
-        wrapper.appendChild(input);
-        wrapper.appendChild(submitBtn);
-        container.appendChild(wrapper);
-    }
+		} else {
+			// MULTIPLE CHOICE (Bisherige Logik)
+			document.getElementById("question-text").innerText = q.question;
+			if (!Array.isArray(q.answer)) q.answer = [q.answer];
 
-    /**
-     * Steuert die Einblendung der Feedback-Area unter den Fragen
-     */
-    showFeedback(isCorrect, text) {
-        const feedbackArea = document.getElementById("feedback-area");
-        const feedbackText = document.getElementById("feedback-text");
-        if (!feedbackArea || !feedbackText) return;
+			let selectedAnswers = [];
+			q.options.slice(0, 4).forEach((opt, i) => {
+				const b = document.createElement("button");
+				b.className = "option-btn w-full text-left p-4 rounded-xl border-2 border-slate-100 transition-all font-medium bg-white hover:border-blue-200 shadow-sm dark:bg-slate-800 dark:text-white dark:border-slate-700";
+				b.innerHTML = `<span class="text-xs bg-slate-100 text-slate-400 px-2 py-1 rounded border border-slate-200 font-mono mr-2 dark:bg-slate-700">Taste ${i + 1}</span><span>${opt}</span>`;
 
-        feedbackText.innerText = text;
-        feedbackArea.classList.remove("hidden", "bg-green-50", "border-green-200", "text-green-800", "bg-red-50", "border-red-200", "text-red-800");
+				b.onclick = () => {
+					if (alreadyChecked) return;
+					if (selectedAnswers.includes(i)) {
+						selectedAnswers = selectedAnswers.filter((x) => x !== i);
+						b.classList.remove("border-blue-500", "bg-blue-50", "dark:bg-blue-900");
+					} else {
+						if (selectedAnswers.length < q.answer.length) {
+							selectedAnswers.push(i);
+							b.classList.add("border-blue-500", "bg-blue-50", "dark:bg-blue-900");
+						}
+					}
+				};
+				optDiv.appendChild(b);
+			});
 
-        if (isCorrect) {
-            feedbackArea.classList.add("bg-green-50", "border-green-200", "text-green-800");
-        } else {
-            feedbackArea.classList.add("bg-red-50", "border-red-200", "text-red-800");
-        }
-    }
+			checkAnswerFunc = () => {
+				if (alreadyChecked) return;
+				alreadyChecked = true;
 
-    /**
-     * Bereitet den "Nächste Frage"-Button vor und steuert die Minispiel-Pausen.
-     */
-    prepareNextStep(nextBtn) {
-        const feedbackArea = document.getElementById("feedback-area");
-        if (feedbackArea) feedbackArea.classList.remove("hidden");
+				document.querySelectorAll(".option-btn").forEach((btn) => (btn.disabled = true));
+				
+				const correctAnswers = [...q.answer].sort((a, b) => a - b);
+				const userAnswers = [...selectedAnswers].sort((a, b) => a - b);
+				const isCorrect = JSON.stringify(correctAnswers) === JSON.stringify(userAnswers);
 
-        const halfIndex = Math.floor(this.quizData.length / 2);
+				document.querySelectorAll(".option-btn").forEach((btn, index) => {
+					if (q.answer.includes(index)) btn.classList.add("border-green-500", "bg-green-50", "dark:bg-green-900");
+					if (selectedAnswers.includes(index) && !q.answer.includes(index)) btn.classList.add("border-red-500", "bg-red-50", "dark:bg-red-900");
+				});
 
-        // Wenn wir an der Hälfte angekommen sind UND das Spiel noch nicht gespielt wurde
-        if (this.currentIndex === halfIndex - 1 && !this.gameDone) {
-            if (nextBtn) nextBtn.innerText = "Spielen & Weiter ⚡";
-            
-            if (nextBtn) nextBtn.onclick = () => {
-                this.gameDone = true; 
-                this.currentIndex++;  
+				if (isCorrect) {
+					this.score++;
+					document.getElementById("feedback-text").innerHTML = "✅ Richtig!";
+					document.getElementById("feedback-text").className = "text-green-600 font-bold text-center";
+					if (window.audioEngine) window.audioEngine.playSoundEffect("correct");
+				} else {
+					const rightTexts = q.answer.map((index) => q.options[index]).join(", ");
+					this.userMistakes.push({
+						q: q.question,
+						g: selectedAnswers.map((index) => q.options[index]).join(", ") || "[Keine Wahl]",
+						c: rightTexts,
+					});
+					document.getElementById("feedback-text").innerHTML = `❌ Falsch. Richtig ist: ${rightTexts}`;
+					document.getElementById("feedback-text").className = "text-red-600 font-bold text-center";
+					if (window.audioEngine) window.audioEngine.playSoundEffect("wrong");
+				}
+				document.getElementById("feedback-area").classList.remove("hidden");
+			};
+		}
 
-                // Versteckt den Fragen-Inhalt und schaltet auf das Game-Screen deiner index.html um
-                const quizContent = document.getElementById("quiz-content");
-                const gameScreen = document.getElementById("game-screen");
-                
-                if (quizContent) quizContent.classList.add("hidden");
-                if (gameScreen) gameScreen.classList.remove("hidden");
-            };
-        } else {
-            if (nextBtn) nextBtn.innerText = "Nächste Frage →";
-            if (nextBtn) nextBtn.onclick = () => {
-                this.currentIndex++;
-                this.showQuestion();
-            };
-        }
-    }
+		// Prüfen-Button anhängen
+		const checkBtn = document.createElement("button");
+		checkBtn.innerText = "Antwort prüfen";
+		checkBtn.className = "w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md uppercase tracking-wider";
+		checkBtn.onclick = () => {
+			checkAnswerFunc();
+			checkBtn.disabled = true;
+			checkBtn.classList.add("opacity-50");
+		};
+		optDiv.appendChild(checkBtn);
 
-    /**
-     * Zeigt das Endergebnis des Quizzes passend zur Struktur deiner index.html
-     */
-    showResults() {
-        const quizContent = document.getElementById("quiz-content");
-        const resultScreen = document.getElementById("result-screen");
-        const scoreDisplay = document.getElementById("score-display");
+		// Event Handler für Weiter-Button vorbereiten
+		const nextBtn = document.getElementById("next-q-btn");
+		const halfQuiz = Math.floor(this.quizData.length / 2);
 
-        if (quizContent) quizContent.classList.add("hidden");
-        if (resultScreen) resultScreen.classList.remove("hidden");
-        
-        if (scoreDisplay) {
-            scoreDisplay.innerText = `${this.score} von ${this.quizData.length} Fragen richtig beantwortet!`;
-        }
+		if (this.currentIndex === halfQuiz - 1 && halfQuiz > 0 && !this.gameDone) {
+			nextBtn.innerText = "Spielen & Weiter ⚡";
+			nextBtn.onclick = () => {
+				document.onkeydown = null;
+				document.getElementById("quiz-content").classList.add("hidden");
+				document.getElementById("game-screen").classList.remove("hidden");
+				this.gameDone = true;
+				this.currentIndex++;
+			};
+		} else {
+			nextBtn.innerText = "Nächste Frage →";
+			nextBtn.onclick = () => {
+				this.currentIndex++;
+				this.showQuestion();
+			};
+		}
 
-        // Ergebnis im LocalStorage für die Bestenliste speichern
-        try {
-            const history = JSON.parse(localStorage.getItem("quiz_history") || "[]");
-            history.push({
-                date: new Date().toLocaleString(),
-                score: this.score,
-                total: this.quizData.length
-            });
-            localStorage.setItem("quiz_history", JSON.stringify(history));
-            if (typeof window.renderHistory === "function") window.renderHistory();
-        } catch (e) {
-            console.error("Fehler beim Speichern der Historie:", e);
-        }
-    }
+		// Keyboard Support
+		document.onkeydown = (e) => {
+			if (q.type === "multiple" && ["1", "2", "3", "4"].includes(e.key)) {
+				const index = parseInt(e.key) - 1;
+				const buttons = document.querySelectorAll(".option-btn");
+				if (buttons[index] && !buttons[index].disabled) buttons[index].click();
+			}
+			if (e.key === "Enter") {
+				if (document.getElementById("feedback-area").classList.contains("hidden")) {
+					checkBtn.click();
+				} else {
+					nextBtn.click();
+				}
+			}
+		};
+	}
+
+	showRes() {
+		document.getElementById("quiz-content").classList.add("hidden");
+		document.getElementById("result-screen").classList.remove("hidden");
+		document.getElementById("progress-bar").style.width = "100%";
+		const total = this.quizData.length;
+		const percent = Math.round((this.score / total) * 100);
+		document.getElementById("score-display").innerText = `${this.score} von ${total} Punkten richtig (${percent}%)`;
+		
+		const analysis = document.getElementById("mistake-analysis");
+		if (this.userMistakes.length > 0) {
+			analysis.innerHTML = this.userMistakes
+				.map((m) => `
+				<div class="mistake-card p-3 bg-white border border-slate-200 rounded-xl text-xs shadow-sm border-l-red-500 dark:bg-slate-800 dark:border-slate-700">
+					<p class="font-bold mb-1 text-slate-800 dark:text-slate-200">Aufgabe: ${m.q}</p>
+					<p class="text-red-500">❌ Deine Eingabe: ${m.g}</p>
+					<p class="text-green-600 font-bold">✅ Richtige Lösung: ${m.c}</p>
+				</div>`)
+				.join("");
+		} else {
+			analysis.innerHTML = '<div class="text-center p-6 bg-green-50 rounded-2xl border-2 border-green-100"><p class="text-green-600 font-black text-lg">PERFEKT! 100% 🌟</p></div>';
+		}
+		const h = JSON.parse(localStorage.getItem("quiz_history") || "[]");
+		h.unshift({ d: new Date().toLocaleDateString(), p: percent });
+		localStorage.setItem("quiz_history", JSON.stringify(h.slice(0, 10)));
+		window.renderHistory();
+	}
+
+	restartCurrentQuiz() {
+		if (this.quizData.length === 0) return window.goToHome();
+		shuffleArray(this.quizData);
+		this.quizData.forEach((q) => {
+			if (q.type === "multiple") {
+				const correctTexts = q.answer.map((index) => q.options[index]);
+				shuffleArray(q.options);
+				q.answer = correctTexts.map((text) => q.options.indexOf(text));
+			}
+		});
+		this.resetStats();
+		document.getElementById("result-screen").classList.add("hidden");
+		document.getElementById("quiz-content").classList.remove("hidden");
+		this.showQuestion();
+	}
 }
