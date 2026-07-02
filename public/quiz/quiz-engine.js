@@ -47,6 +47,11 @@ export class QuizEngine {
         this.showQuestion();
     }
 
+    // --- ALIAS---
+    loadQuizData(data) {
+        this.init(data);
+    }
+
     /**
      * Kern-Methode: Bereitet die UI vor und entscheidet anhand des Typs, 
      * wie die Frage gerendert werden soll.
