@@ -36,26 +36,86 @@ export function handleDragLeaveCSV(e) {
 	e.preventDefault();
 }
 
+// Helper: Zerlegt eine CSV-Zeile unter Beachtung von Anführungszeichen und dynamischem Trennzeichen
+function splitCSVLine(line, delimiter) {
+	const result = [];
+	let current = "";
+	let inQuotes = false;
+
+	for (let i = 0; i < line.length; i++) {
+		const char = line[i];
+
+		if (char === '"') {
+			// Doppelte Anführungszeichen innerhalb von Anführungszeichen -> maskiertes "
+			if (inQuotes && line[i + 1] === '"') {
+				current += '"';
+				i++;
+			} else {
+				// Wechsel des Anführungszeichen-Status
+				inQuotes = !inQuotes;
+			}
+		} else if (char === delimiter && !inQuotes) {
+			result.push(current.trim());
+			current = "";
+		} else {
+			current += char;
+		}
+	}
+	result.push(current.trim());
+	return result;
+}
+
 // --- Data Handling ---
-// CSV Laden und mischen (Unterstützt nun 'multiple', 'cloze' und 'free')
+// CSV Laden und mischen (Unterstützt nun 'multiple', 'cloze' und 'free' mit Autodetect für Trennzeichen)
 export function parseCSVData(text) {
 	try {
-		const lines = text
-			.split(/\r?\n/)
-			.filter((l) => l.trim())
-			.slice(1);
+		const lines = text.split(/\r?\n/).filter((l) => l.trim());
+		if (lines.length < 2) throw new Error("Datei ist leer oder enthält keine Datenzeilen.");
 
-		const parsedData = lines
+		// Automatisches Erkennen des Trennzeichens anhand der Header-Zeile
+		const headerLine = lines[0];
+		const delimiter = headerLine.includes(";") ? ";" : ",";
+
+		// Datenzeilen ohne die Kopfzeile verarbeiten
+		const dataLines = lines.slice(1);
+
+		const parsedData = dataLines
 			.map((l) => {
-				const c = l.match(/(".*?"|[^;]+)(?=\s*;|\s*$)/g).map((s) => s.replace(/^"|"$/g, "").trim());
+				const c = splitCSVLine(l, delimiter);
 				
 				if (c.length < 2) return null;
 
-				const questionText = c[0];
-				const rawAnswer = c[5] || "";
-				
-				// Überprüfen, welcher Typ definiert wurde (Spalte Index 6). Default: multiple
-				const type = (c[6] && ["multiple", "cloze", "free"].includes(c[6].toLowerCase())) ? c[6].toLowerCase() : "multiple";
+				// Zuordnung basierend auf der Spaltenanzahl
+				// Wenn die Datei 4 Spalten hat (wie deine Neu.csv: type, question, options, answer)
+				// Oder das Standardformat (Frage; OptA; OptB; OptC; OptD; Antwort; Typ)
+				let questionText = "";
+				let rawAnswer = "";
+				let type = "multiple";
+				let opts = [];
+
+				if (headerLine.toLowerCase().startsWith("type") || c.length <= 4) {
+					// --- Format aus Neu.csv (type, question, options, answer) ---
+					type = c[0].toLowerCase();
+					questionText = c[1];
+					rawAnswer = c[3] || "";
+
+					if (type === "choice" || type === "multiple") {
+						type = "multiple";
+						// Optionen splitten, falls sie durch Komma in einer Zelle stehen
+						const rawOpts = c[2] ? c[2].split(",") : [];
+						opts = [rawOpts[0] || "", rawOpts[1] || "", rawOpts[2] || "", rawOpts[3] || ""];
+					}
+				} else {
+					// --- Standard Pro-Format (7 Spalten) ---
+					questionText = c[0];
+					opts = [c[1] || "", c[2] || "", c[3] || "", c[4] || ""];
+					rawAnswer = c[5] || "";
+					type = (c[6] && ["multiple", "cloze", "free"].includes(c[6].toLowerCase())) ? c[6].toLowerCase() : "multiple";
+				}
+
+				// Normierung falscher Typen-Bezeichnungen aus externen Dateien
+				if (type === "text") type = "free";
+				if (type === "choice") type = "multiple";
 
 				if (type === "free") {
 					return {
@@ -66,11 +126,17 @@ export function parseCSVData(text) {
 						answer: []
 					};
 				} else if (type === "cloze") {
-					// Lückentext-Verarbeitung
 					let finalQuestion = questionText;
-					// Fallback falls Lücken-Syntax fehlt: eckige Klammern um das Wort bauen
-					if (!questionText.includes("[") && rawAnswer) {
-						finalQuestion = questionText + ` [${rawAnswer}]`;
+					// Falls das Wort in der Frage noch nicht eingeklammert ist, holen wir es nach
+					if (!finalQuestion.includes("[") && rawAnswer) {
+						// Ersetzt das Wort oder ein Platzhalter-Wort "[Lücke]" mit der echten Antwort
+						if (finalQuestion.includes("[Lücke]")) {
+							finalQuestion = finalQuestion.replace("[Lücke]", `[${rawAnswer}]`);
+						} else if (finalQuestion.includes("________")) {
+							finalQuestion = finalQuestion.replace("________", `[${rawAnswer}]`);
+						} else {
+							finalQuestion = finalQuestion + ` [${rawAnswer}]`;
+						}
 					}
 					return {
 						question: finalQuestion,
@@ -80,11 +146,10 @@ export function parseCSVData(text) {
 						answer: []
 					};
 				} else {
-					// Klassischer Multiple Choice Ablauf
-					const opts = [c[1] || "", c[2] || "", c[3] || "", c[4] || ""];
+					// Multiple Choice Ablauf
 					let targetIndices = [];
 
-					// PRÜFUNG: Ist die Antwortspalte mit Indizes (z.B. "0,2") oder mit Text gefüllt?
+					// Überprüfung ob Index-Zahl oder Text-Antwort eingetragen ist
 					if (rawAnswer.includes(",") || (!isNaN(rawAnswer) && rawAnswer !== "")) {
 						const originalIndices = rawAnswer.split(",").map((num) => parseInt(num.trim()));
 						const correctTexts = originalIndices.map((idx) => opts[idx]).filter((t) => t !== undefined);
@@ -105,17 +170,17 @@ export function parseCSVData(text) {
 					};
 				}
 			})
-			.filter((q) => q !== null && ((q.type === "multiple" && q.answer.length > 0) || q.type === "free" || q.type === "cloze"));
+			.filter((q) => q !== null && ((q.type === "multiple" && q.options.length > 0) || q.type === "free" || q.type === "cloze"));
 
-		// Die Fragenliste selbst mischen
+		// Gesamte Fragenliste mischen
 		shuffleArray(parsedData);
 
-		if (parsedData.length === 0) throw new Error("Keine Fragen gefunden");
+		if (parsedData.length === 0) throw new Error("Keine validen Fragen gefunden.");
 
 		return parsedData;
 	} catch (e) {
 		console.error("CSV-Parsing Fehler:", e);
-		alert("Daten fehlerhaft oder falsches Format!");
+		alert("Daten fehlerhaft oder falsches Format: " + e.message);
 		return null;
 	}
 }
