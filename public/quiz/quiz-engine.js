@@ -1,22 +1,22 @@
 // Quizengine und Logik
 // ------------------------------
 
-import { shuffleArray, toBase64 } from "./quiz-utils.js";[cite: 1]
+import { shuffleArray, toBase64 } from "./quiz-utils.js";
 
 export class QuizEngine {
 	constructor() {
-		this.quizData = [];[cite: 1]
-		this.currentIndex = 0;[cite: 1]
-		this.score = 0;[cite: 1]
-		this.userMistakes = [];[cite: 1]
-		this.gameDone = false;[cite: 1]
+		this.quizData = [];
+		this.currentIndex = 0;
+		this.score = 0;
+		this.userMistakes = [];
+		this.gameDone = false;
 	}
 
 	resetStats() {
-		this.currentIndex = 0;[cite: 1]
-		this.score = 0;[cite: 1]
-		this.userMistakes = [];[cite: 1]
-		this.gameDone = false;[cite: 1]
+		this.currentIndex = 0;
+		this.score = 0;
+		this.userMistakes = [];
+		this.gameDone = false;
 	}
 
 	// =========================================================================
@@ -65,155 +65,155 @@ export class QuizEngine {
 	// --- Core Quiz Flow ---
 	// KI-Quiz generieren (Server-Anfrage)
 	async startQuizGeneration(file, customPrompt) {
-		this.resetStats();[cite: 1]
-		if (!file) return alert("PDF fehlt!");[cite: 1]
+		this.resetStats();
+		if (!file) return alert("PDF fehlt!");
 
-		window.toggleCard("status");[cite: 1]
-		const statusText = document.getElementById("status-text");[cite: 1]
-		statusText.innerText = "PDF wird analysiert...";[cite: 1]
+		window.toggleCard("status");
+		const statusText = document.getElementById("status-text");
+		statusText.innerText = "PDF wird analysiert...";
 
 		try {
-			const base64 = (await toBase64(file)).split(",")[1];[cite: 1]
+			const base64 = (await toBase64(file)).split(",")[1];
 
 			//Timeout-Schutz vorbereiten 30 Sektionen
-			const controller = new AbortController();[cite: 1]
-			const timeoutId = setTimeout(() => controller.abort(), 30000);[cite: 1]
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 30000);
 
 			const res = await fetch("/api/quiz", {
-				method: "POST",[cite: 1]
-				headers: { "Content-Type": "application/json" },[cite: 1]
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					pdfBase64: base64,[cite: 1]
-					questionCount: document.getElementById("question-count").value,[cite: 1]
+					pdfBase64: base64,
+					questionCount: document.getElementById("question-count").value,
 					customPrompt: customPrompt, // NEU: Wird an das Backend gesendet
 				}),
 			});
 
-			clearTimeout(timeoutId); // Timeout löschen, da Antwort kam[cite: 1]
+			clearTimeout(timeoutId); // Timeout löschen, da Antwort kam
 
 			// PRÜFUNG: War der Server-Antwort-Status erfolgreich?
 			if (!res.ok) {
-				let errorMsg = "Server-Fehler";[cite: 1]
-				if (res.status === 413) errorMsg = "Die PDF-Datei ist zu groß für die KI-Analyse.";[cite: 1]
-				if (res.status === 504 || res.status === 500) errorMsg = "Der Server antwortet nicht (Timeout).";[cite: 1]
-				throw new Error(errorMsg);[cite: 1]
+				let errorMsg = "Server-Fehler";
+				if (res.status === 413) errorMsg = "Die PDF-Datei ist zu groß für die KI-Analyse.";
+				if (res.status === 504 || res.status === 500) errorMsg = "Der Server antwortet nicht (Timeout).";
+				throw new Error(errorMsg);
 			}
 
 			// NEU / GEFIXT:
-			let data = await res.json();[cite: 1]
+			let data = await res.json();
 
 			// PDF-ERGEBNISSE MISCHEN ---
-			shuffleArray(data); // Fragen-Reihenfolge würfeln[cite: 1]
+			shuffleArray(data); // Fragen-Reihenfolge würfeln
 			data.forEach((q) => {
 				// NEU: Nur mischen, wenn es sich um klassisches Multiple-Choice handelt
 				if (!q.type || q.type === "choice") {
 					// Sicherheitsprüfung: Falls die KI nur eine Zahl/String statt eines Arrays geliefert hat
 					if (!Array.isArray(q.answer)) {
-						q.answer = [q.answer];[cite: 1]
+						q.answer = [q.answer];
 					}
 
-					const correctTexts = q.answer.map((index) => q.options[index]); // Richtige Antwort sichern[cite: 1]
-					shuffleArray(q.options); // Antwortmöglichkeiten würfeln[cite: 1]
-					q.answer = correctTexts.map((text) => q.options.indexOf(text)); // Index neu setzen[cite: 1]
+					const correctTexts = q.answer.map((index) => q.options[index]); // Richtige Antwort sichern
+					shuffleArray(q.options); // Antwortmöglichkeiten würfeln
+					q.answer = correctTexts.map((text) => q.options.indexOf(text)); // Index neu setzen
 				}
 			});
 
-			this.quizData = data; // Gemischte Daten speichern[cite: 1]
-			window.toggleCard("quiz-container");[cite: 1]
-			this.showQuestion();[cite: 1]
+			this.quizData = data; // Gemischte Daten speichern
+			window.toggleCard("quiz-container");
+			this.showQuestion();
 		} catch (err) {
 			// Differenzierte Fehlermeldung
-			let userMessage = "Fehler: ";[cite: 1]
+			let userMessage = "Fehler: ";
 			if (err.name === "AbortError") {
-				userMessage += "Die Analyse dauert zu lange. Versuche es mit einer kleineren PDF.";[cite: 1]
+				userMessage += "Die Analyse dauert zu lange. Versuche es mit einer kleineren PDF.";
 			} else {
-				userMessage += err.message;[cite: 1]
+				userMessage += err.message;
 			}
 
-			console.error("Quiz-Error:", err); // Für Entwickler in der Konsole[cite: 1]
-			alert(userMessage); // Für den Endnutzer[cite: 1]
-			window.goToHome();[cite: 1]
+			console.error("Quiz-Error:", err); // Für Entwickler in der Konsole
+			alert(userMessage); // Für den Endnutzer
+			window.goToHome();
 		}
 	}
 
 	loadQuizData(data) {
 		if (!data) {
-			window.goToHome();[cite: 1]
-			return;[cite: 1]
+			window.goToHome();
+			return;
 		}
-		this.quizData = data;[cite: 1]
-		window.toggleCard("quiz-container");[cite: 1]
-		this.showQuestion();[cite: 1]
+		this.quizData = data;
+		window.toggleCard("quiz-container");
+		this.showQuestion();
 	}
 
 	// Anzeige der aktuellen Frage
 	showQuestion() {
 		if (this.currentIndex >= this.quizData.length) {
-			this.showRes();[cite: 1]
-			return;[cite: 1]
+			this.showRes();
+			return;
 		}
 
-		document.getElementById("quiz-content").classList.remove("hidden");[cite: 1]
-		document.getElementById("game-screen").classList.add("hidden");[cite: 1]
-		document.getElementById("feedback-area").classList.add("hidden");[cite: 1]
-		document.getElementById("result-screen").classList.add("hidden");[cite: 1]
+		document.getElementById("quiz-content").classList.remove("hidden");
+		document.getElementById("game-screen").classList.add("hidden");
+		document.getElementById("feedback-area").classList.add("hidden");
+		document.getElementById("result-screen").classList.add("hidden");
 
-		const q = this.quizData[this.currentIndex];[cite: 1]
+		const q = this.quizData[this.currentIndex];
 		
 		// NEU: Ermittlung des Fragentyps (Standard: choice)
 		const qType = q.type || "choice"; 
 
-		document.getElementById("progress-bar").style.width = `${(this.currentIndex / this.quizData.length) * 100}%`;[cite: 1]
-		document.getElementById("q-count").innerText = `Frage ${this.currentIndex + 1} von ${this.quizData.length}`;[cite: 1]
+		document.getElementById("progress-bar").style.width = `${(this.currentIndex / this.quizData.length) * 100}%`;
+		document.getElementById("q-count").innerText = `Frage ${this.currentIndex + 1} von ${this.quizData.length}`;
 		
 		// NEU: Fragetext anpassen, falls es sich um einen Lückentext handelt
 		if (qType === "cloze") {
 			document.getElementById("question-text").innerText = q.question.replace("[Lücke]", "______");
 		} else {
-			document.getElementById("question-text").innerText = q.question;[cite: 1]
+			document.getElementById("question-text").innerText = q.question;
 		}
 
-		const optDiv = document.getElementById("options");[cite: 1]
-		optDiv.innerHTML = "";[cite: 1]
+		const optDiv = document.getElementById("options");
+		optDiv.innerHTML = "";
 
-		let selectedAnswers = [];[cite: 1]
-		let alreadyChecked = false;[cite: 1]
+		let selectedAnswers = [];
+		let alreadyChecked = false;
 
 		// NEU: Fallunterscheidung beim Rendern nach Fragentyp
 		if (qType === "choice") {
 			// Falls answer keine Liste ist, wird es zu einer Liste gemacht
 			if (!Array.isArray(q.answer)) {
-				q.answer = [q.answer];[cite: 1]
+				q.answer = [q.answer];
 			}
 
 			q.options.slice(0, 4).forEach((opt, i) => {
-				const b = document.createElement("button");[cite: 1]
+				const b = document.createElement("button");
 
 				b.className =
-					"option-btn w-full text-left p-4 rounded-xl border-2 border-slate-100 transition-all font-medium bg-white hover:border-blue-200 shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white";[cite: 1]
+					"option-btn w-full text-left p-4 rounded-xl border-2 border-slate-100 transition-all font-medium bg-white hover:border-blue-200 shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white";
 
 				b.innerHTML = `
 					<span class="text-xs bg-slate-100 text-slate-400 px-2 py-1 rounded border border-slate-200 font-mono mr-2 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600">
 						Taste ${i + 1}
 					</span>
 					<span>${opt}</span>
-				`;[cite: 1]
+				`;
 
 				b.onclick = () => {
-					if (alreadyChecked) return;[cite: 1]
+					if (alreadyChecked) return;
 
 					if (selectedAnswers.includes(i)) {
-						selectedAnswers = selectedAnswers.filter((x) => x !== i);[cite: 1]
-						b.classList.remove("border-blue-500", "bg-blue-50", "dark:bg-blue-900/20");[cite: 1]
+						selectedAnswers = selectedAnswers.filter((x) => x !== i);
+						b.classList.remove("border-blue-500", "bg-blue-50", "dark:bg-blue-900/20");
 					} else {
 						if (selectedAnswers.length < q.answer.length) {
-							selectedAnswers.push(i);[cite: 1]
-							b.classList.add("border-blue-500", "bg-blue-50", "dark:bg-blue-900/20");[cite: 1]
+							selectedAnswers.push(i);
+							b.classList.add("border-blue-500", "bg-blue-50", "dark:bg-blue-900/20");
 						}
 					}
 				};
 
-				optDiv.appendChild(b);[cite: 1]
+				optDiv.appendChild(b);
 			});
 		} else if (qType === "text" || qType === "cloze") {
 			// NEU: Textfeld für Freitext oder Lückentext rendern und fokussieren
@@ -226,19 +226,19 @@ export class QuizEngine {
 			inputField.focus();
 		}
 
-		const checkBtn = document.createElement("button");[cite: 1]
-		checkBtn.innerText = "Antwort prüfen";[cite: 1]
-		checkBtn.className = "w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md transition-all";[cite: 1]
+		const checkBtn = document.createElement("button");
+		checkBtn.innerText = "Antwort prüfen";
+		checkBtn.className = "w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md transition-all";
 
 		const checkAnswer = () => {
 			if (alreadyChecked) return; // NEU: Doppeltes Absenden verhindern
-			alreadyChecked = true;[cite: 1]
+			alreadyChecked = true;
 
-			checkBtn.disabled = true;[cite: 1]
+			checkBtn.disabled = true;
 
-			const feedbackArea = document.getElementById("feedback-area");[cite: 1]
-			const feedbackText = document.getElementById("feedback-text");[cite: 1]
-			const nextBtn = document.getElementById("next-q-btn");[cite: 1]
+			const feedbackArea = document.getElementById("feedback-area");
+			const feedbackText = document.getElementById("feedback-text");
+			const nextBtn = document.getElementById("next-q-btn");
 
 			// NEU: Auswertungsvariablen vorbereiten
 			let isCorrect = false;
@@ -247,27 +247,27 @@ export class QuizEngine {
 			let userGivenText = "";
 
 			if (qType === "choice") {
-				document.querySelectorAll(".option-btn").forEach((btn) => (btn.disabled = true));[cite: 1]
+				document.querySelectorAll(".option-btn").forEach((btn) => (btn.disabled = true));
 
-				const correctAnswers = [...q.answer].sort((a, b) => a - b);[cite: 1]
-				const userAnswers = [...selectedAnswers].sort((a, b) => a - b);[cite: 1]
+				const correctAnswers = [...q.answer].sort((a, b) => a - b);
+				const userAnswers = [...selectedAnswers].sort((a, b) => a - b);
 
-				isCorrect = JSON.stringify(correctAnswers) === JSON.stringify(userAnswers);[cite: 1]
+				isCorrect = JSON.stringify(correctAnswers) === JSON.stringify(userAnswers);
 
-				const buttons = document.querySelectorAll(".option-btn");[cite: 1]
+				const buttons = document.querySelectorAll(".option-btn");
 
 				buttons.forEach((btn, index) => {
 					if (q.answer.includes(index)) {
-						btn.classList.add("border-green-500", "bg-green-50", "dark:bg-green-900/20");[cite: 1]
+						btn.classList.add("border-green-500", "bg-green-50", "dark:bg-green-900/20");
 					}
 
 					if (selectedAnswers.includes(index) && !q.answer.includes(index)) {
-						btn.classList.add("border-red-500", "bg-red-50", "dark:bg-red-900/20");[cite: 1]
+						btn.classList.add("border-red-500", "bg-red-50", "dark:bg-red-900/20");
 					}
 				});
 
-				rightTexts = q.answer.map((index) => q.options[index]).join(", ");[cite: 1]
-				userGivenText = selectedAnswers.map((index) => q.options[index]).join(", ");[cite: 1]
+				rightTexts = q.answer.map((index) => q.options[index]).join(", ");
+				userGivenText = selectedAnswers.map((index) => q.options[index]).join(", ");
 			} else {
 				// NEU: Auswertung der Text-Eingaben über Levenshtein-Algorithmus
 				const inputField = document.getElementById("text-answer-input");
@@ -291,78 +291,78 @@ export class QuizEngine {
 
 			// NEU: Feedback-Texte ausgeben (inklusive "fast richtig"-Status)
 			if (isCorrect) {
-				this.score++;[cite: 1]
-				feedbackText.innerHTML = "✅ Richtig!";[cite: 1]
-				feedbackText.className = "text-green-600 font-bold text-center dark:text-green-400";[cite: 1]
-				if (window.audioEngine) window.audioEngine.playSoundEffect("correct");[cite: 1]
+				this.score++;
+				feedbackText.innerHTML = "✅ Richtig!";
+				feedbackText.className = "text-green-600 font-bold text-center dark:text-green-400";
+				if (window.audioEngine) window.audioEngine.playSoundEffect("correct");
 			} else if (isAlmostCorrect) {
 				this.score += 0.5; // NEU: Halben Punkt für fast richtig geben
 				feedbackText.innerHTML = `⚠️ Fast richtig! Hinweis auf Rechtschreibung.<br><span class="text-xs text-slate-500 dark:text-slate-400">Gemeint war: <strong>${rightTexts}</strong></span>`;
 				feedbackText.className = "text-yellow-600 font-bold text-center dark:text-yellow-400";
 				if (window.audioEngine) window.audioEngine.playSoundEffect("correct");
 			} else {
-				this.userMistakes.push({[cite: 1]
-					q: q.question,[cite: 1]
-					g: userGivenText || "(Keine Eingabe)",[cite: 1]
-					c: rightTexts,[cite: 1]
-				});[cite: 1]
+				this.userMistakes.push({
+					q: q.question,
+					g: userGivenText || "(Keine Eingabe)",
+					c: rightTexts,
+				});
 
-				feedbackText.innerHTML = `❌ Falsch. Richtig ist: ${rightTexts}`;[cite: 1]
-				feedbackText.className = "text-red-600 font-bold text-center dark:text-red-400";[cite: 1]
-				if (window.audioEngine) window.audioEngine.playSoundEffect("wrong");[cite: 1]
+				feedbackText.innerHTML = `❌ Falsch. Richtig ist: ${rightTexts}`;
+				feedbackText.className = "text-red-600 font-bold text-center dark:text-red-400";
+				if (window.audioEngine) window.audioEngine.playSoundEffect("wrong");
 			}
 
-			feedbackArea.classList.remove("hidden");[cite: 1]
+			feedbackArea.classList.remove("hidden");
 
 			// Berechnen, ob wir genau die Hälfte der Fragen erreicht haben
-			const halfQuiz = Math.floor(this.quizData.length / 2);[cite: 1]
+			const halfQuiz = Math.floor(this.quizData.length / 2);
 
 			// Wenn wir die Hälfte erreicht haben UND das Spiel in dieser Runde noch nicht lief
-			if (this.currentIndex === halfQuiz - 1 && halfQuiz > 0 && !this.gameDone) {[cite: 1]
-				nextBtn.innerText = "Spielen & Weiter ⚡";[cite: 1]
-				nextBtn.onclick = () => {[cite: 1]
+			if (this.currentIndex === halfQuiz - 1 && halfQuiz > 0 && !this.gameDone) {
+				nextBtn.innerText = "Spielen & Weiter ⚡";
+				nextBtn.onclick = () => {
 					// Keydown-Listener beenden, um Doppel-Enter zu verhindern
-					document.onkeydown = null;[cite: 1]
+					document.onkeydown = null;
 
 					// Wechsel zum Spiel-Bildschirm
-					document.getElementById("quiz-content").classList.add("hidden");[cite: 1]
-					document.getElementById("game-screen").classList.remove("hidden");[cite: 1]
+					document.getElementById("quiz-content").classList.add("hidden");
+					document.getElementById("game-screen").classList.remove("hidden");
 
 					// Flag setzen, damit das Spiel pro Quiz-Durchlauf nur EINMAL triggert
-					this.gameDone = true;[cite: 1]
+					this.gameDone = true;
 
 					// Index im Hintergrund erhöhen, damit es nach dem Spiel mit der nächsten Frage weitergeht
-					this.currentIndex++;[cite: 1]
-				};[cite: 1]
-			} else {[cite: 1]
+					this.currentIndex++;
+				};
+			} else {
 				// Normaler Ablauf für alle anderen Fragen
-				nextBtn.innerText = "Nächste Frage →";[cite: 1]
-				nextBtn.onclick = () => {[cite: 1]
-					this.currentIndex++;[cite: 1]
-					this.showQuestion();[cite: 1]
-				};[cite: 1]
+				nextBtn.innerText = "Nächste Frage →";
+				nextBtn.onclick = () => {
+					this.currentIndex++;
+					this.showQuestion();
+				};
 			}
 		};
 
-		checkBtn.onclick = checkAnswer;[cite: 1]
-		optDiv.appendChild(checkBtn);[cite: 1]
+		checkBtn.onclick = checkAnswer;
+		optDiv.appendChild(checkBtn);
 
 		document.onkeydown = (e) => {
 			// NEU: Nummerntasten-Steuerung nur für Multiple-Choice aktivieren
 			if (qType === "choice" && ["1", "2", "3", "4"].includes(e.key)) {
-				const index = parseInt(e.key) - 1;[cite: 1]
-				const buttons = document.querySelectorAll(".option-btn");[cite: 1]
+				const index = parseInt(e.key) - 1;
+				const buttons = document.querySelectorAll(".option-btn");
 
 				if (buttons[index] && !buttons[index].disabled) {
-					buttons[index].click();[cite: 1]
+					buttons[index].click();
 				}
 			}
 
 			if (e.key === "Enter") {
 				if (document.getElementById("feedback-area").classList.contains("hidden")) {
-					checkAnswer();[cite: 1]
+					checkAnswer();
 				} else {
-					document.getElementById("next-q-btn").click();[cite: 1]
+					document.getElementById("next-q-btn").click();
 				}
 			}
 		};
@@ -370,13 +370,13 @@ export class QuizEngine {
 
 	// Ergebnis-Zusammenfassung anzeigen
 	showRes() {
-		document.getElementById("quiz-content").classList.add("hidden");[cite: 1]
-		document.getElementById("result-screen").classList.remove("hidden");[cite: 1]
-		document.getElementById("progress-bar").style.width = "100%";[cite: 1]
-		const total = this.quizData.length;[cite: 1]
-		const percent = Math.round((this.score / total) * 100);[cite: 1]
-		document.getElementById("score-display").innerText = `${this.score} von ${total} richtig (${percent}%)`;[cite: 1]
-		const analysis = document.getElementById("mistake-analysis");[cite: 1]
+		document.getElementById("quiz-content").classList.add("hidden");
+		document.getElementById("result-screen").classList.remove("hidden");
+		document.getElementById("progress-bar").style.width = "100%";
+		const total = this.quizData.length;
+		const percent = Math.round((this.score / total) * 100);
+		document.getElementById("score-display").innerText = `${this.score} von ${total} richtig (${percent}%)`;
+		const analysis = document.getElementById("mistake-analysis");
 		if (this.userMistakes.length > 0) {
 			analysis.innerHTML = this.userMistakes
 				.map(
@@ -386,36 +386,36 @@ export class QuizEngine {
 					<p class="text-red-500">❌ Deine Wahl: ${m.g}</p>
 					<p class="text-green-600 font-bold dark:text-green-400">✅ Lösung: ${m.c}</p>
 				</div>`,
-				)[cite: 1]
-				.join("");[cite: 1]
+				)
+				.join("");
 		} else {
 			analysis.innerHTML =
-				'<div class="text-center p-6 bg-green-50 rounded-2xl border-2 border-green-100 dark:bg-green-950/30 dark:border-green-900"><p class="text-green-600 font-black text-lg dark:text-green-400">PERFEKT! 100% 🌟</p></div>';[cite: 1]
+				'<div class="text-center p-6 bg-green-50 rounded-2xl border-2 border-green-100 dark:bg-green-950/30 dark:border-green-900"><p class="text-green-600 font-black text-lg dark:text-green-400">PERFEKT! 100% 🌟</p></div>';
 		}
-		const h = JSON.parse(localStorage.getItem("quiz_history") || "[]");[cite: 1]
-		h.unshift({ d: new Date().toLocaleDateString(), p: percent });[cite: 1]
-		localStorage.setItem("quiz_history", JSON.stringify(h.slice(0, 10)));[cite: 1]
-		window.renderHistory();[cite: 2]
+		const h = JSON.parse(localStorage.getItem("quiz_history") || "[]");
+		h.unshift({ d: new Date().toLocaleDateString(), p: percent });
+		localStorage.setItem("quiz_history", JSON.stringify(h.slice(0, 10)));
+		window.renderHistory();
 	}
 
 	//aktuelles Quiz Neustarten
 	restartCurrentQuiz() {
-		if (this.quizData.length === 0) return window.goToHome();[cite: 2]
+		if (this.quizData.length === 0) return window.goToHome();
 
 		// Alles neu mischen vor dem Neustart
-		shuffleArray(this.quizData);[cite: 1]
+		shuffleArray(this.quizData);
 		this.quizData.forEach((q) => {
 			// NEU: Nur mischen, falls es sich um eine Choice-Frage handelt
 			if (!q.type || q.type === "choice") {
-				const correctTexts = q.answer.map((index) => q.options[index]);[cite: 1]
-				shuffleArray(q.options);[cite: 1]
-				q.answer = correctTexts.map((text) => q.options.indexOf(text));[cite: 1]
+				const correctTexts = q.answer.map((index) => q.options[index]);
+				shuffleArray(q.options);
+				q.answer = correctTexts.map((text) => q.options.indexOf(text));
 			}
 		});
 
-		this.resetStats();[cite: 1]
-		document.getElementById("result-screen").classList.add("hidden");[cite: 1]
-		document.getElementById("quiz-content").classList.remove("hidden");[cite: 1]
-		this.showQuestion();[cite: 1]
+		this.resetStats();
+		document.getElementById("result-screen").classList.add("hidden");
+		document.getElementById("quiz-content").classList.remove("hidden");
+		this.showQuestion();
 	}
 }
