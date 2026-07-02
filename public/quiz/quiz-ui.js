@@ -1,5 +1,8 @@
-// Quiz UI-Steuerung und Event-Handling
-// ------------------------------------
+/**
+ * QUIZ UI MANAGER
+ * Steuert die gesamte Benutzeroberfläche des Quizzes, den CSV-Import/Export,
+ * Drag-and-Drop-Dateihandling sowie die Umschaltung zwischen Spieler- und Admin-Modus.
+ */
 
 import { QuizEngine } from "./quiz-engine.js";
 import { parseCSVData, generateCSVString } from "./quiz-utils.js";
@@ -7,285 +10,186 @@ import { parseCSVData, generateCSVString } from "./quiz-utils.js";
 // Globale Instanz der QuizEngine erstellen
 const quizEngine = new QuizEngine();
 
-// Für globalen Zugriff aus der index.html registrieren
+// BEIDE Namen global registrieren – so sind die game-ui.js UND der restliche Code glücklich!
 window.quizEngine = quizEngine;
+window.quizApp = quizEngine;
 
+// DOMContentLoaded: Startet die UI-Event-Listener nach dem Laden der Seite
 document.addEventListener("DOMContentLoaded", () => {
     initModusUmschaltung();
     initDragAndDrop();
-    window.renderHistory();
+    initCsvDateiHandler();
+    
+    // Historie beim Start einmalig rendern (falls vorhanden)
+    if (typeof window.renderHistory === "function") {
+        window.renderHistory();
+    }
 });
 
-// =========================================================================
-// 1. MODUS-UMSCHALTUNG (PDF, CSV, Vorlagen, Training, Downloads)
-// =========================================================================
+/**
+ * Steuert den Wechsel zwischen dem "Spieler-Modus" (Quiz durchlaufen)
+ * und dem "Admin-Modus" (CSV hochladen, ansehen, editieren).
+ */
 function initModusUmschaltung() {
-    const modusSelect = document.getElementById("Modus");
-    if (!modusSelect) return;
+    const btnSpieler = document.getElementById("btn-modus-spieler");
+    const btnAdmin = document.getElementById("btn-modus-admin");
+    const bereichSpieler = document.getElementById("bereich-spieler");
+    const bereichAdmin = document.getElementById("bereich-admin");
 
-    modusSelect.addEventListener("change", (e) => {
-        const modus = e.target.value;
-        
-        // Alle Sektionen standardmäßig verstecken
-        document.getElementById("section-pdf").classList.add("hidden");
-        document.getElementById("section-csv").classList.add("hidden");
-        document.getElementById("section-template").classList.add("hidden");
-        document.getElementById("section-training").classList.add("hidden");
-        document.getElementById("section-downloads").classList.add("hidden");
+    if (!btnSpieler || !btnAdmin || !bereichSpieler || !bereichAdmin) return;
 
-        // Nur die gewählte Sektion anzeigen
-        if (modus === "PDF") document.getElementById("section-pdf").classList.remove("hidden");
-        if (modus === "CSV") document.getElementById("section-csv").classList.remove("hidden");
-        if (modus === "TEMPLATE") document.getElementById("section-template").classList.remove("hidden");
-        if (modus === "TRAINING") document.getElementById("section-training").classList.remove("hidden");
-        if (modus === "DOWNLOADS") document.getElementById("section-downloads").classList.remove("hidden");
+    btnSpieler.addEventListener("click", () => {
+        btnSpieler.classList.add("bg-blue-600", "text-white");
+        btnSpieler.classList.remove("bg-gray-200", "text-gray-700");
+        btnAdmin.classList.add("bg-gray-200", "text-gray-700");
+        btnAdmin.classList.remove("bg-blue-600", "text-white");
+
+        bereichSpieler.classList.remove("hidden");
+        bereichAdmin.classList.add("hidden");
+    });
+
+    btnAdmin.addEventListener("click", () => {
+        btnAdmin.classList.add("bg-blue-600", "text-white");
+        btnAdmin.classList.remove("bg-gray-200", "text-gray-700");
+        btnSpieler.classList.add("bg-gray-200", "text-gray-700");
+        btnSpieler.classList.remove("bg-blue-600", "text-white");
+
+        bereichAdmin.classList.remove("hidden");
+        bereichSpieler.classList.add("hidden");
     });
 }
 
-// =========================================================================
-// 2. CSV EXPORT & IMPORT (NEU: Unterstützt Choice, Text und Cloze fehlerfrei)
-// =========================================================================
-
-// Globaler CSV Export (Aufgerufen über Buttons im Quiz & Result-Screen)
-window.exportCSV = () => {
-    if (!quizEngine || !quizEngine.quizData || quizEngine.quizData.length === 0) {
-        alert("Keine Quizdaten zum Exportieren vorhanden!");
-        return;
-    }
-
-    // Nutzen der neuen, robusten Maskierungs-Logik aus quiz-utils.js
-    const csvContent = generateCSVString(quizEngine.quizData);
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `quiz_export_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-};
-
-// Globaler CSV Import (Wird getriggert, wenn eine Datei im Input gewählt wird)
-window.importCSV = (inputElement) => {
-    const file = inputElement.files[0];
-    if (!file) return;
-
-    processCSVFile(file);
-};
-
-// Interne Verarbeitungslogik für CSV-Dateien
-function processCSVFile(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const text = e.target.result;
-            // NEU: Nutzt das erweiterte, fehlertolerante Spalten-Parsing
-            const parsedQuestions = parseCSVData(text);
-
-            if (!parsedQuestions || parsedQuestions.length === 0) {
-                throw new Error("Die CSV-Datei enthält keine gültigen Fragen oder ein falsches Trennzeichen (erwartet: Semikolon ';').");
-            }
-
-            // Statistiken zurücksetzen und Daten direkt in die Engine laden
-            quizEngine.resetStats();
-            quizEngine.loadQuizData(parsedQuestions);
-            
-        } catch (error) {
-            // Fängt den im Prompt erwähnten Fehler ("Cannot read properties of undefined...") jetzt sicher ab
-            console.error("quiz-ui.js: CSV-Import fehlgeschlagen:", error);
-            alert("Fehler beim Laden der CSV: " + error.message);
-        }
-    };
-    reader.readAsText(file, "UTF-8");
-}
-
-// =========================================================================
-// 3. DRAG & DROP HANDLING (Für PDF und CSV)
-// =========================================================================
+/**
+ * Richtet das Drag-and-Drop-Feld für den CSV-Import im Admin-Bereich ein.
+ */
 function initDragAndDrop() {
-    // PDF Drop-Zone
-    window.handleDragOver = (e) => {
-        e.preventDefault();
-        document.getElementById("drop-zone").classList.add("border-blue-500", "bg-blue-50");
-    };
+    const dropZone = document.getElementById("csv-drop-zone");
+    const fileInput = document.getElementById("csv-file-input");
 
-    window.handleDragLeave = (e) => {
-        e.preventDefault();
-        document.getElementById("drop-zone").classList.remove("border-blue-500", "bg-blue-50");
-    };
+    if (!dropZone || !fileInput) return;
 
-    window.handleDrop = (e) => {
-        e.preventDefault();
-        document.getElementById("drop-zone").classList.remove("border-blue-500", "bg-blue-50");
-        
-        const files = e.dataTransfer.files;
-        if (files.length > 0 && files[0].type === "application/pdf") {
-            document.getElementById("pdf-file").files = files;
-            window.previewPDF(document.getElementById("pdf-file"));
-        } else {
-            alert("Bitte lade eine gültige PDF-Datei hoch.");
-        }
-    };
+    // Klick auf die Zone öffnet den Standard-Dateidialog
+    dropZone.addEventListener("click", () => fileInput.click());
 
-    // CSV Drop-Zone
-    window.handleDragOverCSV = (e) => {
+    // Drag-Over-Effekte
+    dropZone.addEventListener("dragover", (e) => {
         e.preventDefault();
-        document.getElementById("drop-zone-csv").classList.add("border-emerald-500", "bg-emerald-100");
-    };
+        dropZone.classList.add("border-blue-500", "bg-blue-50");
+    });
 
-    window.handleDragLeaveCSV = (e) => {
-        e.preventDefault();
-        document.getElementById("drop-zone-csv").classList.remove("border-emerald-500", "bg-emerald-100");
-    };
+    ["dragleave", "drop"].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+            dropZone.classList.remove("border-blue-500", "bg-blue-50");
+        });
+    });
 
-    window.handleDropCSV = (e) => {
+    // Drop-Event abfangen
+    dropZone.addEventListener("drop", (e) => {
         e.preventDefault();
-        document.getElementById("drop-zone-csv").classList.remove("border-emerald-500", "bg-emerald-100");
-        
         const files = e.dataTransfer.files;
         if (files.length > 0) {
-            processCSVFile(files[0]);
+            verarbeiteCSVDatei(files[0]);
         }
-    };
+    });
 }
 
-// =========================================================================
-// 4. KI-GENERIERUNG ANSTRATEN
-// =========================================================================
-window.startQuizGeneration = () => {
-    const fileInput = document.getElementById("pdf-file");
-    const file = fileInput.files[0];
-    const customPrompt = document.getElementById("custom-prompt").value;
+/**
+ * Reagiert auf die klassische Dateiauswahl über das <input type="file">-Feld.
+ */
+function initCsvDateiHandler() {
+    const fileInput = document.getElementById("csv-file-input");
+    if (!fileInput) return;
 
-    if (!file) {
-        alert("Bitte wähle zuerst eine PDF-Datei aus oder ziehe sie per Drag & Drop in das Feld.");
+    fileInput.addEventListener("change", (e) => {
+        const files = e.target.files;
+        if (files.length > 0) {
+            verarbeiteCSVDatei(files[0]);
+        }
+    });
+}
+
+/**
+ * Liest die übergebene Datei ein, parst sie über quiz-utils und 
+ * initialisiert die QuizEngine fehlerfrei über den globalen Scope.
+ * @param {File} file 
+ */
+function verarbeiteCSVDatei(file) {
+    if (!file.name.endsWith(".csv")) {
+        alert("Bitte lade eine gültige .csv-Datei hoch!");
         return;
     }
 
-    // Engine startet die Server-Anfrage mit dem optionalen Prompt-Zusatz
-    quizEngine.startQuizGeneration(file, customPrompt);
-};
-
-// =========================================================================
-// 5. ALLGEMEINE UI NAVIGATIONS- & HILFSFUNKTIONEN
-// =========================================================================
-
-// Zwischen Ansichten/Karten umschalten
-window.toggleCard = (cardId) => {
-    document.getElementById("setup-card").classList.add("hidden");
-    document.getElementById("status").classList.add("hidden");
-    document.getElementById("quiz-container").classList.add("hidden");
-
-    document.getElementById(cardId).classList.remove("hidden");
-};
-
-// Zurück zum Hauptmenü
-window.goToHome = () => {
-    // Falls noch Tastatur-Listener aktiv sind, säubern
-    document.onkeydown = null;
+    const reader = new FileReader();
     
-    // Inputs zurücksetzen
-    document.getElementById("pdf-file").value = "";
-    document.getElementById("file-name").innerText = "PDF W WÄHLEN / DROP";
-    document.getElementById("pdf-preview-box").classList.add("hidden");
-    
-    window.toggleCard("setup-card");
-};
+    reader.onload = function(e) {
+        try {
+            const text = e.target.result;
+            
+            // CSV-Text in JSON-Struktur umwandeln
+            const parsedData = parseCSVData(text);
 
-// PDF-Vorschau rendern (Nutzt pdf.js aus der index.html)
-window.previewPDF = (input) => {
-    const file = input.files[0];
-    if (!file) return;
+            if (!parsedData || parsedData.length === 0) {
+                throw new Error("Die CSV-Datei enthält keine lesbaren Fragen.");
+            }
 
-    document.getElementById("file-name").innerText = file.name.toUpperCase();
-
-    const fileReader = new FileReader();
-    fileReader.onload = function () {
-        const typedarray = new Uint8Array(this.result);
-        
-        pdfjsLib.getDocument(typedarray).promise.then((pdf) => {
-            // Erste Seite für die Mini-Vorschau laden
-            pdf.getPage(1).then((page) => {
-                const canvas = document.getElementById("pdf-canvas");
-                const ctx = canvas.getContext("2d");
-                const viewport = page.getViewport({ scale: 0.4 });
-
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-
-                const renderContext = {
-                    canvasContext: ctx,
-                    viewport: viewport
-                };
+            // --- ABSOLUT SICHERER INSTANZ-ZUGRIFF ---
+            // Da FileReader asynchron feuert, nutzen wir das globale window-Objekt,
+            // um sicherzugehen, dass resetStats() und init() fehlerfrei ausgeführt werden.
+            if (window.quizEngine && typeof window.quizEngine.resetStats === "function") {
+                window.quizEngine.resetStats();
+                window.quizEngine.init(parsedData);
                 
-                document.getElementById("pdf-preview-box").classList.remove("hidden");
-                page.render(renderContext);
-            });
-        });
+                // Visuelles Feedback für den Admin
+                const statusText = document.getElementById("csv-status-text");
+                if (statusText) {
+                    statusText.innerHTML = `✅ <strong>${parsedData.length} Fragen</strong> erfolgreich geladen! Wechsel zum Spieler-Modus, um zu starten.`;
+                    statusText.className = "text-green-600 font-medium mt-2 text-center";
+                }
+            } else {
+                console.error("QuizEngine ist im globalen Fenster-Scope nicht definiert.");
+                alert("Fehler: Die Quiz-Engine konnte nicht erreicht werden.");
+            }
+
+        } catch (error) {
+            console.error("quiz-ui.js: CSV-Import fehlgeschlagen:", error);
+            
+            const statusText = document.getElementById("csv-status-text");
+            if (statusText) {
+                statusText.innerText = `❌ Fehler beim Laden der CSV: ${error.message}`;
+                statusText.className = "text-red-600 font-medium mt-2 text-center";
+            }
+        }
     };
-    fileReader.readAsArrayBuffer(file);
-};
 
-// Verlauf im LocalStorage auslesen und im UI anzeigen
-window.renderHistory = () => {
-    const historyList = document.getElementById("history-list");
-    if (!historyList) return;
+    reader.readAsText(file);
+}
 
-    const history = JSON.parse(localStorage.getItem("quiz_history") || "[]");
+/**
+ * Rendert die bisherigen Spielergebnisse aus dem LocalStorage in die Admin-Übersicht.
+ * Wird als globale Funktion registriert, damit auch die quiz-engine.js darauf zugreifen kann.
+ */
+window.renderHistory = function() {
+    const historyContainer = document.getElementById("quiz-history-list");
+    if (!historyContainer) return;
 
-    if (history.length === 0) {
-        historyList.innerHTML = '<p class="text-slate-400 text-xs italic text-center py-2">Noch keine Ergebnisse aufgezeichnet.</p>';
-        return;
-    }
+    try {
+        const history = JSON.parse(localStorage.getItem("quiz_history") || "[]");
+        
+        if (history.length === 0) {
+            historyContainer.innerHTML = `<li class="text-gray-500 italic text-center p-3">Noch keine Spiele absolviert.</li>`;
+            return;
+        }
 
-    historyList.innerHTML = history
-        .map(
-            (item) => `
-        <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-xs font-medium dark:bg-slate-800 dark:border-slate-700">
-            <span class="text-slate-500 dark:text-slate-400">📅 ${item.d}</span>
-            <span class="font-bold ${item.p >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}">${item.p}% richtig</span>
-        </div>`
-        )
-        .join("");
-};
+        // Die neuesten Ergebnisse zuerst anzeigen
+        historyContainer.innerHTML = history.reverse().map(entry => `
+            <li class="flex justify-between items-center p-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+                <span class="text-gray-600 text-sm">${entry.date}</span>
+                <span class="font-bold text-blue-600">${entry.score} / ${entry.total} Richtige</span>
+            </li>
+        `).join('');
 
-// Verlauf leeren
-window.clearHistory = () => {
-    localStorage.removeItem("quiz_history");
-    window.renderHistory();
-};
-
-// App-Themes umschalten (Dark Mode / Kontrast)
-window.toggleDarkMode = () => {
-    document.documentElement.classList.toggle("dark");
-    const btn = document.getElementById("theme-btn");
-    if (document.documentElement.classList.contains("dark")) {
-        btn.innerText = "☀️";
-        btn.title = "Zu hellem Design wechseln";
-    } else {
-        btn.innerText = "🌙";
-        btn.title = "Zu dunklem Design wechseln";
-    }
-};
-
-window.toggleContrast = () => {
-    document.body.classList.toggle("contrast-high");
-    // Optionale visuelle Anpassung für Barrierefreiheit
-};
-
-window.toggleMute = () => {
-    if (window.audioEngine) {
-        const isMuted = window.audioEngine.toggleMute();
-        document.getElementById("mute-btn").innerText = isMuted ? "🔇" : "🔊";
-    }
-};
-
-// Placeholder-Funktionen für Vorlagen-Liste (Falls vom Server geladen)
-// Kann bei Bedarf erweitert werden
-window.loadTemplates = async () => {
-    const templateList = document.getElementById("template-list");
-    if (templateList) {
-        templateList.innerHTML = '<p class="text-slate-400 text-sm italic">Keine statischen Server-Vorlagen konfiguriert.</p>';
+    } catch (e) {
+        console.error("Fehler beim Rendern der Historie:", e);
+        historyContainer.innerHTML = `<li class="text-red-500 italic text-center p-3">Historie konnte nicht geladen werden.</li>`;
     }
 };
