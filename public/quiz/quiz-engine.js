@@ -1,7 +1,7 @@
 /**
  * QUIZ ENGINE
  * Steuert den Zustand des Quizzes, validiert Antworten (Multiple-Choice, 
- * Lückentext, Freitext) und verwaltet die Minispiel-Pausen.
+ * Lückentext, Freitext) und verwaltet die Minispiel-Pausen sowie Resets.
  */
 export class QuizEngine {
     constructor() {
@@ -19,14 +19,31 @@ export class QuizEngine {
     }
 
     /**
+     * Setzt die Statistiken der Engine zurück.
+     * Wird vom CSV-Loader/UI aufgerufen, um vor dem Laden neuer Fragen alles zu nullen.
+     */
+    resetStats() {
+        this.currentIndex = 0;
+        this.score = 0;
+        this.gameDone = false;
+        
+        // UI-Komponenten bei einem Reset leeren/vorsorglich verstecken
+        const answerContainer = document.getElementById("answer-container");
+        if (answerContainer) answerContainer.innerHTML = "";
+        
+        const nextBtn = document.getElementById("next-question-btn");
+        if (nextBtn) nextBtn.classList.add("hidden");
+        
+        console.log("Quiz-Statistiken erfolgreich zurückgesetzt.");
+    }
+
+    /**
      * Setzt das Quiz mit neuen Daten auf den Anfang zurück
      * @param {Array} data - Array aus Fragen-Objekten
      */
     init(data) {
         this.quizData = data;
-        this.currentIndex = 0;
-        this.score = 0;
-        this.gameDone = false; // Spiel-Marker zurücksetzen für neuen Durchlauf
+        this.resetStats(); // Nutzt die neue resetStats-Logik für einen sauberen Start
         this.showQuestion();
     }
 
