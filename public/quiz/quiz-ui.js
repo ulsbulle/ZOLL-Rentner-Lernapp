@@ -16,12 +16,40 @@ window.quizApp = quizEngine;
 window.loadQuizData = (data) => quizEngine.loadQuizData(data);
 window.initQuiz = (data) => quizEngine.init(data);
 
+// Macht die Funktion global für das onchange="importCSV(this)" im HTML verfügbar
+window.importCSV = function(input) {
+    if (input.files && input.files.length > 0) {
+        verarbeiteCSVDatei(input.files[0]);
+    }
+};
+
+// Globale Funktionen für Drag & Drop Events aus dem HTML
+window.handleDragOverCSV = function(e) {
+    e.preventDefault();
+    const dropZone = document.getElementById("drop-zone-csv");
+    if (dropZone) dropZone.classList.add("border-emerald-500", "bg-emerald-100");
+};
+
+window.handleDragLeaveCSV = function(e) {
+    const dropZone = document.getElementById("drop-zone-csv");
+    if (dropZone) dropZone.classList.remove("border-emerald-500", "bg-emerald-100");
+};
+
+window.handleDropCSV = function(e) {
+    e.preventDefault();
+    const dropZone = document.getElementById("drop-zone-csv");
+    if (dropZone) dropZone.classList.remove("border-emerald-500", "bg-emerald-100");
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        verarbeiteCSVDatei(files[0]);
+    }
+};
+
 // DOMContentLoaded: Startet die UI-Event-Listener nach dem Laden der Seite
 document.addEventListener("DOMContentLoaded", () => {
-    // Jede Funktion ist einzeln gekapselt, um Abstürze bei fehlenden Elementen zu vermeiden
     try { initModusAuswahl(); } catch(e) { console.log("Modus-Auswahl nicht aktiv.", e); }
-    try { initDragAndDrop(); } catch(e) { console.log("Drag & Drop nicht aktiv.", e); }
-    try { initCsvDateiHandler(); } catch(e) { console.log("CSV-Handler nicht aktiv.", e); }
+    try { initDragAndDropVerhalten(); } catch(e) { console.log("D&D Listener-Fehler.", e); }
     
     // Historie beim Start einmalig rendern (falls vorhanden)
     if (typeof window.renderHistory === "function") {
@@ -36,7 +64,6 @@ function initModusAuswahl() {
     const modusSelect = document.getElementById("Modus");
     if (!modusSelect) return;
 
-    // Map, die den Value des Selects mit den IDs der HTML-Sektionen verknüpft
     const sektionenMap = {
         "PDF": "section-pdf",
         "CSV": "section-csv",
@@ -49,74 +76,33 @@ function initModusAuswahl() {
         const ausgewaehlterModus = e.target.value;
         const zielSektionId = sektionenMap[ausgewaehlterModus];
 
-        // 1. Alle Sektionen verstecken
         Object.values(sektionenMap).forEach(id => {
             const sektion = document.getElementById(id);
-            if (sektion) {
-                sektion.classList.add("hidden");
-            }
+            if (sektion) sektion.classList.add("hidden");
         });
 
-        // 2. Die ausgewählte Sektion anzeigen
         if (zielSektionId) {
             const zielSektion = document.getElementById(zielSektionId);
-            if (zielSektion) {
-                zielSektion.classList.remove("hidden");
-            }
+            if (zielSektion) zielSektion.classList.remove("hidden");
         }
     });
 }
 
 /**
- * Richtet das Drag-and-Drop-Feld für den CSV-Import ein.
+ * Event-Listener für das Drag-and-Drop Feld als Backup zu den Inline-Events
  */
-function initDragAndDrop() {
+function initDragAndDropVerhalten() {
     const dropZone = document.getElementById("drop-zone-csv");
-    const fileInput = document.getElementById("csv-import");
+    if (!dropZone) return;
 
-    if (!dropZone || !fileInput) return;
-
-    // Drag-Over-Effekte
-    dropZone.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        dropZone.classList.add("border-emerald-500", "bg-emerald-100");
-    });
-
-    ["dragleave", "drop"].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => {
-            dropZone.classList.remove("border-emerald-500", "bg-emerald-100");
-        });
-    });
-
-    // Drop-Event abfangen
-    dropZone.addEventListener("drop", (e) => {
-        e.preventDefault();
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            verarbeiteCSVDatei(files[0]);
-        }
-    });
-}
-
-/**
- * Reagiert auf die klassische Dateiauswahl über das CSV-Input-Feld.
- */
-function initCsvDateiHandler() {
-    const fileInput = document.getElementById("csv-import");
-    if (!fileInput) return;
-
-    fileInput.addEventListener("change", (e) => {
-        const files = e.target.files;
-        if (files.length > 0) {
-            verarbeiteCSVDatei(files[0]);
-        }
-    });
+    dropZone.addEventListener("dragover", window.handleDragOverCSV);
+    dropZone.addEventListener("dragleave", window.handleDragLeaveCSV);
+    dropZone.addEventListener("drop", window.handleDropCSV);
 }
 
 /**
  * Liest die übergebene Datei ein, parst sie über quiz-utils und 
  * initialisiert die QuizEngine fehlerfrei.
- * @param {File} file 
  */
 function verarbeiteCSVDatei(file) {
     if (!file.name.endsWith(".csv")) {
@@ -129,15 +115,12 @@ function verarbeiteCSVDatei(file) {
     reader.onload = function(e) {
         try {
             const text = e.target.result;
-            
-            // CSV-Text in JSON-Struktur umwandeln
             const parsedData = parseCSVData(text);
 
             if (!parsedData || parsedData.length === 0) {
                 throw new Error("Die CSV-Datei enthält keine lesbaren Fragen.");
             }
 
-            // Sicherer Instanz-Zugriff über window
             if (window.quizEngine && typeof window.quizEngine.resetStats === "function") {
                 window.quizEngine.resetStats();
                 window.quizEngine.init(parsedData);
@@ -179,7 +162,6 @@ window.renderHistory = function() {
             return;
         }
 
-        // Die neuesten Ergebnisse zuerst anzeigen
         historyContainer.innerHTML = history.slice().reverse().map(entry => `
             <div class="flex justify-between items-center p-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 transition-colors">
                 <span class="text-slate-500 text-xs font-medium">${entry.date}</span>
