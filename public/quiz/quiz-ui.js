@@ -35,46 +35,75 @@ document.addEventListener("DOMContentLoaded", () => {
  * Universelle Navigations- und Dropdown-Steuerung (Trainingszone, Tabs etc.)
  */
 function initDropdownsUndNavigation() {
-    // 1. Dropdown-Menü Steuerung
+    // 1. DROPDOWN-MENÜ STEUERUNG
     const dropdownBtn = document.querySelector(".dropdown-trigger") || document.getElementById("dropdown-btn");
     const dropdownMenu = document.querySelector(".dropdown-menu") || document.getElementById("dropdown-menu");
 
     if (dropdownBtn && dropdownMenu) {
-        dropdownBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
+        // Alten Listener entfernen, falls vorhanden, um Doppel-Triggerung zu vermeiden
+        dropdownBtn.replaceWith(dropdownBtn.cloneNode(true));
+        const cleanDropdownBtn = document.querySelector(".dropdown-trigger") || document.getElementById("dropdown-btn");
+
+        cleanDropdownBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // Verhindert, dass das Dokument-Klick-Event sofort wieder schließt
             dropdownMenu.classList.toggle("hidden");
         });
         
         // Schließen, wenn man irgendwo anders hinklickt
-        document.addEventListener("click", () => {
-            dropdownMenu.classList.add("hidden");
+        document.addEventListener("click", (e) => {
+            if (!dropdownMenu.contains(e.target) && !cleanDropdownBtn.contains(e.target)) {
+                dropdownMenu.classList.add("hidden");
+            }
         });
     }
 
     // 2. ZONEN / TAB-UMSCHALTUNG (Trainingszone, Hauptmenü etc.)
-    // Sucht nach allen Elementen mit dem Attribut data-target="..."
     const navLinks = document.querySelectorAll("[data-target]");
     navLinks.forEach(link => {
         link.addEventListener("click", (e) => {
             e.preventDefault();
             const targetId = link.getAttribute("data-target");
-            
-            // Alle Zonen/Bereiche verstecken, die die Klasse 'quiz-zone' oder 'bereich' haben
-            document.querySelectorAll(".quiz-zone, .bereich, #bereich-spieler, #bereich-admin").forEach(zone => {
-                zone.classList.add("hidden");
-            });
-            
-            // Ziel-Zone (z.B. Trainingszone) anzeigen
             const targetZone = document.getElementById(targetId);
-            if (targetZone) {
+            
+            if (!targetZone) {
+                console.error(`Navigationsziel mit ID '${targetId}' wurde im HTML nicht gefunden!`);
+                return;
+            }
+
+            // REPARATUR-WEICHE: Wenn wir in den Admin- oder Haupt-Spielermodus wechseln
+            if (targetId === "bereich-spieler" || targetId === "bereich-admin") {
+                const bereichSpieler = document.getElementById("bereich-spieler");
+                const bereichAdmin = document.getElementById("bereich-admin");
+                if (bereichSpieler) bereichSpieler.classList.add("hidden");
+                if (bereichAdmin) bereichAdmin.classList.add("hidden");
+                targetZone.classList.remove("hidden");
+            } else {
+                // Wenn wir Unterzonen umschalten (z.B. Trainingszone, Quiz-Inhalt, Hauptmenü)
+                // Verstecke NUR die echten Inhalts-Zonen, um nicht das Haupt-Layout zu sprengen!
+                document.querySelectorAll(".quiz-zone, .bereich-unterseite").forEach(zone => {
+                    zone.classList.add("hidden");
+                });
+                
+                // Stelle sicher, dass der übergeordnete Spielerbereich sichtbar ist, falls die Zone darin liegt
+                const parentSpieler = targetZone.closest("#bereich-spieler");
+                if (parentSpieler) {
+                    parentSpieler.classList.remove("hidden");
+                    const adminBereich = document.getElementById("bereich-admin");
+                    if (adminBereich) adminBereich.classList.add("hidden");
+                }
+
                 targetZone.classList.remove("hidden");
             }
+
+            // Dropdown nach Klick auf einen Navigationspunkt automatisch schließen
+            if (dropdownMenu) dropdownMenu.classList.add("hidden");
         });
     });
 }
 
 /**
- * Steuert den Wechsel zwischen dem "Spieler-Modus" und dem "Admin-Modus".
+ * Steuert den Wechsel zwischen dem "Spieler-Modus" und dem "Admin-Modus" via Buttons.
  */
 function initModusUmschaltung() {
     const btnSpieler = document.getElementById("btn-modus-spieler");
@@ -92,6 +121,10 @@ function initModusUmschaltung() {
 
         bereichSpieler.classList.remove("hidden");
         bereichAdmin.classList.add("hidden");
+        
+        // Zurück zum Hauptmenü/Quiz-Start wechseln im Spielerbereich
+        const mainQuizContent = document.getElementById("quiz-content");
+        if (mainQuizContent) mainQuizContent.classList.remove("hidden");
     });
 
     btnAdmin.addEventListener("click", () => {
@@ -114,10 +147,8 @@ function initDragAndDrop() {
 
     if (!dropZone || !fileInput) return;
 
-    // Klick auf die Zone öffnet den Standard-Dateidialog
     dropZone.addEventListener("click", () => fileInput.click());
 
-    // Drag-Over-Effekte
     dropZone.addEventListener("dragover", (e) => {
         e.preventDefault();
         dropZone.classList.add("border-blue-500", "bg-blue-50");
@@ -129,7 +160,6 @@ function initDragAndDrop() {
         });
     });
 
-    // Drop-Event abfangen
     dropZone.addEventListener("drop", (e) => {
         e.preventDefault();
         const files = e.dataTransfer.files;
@@ -157,7 +187,6 @@ function initCsvDateiHandler() {
 /**
  * Liest die übergebene Datei ein, parst sie über quiz-utils und 
  * initialisiert die QuizEngine fehlerfrei über den globalen Scope.
- * @param {File} file 
  */
 function verarbeiteCSVDatei(file) {
     if (!file.name.endsWith(".csv")) {
@@ -170,20 +199,16 @@ function verarbeiteCSVDatei(file) {
     reader.onload = function(e) {
         try {
             const text = e.target.result;
-            
-            // CSV-Text in JSON-Struktur umwandeln
             const parsedData = parseCSVData(text);
 
             if (!parsedData || parsedData.length === 0) {
                 throw new Error("Die CSV-Datei enthält keine lesbaren Fragen.");
             }
 
-            // Sicherer Instanz-Zugriff über window
             if (window.quizEngine && typeof window.quizEngine.resetStats === "function") {
                 window.quizEngine.resetStats();
                 window.quizEngine.init(parsedData);
                 
-                // Visuelles Feedback für den Admin
                 const statusText = document.getElementById("csv-status-text");
                 if (statusText) {
                     statusText.innerHTML = `✅ <strong>${parsedData.length} Fragen</strong> erfolgreich geladen! Wechsel zum Spieler-Modus, um zu starten.`;
@@ -196,7 +221,6 @@ function verarbeiteCSVDatei(file) {
 
         } catch (error) {
             console.error("quiz-ui.js: CSV-Import fehlgeschlagen:", error);
-            
             const statusText = document.getElementById("csv-status-text");
             if (statusText) {
                 statusText.innerText = `❌ Fehler beim Laden der CSV: ${error.message}`;
@@ -210,7 +234,6 @@ function verarbeiteCSVDatei(file) {
 
 /**
  * Rendert die bisherigen Spielergebnisse aus dem LocalStorage in die Admin-Übersicht.
- * Wird als globale Funktion registriert, damit auch die quiz-engine.js darauf zugreifen kann.
  */
 window.renderHistory = function() {
     const historyContainer = document.getElementById("quiz-history-list");
@@ -224,7 +247,6 @@ window.renderHistory = function() {
             return;
         }
 
-        // Die neuesten Ergebnisse zuerst anzeigen
         historyContainer.innerHTML = history.reverse().map(entry => `
             <li class="flex justify-between items-center p-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
                 <span class="text-gray-600 text-sm">${entry.date}</span>
