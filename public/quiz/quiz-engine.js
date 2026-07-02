@@ -52,7 +52,6 @@ export class QuizEngine {
 	}
 
 	// --- Core Quiz Flow ---
-	// KI-Quiz generieren (Server-Anfrage)
 	async startQuizGeneration(file, customPrompt) {
 		this.resetStats();
 		if (!file) return alert("PDF fehlt!");
@@ -63,8 +62,6 @@ export class QuizEngine {
 
 		try {
 			const base64 = (await toBase64(file)).split(",")[1];
-
-			//Timeout-Schutz vorbereiten 30 Sektionen
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), 30000);
 
@@ -74,13 +71,12 @@ export class QuizEngine {
 				body: JSON.stringify({
 					pdfBase64: base64,
 					questionCount: document.getElementById("question-count").value,
-					customPrompt: customPrompt, // Wird an das Backend gesendet
+					customPrompt: customPrompt,
 				}),
 			});
 
-			clearTimeout(timeoutId); // Timeout löschen, da Antwort kam
+			clearTimeout(timeoutId);
 
-			// PRÜFUNG: War der Server-Antwort-Status erfolgreich?
 			if (!res.ok) {
 				let errorMsg = "Server-Fehler";
 				if (res.status === 413) errorMsg = "Die PDF-Datei ist zu groß für die KI-Analyse.";
@@ -90,37 +86,32 @@ export class QuizEngine {
 
 			let data = await res.json();
 
-			// PDF-ERGEBNISSE MISCHEN ---
-			shuffleArray(data); // Fragen-Reihenfolge würfeln
+			shuffleArray(data);
 			data.forEach((q) => {
-				if (!q.type) q.type = "multiple"; // Fallback, falls keine Angabe geliefert wurde
+				if (!q.type) q.type = "multiple";
 
 				if (q.type === "multiple") {
-					// Sicherheitsprüfung: Falls die KI nur eine Zahl/String statt eines Arrays geliefert hat
 					if (!Array.isArray(q.answer)) {
-						q.answer = [q.answer];
+						q.answer = String(q.answer).split(",").map(x => parseInt(x.trim())).filter(x => !isNaN(x));
 					}
-
-					const correctTexts = q.answer.map((index) => q.options[index]); // Richtige Antwort sichern
-					shuffleArray(q.options); // Antwortmöglichkeiten würfeln
-					q.answer = correctTexts.map((text) => q.options.indexOf(text)); // Index neu setzen
+					const correctTexts = q.answer.map((index) => q.options[index]);
+					shuffleArray(q.options);
+					q.answer = correctTexts.map((text) => q.options.indexOf(text)).filter(idx => idx !== -1);
 				}
 			});
 
-			this.quizData = data; // Gemischte Daten speichern
+			this.quizData = data;
 			window.toggleCard("quiz-container");
 			this.showQuestion();
 		} catch (err) {
-			// Differenzierte Fehlermeldung
 			let userMessage = "Fehler: ";
 			if (err.name === "AbortError") {
 				userMessage += "Die Analyse dauert zu lange. Versuche es mit einer kleineren PDF.";
 			} else {
 				userMessage += err.message;
 			}
-
-			console.error("Quiz-Error:", err); // Für Entwickler in der Konsole
-			alert(userMessage); // Für den Endnutzer
+			console.error("Quiz-Error:", err);
+			alert(userMessage);
 			window.goToHome();
 		}
 	}
@@ -135,7 +126,6 @@ export class QuizEngine {
 		this.showQuestion();
 	}
 
-	// Anzeige der aktuellen Frage
 	showQuestion() {
 		if (this.currentIndex >= this.quizData.length) {
 			this.showRes();
@@ -148,7 +138,7 @@ export class QuizEngine {
 		document.getElementById("result-screen").classList.add("hidden");
 
 		const q = this.quizData[this.currentIndex];
-		if (!q.type) q.type = "multiple"; // Standard-Zuweisung
+		if (!q.type) q.type = "multiple";
 
 		document.getElementById("progress-bar").style.width = `${(this.currentIndex / this.quizData.length) * 100}%`;
 		document.getElementById("q-count").innerText = `Frage ${this.currentIndex + 1} von ${this.quizData.length} [${q.type.toUpperCase()}]`;
@@ -159,9 +149,7 @@ export class QuizEngine {
 		let alreadyChecked = false;
 		let checkAnswer = () => {};
 
-		// RENDERING DER ENTSPRECHENDEN FRAGENTYPEN
 		if (q.type === "free") {
-			// --- FREITEXT MODUS ---
 			document.getElementById("question-text").innerText = q.question;
 
 			const inputField = document.createElement("input");
@@ -181,13 +169,13 @@ export class QuizEngine {
 				const correctText = q.correct_text || "";
 				const similarity = this.getSimilarity(userText, correctText);
 
-				let isCorrect = similarity >= 0.88; // Hohe Übereinstimmung = Korrekt
-				let isAlmostCorrect = !isCorrect && similarity >= 0.68; // Toleranz-Zone = Fast richtig
+				let isCorrect = similarity >= 0.88;
+				let isAlmostCorrect = !isCorrect && similarity >= 0.68;
 
 				const feedbackText = document.getElementById("feedback-text");
 
 				if (isCorrect || isAlmostCorrect) {
-					this.score += isCorrect ? 1 : 0.5; // Halber Punkt für Tippfehler/fast richtig
+					this.score += isCorrect ? 1 : 0.5;
 					inputField.classList.add(isCorrect ? "border-green-500" : "border-amber-500", isCorrect ? "bg-green-50" : "bg-amber-50");
 					
 					feedbackText.innerHTML = isCorrect ? "✅ Richtig!" : `⚠️ Fast richtig (Kleine Abweichung)!<br>Erwartet: <b>${correctText}</b>`;
@@ -204,13 +192,10 @@ export class QuizEngine {
 			};
 
 		} else if (q.type === "cloze") {
-			// --- LÜCKENTEXT MODUS ---
-			// Syntax-Beispiel: "Der Zoll ist eine [Bundesfinanzbehörde]."
 			const regex = /\[(.*?)\]/;
 			const match = q.question.match(regex);
 			const solutionWord = match ? match[1] : (q.correct_text || "");
 
-			// Maskiert die eckigen Klammern im Text für die Anzeige
 			const displayQuestion = q.question.replace(regex, "________");
 			document.getElementById("question-text").innerText = "Ergänze das fehlende Wort:\n\n" + displayQuestion;
 
@@ -253,7 +238,7 @@ export class QuizEngine {
 			};
 
 		} else {
-			// --- MULTIPLE CHOICE MODUS (Bestandslogik) ---
+			// --- MULTIPLE CHOICE MODUS ---
 			document.getElementById("question-text").innerText = q.question;
 
 			if (!Array.isArray(q.answer)) {
@@ -263,6 +248,8 @@ export class QuizEngine {
 			let selectedAnswers = [];
 
 			q.options.slice(0, 4).forEach((opt, i) => {
+				if (!opt) return; // Leere Buttons gar nicht erst anzeigen
+				
 				const b = document.createElement("button");
 				b.className =
 					"option-btn w-full text-left p-4 rounded-xl border-2 border-slate-100 dark:border-slate-700 transition-all font-medium bg-white dark:bg-slate-800 hover:border-blue-200 dark:hover:border-blue-900 shadow-sm text-slate-900 dark:text-white";
@@ -278,13 +265,13 @@ export class QuizEngine {
 					if (alreadyChecked) return;
 
 					if (selectedAnswers.includes(i)) {
+						// Wenn bereits ausgewählt, wieder abwählen
 						selectedAnswers = selectedAnswers.filter((x) => x !== i);
 						b.classList.remove("border-blue-500", "bg-blue-50", "dark:bg-blue-900/40");
 					} else {
-						if (selectedAnswers.length < q.answer.length) {
-							selectedAnswers.push(i);
-							b.classList.add("border-blue-500", "bg-blue-50", "dark:bg-blue-900/40");
-						}
+						// ANPASSUNG: Keine künstliche Begrenzung mehr auf q.answer.length! Der User darf frei wählen.
+						selectedAnswers.push(i);
+						b.classList.add("border-blue-500", "bg-blue-50", "dark:bg-blue-900/40");
 					}
 				};
 
@@ -293,20 +280,22 @@ export class QuizEngine {
 
 			checkAnswer = () => {
 				alreadyChecked = true;
-
 				document.querySelectorAll(".option-btn").forEach((btn) => (btn.disabled = true));
 
 				const correctAnswers = [...q.answer].sort((a, b) => a - b);
 				const userAnswers = [...selectedAnswers].sort((a, b) => a - b);
 
+				// Richtig ist es nur, wenn exakt alle richtigen ausgewählt wurden (keine zu viel, keine zu wenig)
 				const isCorrect = JSON.stringify(correctAnswers) === JSON.stringify(userAnswers);
 				const buttons = document.querySelectorAll(".option-btn");
 
 				buttons.forEach((btn, index) => {
 					if (q.answer.includes(index)) {
+						// Alle eigentlich richtigen Antworten grün markieren
 						btn.classList.add("border-green-500", "bg-green-50", "dark:bg-green-900/40");
 					}
 					if (selectedAnswers.includes(index) && !q.answer.includes(index)) {
+						// Vom User fälschlicherweise ausgewählte Antworten rot markieren
 						btn.classList.add("border-red-500", "bg-red-50", "dark:bg-red-900/40");
 					}
 				});
@@ -320,7 +309,6 @@ export class QuizEngine {
 					if (window.audioEngine) window.audioEngine.playSoundEffect("correct");
 				} else {
 					const rightTexts = q.answer.map((index) => q.options[index]).join(", ");
-
 					this.userMistakes.push({
 						q: q.question,
 						g: selectedAnswers.map((index) => q.options[index]).join(", ") || "[Keine Wahl]",
@@ -335,7 +323,6 @@ export class QuizEngine {
 			};
 		}
 
-		// Antwort-Prüfen Button anhängen
 		const checkBtn = document.createElement("button");
 		checkBtn.innerText = "Antwort prüfen";
 		checkBtn.className = "w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md";
@@ -349,7 +336,6 @@ export class QuizEngine {
 		const nextBtn = document.getElementById("next-q-btn");
 		const halfQuiz = Math.floor(this.quizData.length / 2);
 
-		// Steuerung der Spielpause nach genau der Hälfte der Fragenanzahl
 		if (this.currentIndex === halfQuiz - 1 && halfQuiz > 0 && !this.gameDone) {
 			nextBtn.innerText = "Spielen & Weiter ⚡";
 			nextBtn.onclick = () => {
@@ -367,7 +353,6 @@ export class QuizEngine {
 			};
 		}
 
-		// Tastatursteuerung
 		document.onkeydown = (e) => {
 			if (q.type === "multiple" && ["1", "2", "3", "4"].includes(e.key)) {
 				const index = parseInt(e.key) - 1;
@@ -387,7 +372,6 @@ export class QuizEngine {
 		};
 	}
 
-	// Ergebnis-Zusammenfassung anzeigen
 	showRes() {
 		document.getElementById("quiz-content").classList.add("hidden");
 		document.getElementById("result-screen").classList.remove("hidden");
@@ -420,7 +404,6 @@ export class QuizEngine {
 		window.renderHistory();
 	}
 
-	//aktuelles Quiz Neustarten
 	restartCurrentQuiz() {
 		if (this.quizData.length === 0) return window.goToHome();
 
@@ -429,7 +412,7 @@ export class QuizEngine {
 			if (q.type === "multiple") {
 				const correctTexts = q.answer.map((index) => q.options[index]);
 				shuffleArray(q.options);
-				q.answer = correctTexts.map((text) => q.options.indexOf(text));
+				q.answer = correctTexts.map((text) => q.options.indexOf(text)).filter(idx => idx !== -1);
 			}
 		});
 
