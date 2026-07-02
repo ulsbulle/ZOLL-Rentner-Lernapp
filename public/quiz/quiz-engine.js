@@ -1,426 +1,288 @@
-// Quizengine und Logik
-// ------------------------------
-
-import { shuffleArray, toBase64 } from "./quiz-utils.js";
-
+/**
+ * QUIZ ENGINE
+ * Steuert den Zustand des Quizzes, validiert Antworten (Multiple-Choice, 
+ * Lückentext, Freitext) und verwaltet die Minispiel-Pausen.
+ */
 export class QuizEngine {
-	constructor() {
-		this.quizData = [];
-		this.currentIndex = 0;
-		this.score = 0;
-		this.userMistakes = [];
-		this.gameDone = false;
-	}
-
-	resetStats() {
-		this.currentIndex = 0;
-		this.score = 0;
-		this.userMistakes = [];
-		this.gameDone = false;
-	}
-
-	// =========================================================================
-	// NEU: HILFSFUNKTIONEN FÜR TEXTPRÜFUNG & FEHLERTOLERANZ (Levenshtein-Distanz)
-	// =========================================================================
-	getLevenshteinDistance(a, b) {
-		const an = a ? a.length : 0;
-		const bn = b ? b.length : 0;
-		if (an === 0) return bn;
-		if (bn === 0) return an;
-		const matrix = Array.from({ length: an + 1 }, (_, i) => Array(bn + 1).fill(i));
-		for (let j = 0; j <= bn; j++) matrix[0][j] = j;
-
-		for (let i = 1; i <= an; i++) {
-			for (let j = 1; j <= bn; j++) {
-				const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-				matrix[i][j] = Math.min(
-					matrix[i - 1][j] + 1,      // Deletion
-					matrix[i][j - 1] + 1,      // Insertion
-					matrix[i - 1][j - 1] + cost // Substitution
-				);
-			}
-		}
-		return matrix[an][bn];
-	}
-
-	checkTextAnswer(userInput, correctInput) {
-		const user = userInput.trim().toLowerCase();
-		const correct = correctInput.trim().toLowerCase();
-
-		if (user === correct) {
-			return { status: "correct" };
-		}
-
-		const distance = this.getLevenshteinDistance(user, correct);
-		// Toleranzgrenze: Erlaube 1 Fehler bei kurzen Wörtern (<6 Zeichen), sonst max. 2 Fehler
-		const allowedTypos = correct.length < 6 ? 1 : 2;
-
-		if (distance <= allowedTypos) {
-			return { status: "almost" };
-		}
-
-		return { status: "wrong" };
-	}
-
-	// --- Core Quiz Flow ---
-	// KI-Quiz generieren (Server-Anfrage)
-	async startQuizGeneration(file, customPrompt) {
-		this.resetStats();
-		if (!file) return alert("PDF fehlt!");
-
-		window.toggleCard("status");
-		const statusText = document.getElementById("status-text");
-		statusText.innerText = "PDF wird analysiert...";
-
-		try {
-			const base64 = (await toBase64(file)).split(",")[1];
-
-			//Timeout-Schutz vorbereiten 30 Sektionen
-			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-			const res = await fetch("/api/quiz", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					pdfBase64: base64,
-					questionCount: document.getElementById("question-count").value,
-					customPrompt: customPrompt, // NEU: Wird an das Backend gesendet
-				}),
-			});
-
-			clearTimeout(timeoutId); // Timeout löschen, da Antwort kam
-
-			// PRÜFUNG: War der Server-Antwort-Status erfolgreich?
-			if (!res.ok) {
-				let errorMsg = "Server-Fehler";
-				if (res.status === 413) errorMsg = "Die PDF-Datei ist zu groß für die KI-Analyse.";
-				if (res.status === 504 || res.status === 500) errorMsg = "Der Server antwortet nicht (Timeout).";
-				throw new Error(errorMsg);
-			}
-
-			// NEU / GEFIXT:
-			let data = await res.json();
-
-			// PDF-ERGEBNISSE MISCHEN ---
-			shuffleArray(data); // Fragen-Reihenfolge würfeln
-			data.forEach((q) => {
-				// NEU: Nur mischen, wenn es sich um klassisches Multiple-Choice handelt
-				if (!q.type || q.type === "choice") {
-					// Sicherheitsprüfung: Falls die KI nur eine Zahl/String statt eines Arrays geliefert hat
-					if (!Array.isArray(q.answer)) {
-						q.answer = [q.answer];
-					}
-
-					const correctTexts = q.answer.map((index) => q.options[index]); // Richtige Antwort sichern
-					shuffleArray(q.options); // Antwortmöglichkeiten würfeln
-					q.answer = correctTexts.map((text) => q.options.indexOf(text)); // Index neu setzen
-				}
-			});
-
-			this.quizData = data; // Gemischte Daten speichern
-			window.toggleCard("quiz-container");
-			this.showQuestion();
-		} catch (err) {
-			// Differenzierte Fehlermeldung
-			let userMessage = "Fehler: ";
-			if (err.name === "AbortError") {
-				userMessage += "Die Analyse dauert zu lange. Versuche es mit einer kleineren PDF.";
-			} else {
-				userMessage += err.message;
-			}
-
-			console.error("Quiz-Error:", err); // Für Entwickler in der Konsole
-			alert(userMessage); // Für den Endnutzer
-			window.goToHome();
-		}
-	}
-
-	loadQuizData(data) {
-		if (!data) {
-			window.goToHome();
-			return;
-		}
-		this.quizData = data;
-		window.toggleCard("quiz-container");
-		this.showQuestion();
-	}
-
-	// Anzeige der aktuellen Frage
-	showQuestion() {
-		if (this.currentIndex >= this.quizData.length) {
-			this.showRes();
-			return;
-		}
-
-		document.getElementById("quiz-content").classList.remove("hidden");
-		document.getElementById("game-screen").classList.add("hidden");
-		document.getElementById("feedback-area").classList.add("hidden");
-		document.getElementById("result-screen").classList.add("hidden");
-
-		const q = this.quizData[this.currentIndex];
-		
-		// NEU: Ermittlung des Fragentyps (Standard: choice)
-		const qType = q.type || "choice"; 
-
-		document.getElementById("progress-bar").style.width = `${(this.currentIndex / this.quizData.length) * 100}%`;
-		document.getElementById("q-count").innerText = `Frage ${this.currentIndex + 1} von ${this.quizData.length}`;
-		
-		// NEU: Fragetext anpassen, falls es sich um einen Lückentext handelt
-		if (qType === "cloze") {
-			document.getElementById("question-text").innerText = q.question.replace("[Lücke]", "______");
-		} else {
-			document.getElementById("question-text").innerText = q.question;
-		}
-
-		const optDiv = document.getElementById("options");
-		optDiv.innerHTML = "";
-
-		let selectedAnswers = [];
-		let alreadyChecked = false;
-
-		// NEU: Fallunterscheidung beim Rendern nach Fragentyp
-		if (qType === "choice") {
-			// Falls answer keine Liste ist, wird es zu einer Liste gemacht
-			if (!Array.isArray(q.answer)) {
-				q.answer = [q.answer];
-			}
-
-			q.options.slice(0, 4).forEach((opt, i) => {
-				const b = document.createElement("button");
-
-				b.className =
-					"option-btn w-full text-left p-4 rounded-xl border-2 border-slate-100 transition-all font-medium bg-white hover:border-blue-200 shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white";
-
-				b.innerHTML = `
-					<span class="text-xs bg-slate-100 text-slate-400 px-2 py-1 rounded border border-slate-200 font-mono mr-2 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600">
-						Taste ${i + 1}
-					</span>
-					<span>${opt}</span>
-				`;
-
-				b.onclick = () => {
-					if (alreadyChecked) return;
-
-					if (selectedAnswers.includes(i)) {
-						selectedAnswers = selectedAnswers.filter((x) => x !== i);
-						b.classList.remove("border-blue-500", "bg-blue-50", "dark:bg-blue-900/20");
-					} else {
-						if (selectedAnswers.length < q.answer.length) {
-							selectedAnswers.push(i);
-							b.classList.add("border-blue-500", "bg-blue-50", "dark:bg-blue-900/20");
-						}
-					}
-				};
-
-				optDiv.appendChild(b);
-			});
-		} else if (qType === "text" || qType === "cloze") {
-			// NEU: Textfeld für Freitext oder Lückentext rendern und fokussieren
-			const inputField = document.createElement("input");
-			inputField.type = "text";
-			inputField.id = "text-answer-input";
-			inputField.placeholder = qType === "cloze" ? "Lücke ausfüllen..." : "Deine Antwort eingeben...";
-			inputField.className = "w-full p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 bg-white shadow-sm font-medium mb-4 outline-none text-slate-800 transition-all dark:bg-slate-800 dark:text-white dark:border-slate-700 dark:focus:border-blue-500";
-			optDiv.appendChild(inputField);
-			inputField.focus();
-		}
-
-		const checkBtn = document.createElement("button");
-		checkBtn.innerText = "Antwort prüfen";
-		checkBtn.className = "w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md transition-all";
-
-		const checkAnswer = () => {
-			if (alreadyChecked) return; // NEU: Doppeltes Absenden verhindern
-			alreadyChecked = true;
-
-			checkBtn.disabled = true;
-
-			const feedbackArea = document.getElementById("feedback-area");
-			const feedbackText = document.getElementById("feedback-text");
-			const nextBtn = document.getElementById("next-q-btn");
-
-			// NEU: Auswertungsvariablen vorbereiten
-			let isCorrect = false;
-			let isAlmostCorrect = false;
-			let rightTexts = "";
-			let userGivenText = "";
-
-			if (qType === "choice") {
-				document.querySelectorAll(".option-btn").forEach((btn) => (btn.disabled = true));
-
-				const correctAnswers = [...q.answer].sort((a, b) => a - b);
-				const userAnswers = [...selectedAnswers].sort((a, b) => a - b);
-
-				isCorrect = JSON.stringify(correctAnswers) === JSON.stringify(userAnswers);
-
-				const buttons = document.querySelectorAll(".option-btn");
-
-				buttons.forEach((btn, index) => {
-					if (q.answer.includes(index)) {
-						btn.classList.add("border-green-500", "bg-green-50", "dark:bg-green-900/20");
-					}
-
-					if (selectedAnswers.includes(index) && !q.answer.includes(index)) {
-						btn.classList.add("border-red-500", "bg-red-50", "dark:bg-red-900/20");
-					}
-				});
-
-				rightTexts = q.answer.map((index) => q.options[index]).join(", ");
-				userGivenText = selectedAnswers.map((index) => q.options[index]).join(", ");
-			} else {
-				// NEU: Auswertung der Text-Eingaben über Levenshtein-Algorithmus
-				const inputField = document.getElementById("text-answer-input");
-				inputField.disabled = true;
-				userGivenText = inputField.value;
-
-				rightTexts = Array.isArray(q.answer) ? q.options[q.answer[0]] : q.answer;
-
-				const result = this.checkTextAnswer(userGivenText, rightTexts);
-
-				if (result.status === "correct") {
-					isCorrect = true;
-					inputField.classList.add("border-green-500", "bg-green-50", "dark:bg-green-900/20");
-				} else if (result.status === "almost") {
-					isAlmostCorrect = true;
-					inputField.classList.add("border-yellow-500", "bg-yellow-50", "dark:bg-yellow-900/20");
-				} else {
-					inputField.classList.add("border-red-500", "bg-red-50", "dark:bg-red-900/20");
-				}
-			}
-
-			// NEU: Feedback-Texte ausgeben (inklusive "fast richtig"-Status)
-			if (isCorrect) {
-				this.score++;
-				feedbackText.innerHTML = "✅ Richtig!";
-				feedbackText.className = "text-green-600 font-bold text-center dark:text-green-400";
-				if (window.audioEngine) window.audioEngine.playSoundEffect("correct");
-			} else if (isAlmostCorrect) {
-				this.score += 0.5; // NEU: Halben Punkt für fast richtig geben
-				feedbackText.innerHTML = `⚠️ Fast richtig! Hinweis auf Rechtschreibung.<br><span class="text-xs text-slate-500 dark:text-slate-400">Gemeint war: <strong>${rightTexts}</strong></span>`;
-				feedbackText.className = "text-yellow-600 font-bold text-center dark:text-yellow-400";
-				if (window.audioEngine) window.audioEngine.playSoundEffect("correct");
-			} else {
-				this.userMistakes.push({
-					q: q.question,
-					g: userGivenText || "(Keine Eingabe)",
-					c: rightTexts,
-				});
-
-				feedbackText.innerHTML = `❌ Falsch. Richtig ist: ${rightTexts}`;
-				feedbackText.className = "text-red-600 font-bold text-center dark:text-red-400";
-				if (window.audioEngine) window.audioEngine.playSoundEffect("wrong");
-			}
-
-			feedbackArea.classList.remove("hidden");
-
-			// Berechnen, ob wir genau die Hälfte der Fragen erreicht haben
-			const halfQuiz = Math.floor(this.quizData.length / 2);
-
-			// Wenn wir die Hälfte erreicht haben UND das Spiel in dieser Runde noch nicht lief
-			if (this.currentIndex === halfQuiz - 1 && halfQuiz > 0 && !this.gameDone) {
-				nextBtn.innerText = "Spielen & Weiter ⚡";
-				nextBtn.onclick = () => {
-					// Keydown-Listener beenden, um Doppel-Enter zu verhindern
-					document.onkeydown = null;
-
-					// Wechsel zum Spiel-Bildschirm
-					document.getElementById("quiz-content").classList.add("hidden");
-					document.getElementById("game-screen").classList.remove("hidden");
-
-					// Flag setzen, damit das Spiel pro Quiz-Durchlauf nur EINMAL triggert
-					this.gameDone = true;
-
-					// WICHTIG: currentIndex hier NICHT erhöhen! Das passiert erst, 
-			        // wenn der Game-Over-Screen per "Weiter" bestätigt wird.
-			        
-			        // Falls eine globale Startfunktion für dein Spiel existiert, hier triggern:
-			        if (window.startGame) {
-			            window.startGame();
-			        }
-				};
-			} else {
-				// Normaler Ablauf für alle anderen Fragen
-				nextBtn.innerText = "Nächste Frage →";
-				nextBtn.onclick = () => {
-					this.currentIndex++;
-					this.showQuestion();
-				};
-			}
-		};
-
-		checkBtn.onclick = checkAnswer;
-		optDiv.appendChild(checkBtn);
-
-		document.onkeydown = (e) => {
-			// NEU: Nummerntasten-Steuerung nur für Multiple-Choice aktivieren
-			if (qType === "choice" && ["1", "2", "3", "4"].includes(e.key)) {
-				const index = parseInt(e.key) - 1;
-				const buttons = document.querySelectorAll(".option-btn");
-
-				if (buttons[index] && !buttons[index].disabled) {
-					buttons[index].click();
-				}
-			}
-
-			if (e.key === "Enter") {
-				if (document.getElementById("feedback-area").classList.contains("hidden")) {
-					checkAnswer();
-				} else {
-					document.getElementById("next-q-btn").click();
-				}
-			}
-		};
-	}
-
-	// Ergebnis-Zusammenfassung anzeigen
-	showRes() {
-		document.getElementById("quiz-content").classList.add("hidden");
-		document.getElementById("result-screen").classList.remove("hidden");
-		document.getElementById("progress-bar").style.width = "100%";
-		const total = this.quizData.length;
-		const percent = Math.round((this.score / total) * 100);
-		document.getElementById("score-display").innerText = `${this.score} von ${total} richtig (${percent}%)`;
-		const analysis = document.getElementById("mistake-analysis");
-		if (this.userMistakes.length > 0) {
-			analysis.innerHTML = this.userMistakes
-				.map(
-					(m) => `
-				<div class="mistake-card p-3 bg-white border border-slate-200 rounded-xl text-xs shadow-sm border-l-red-500 dark:bg-slate-800 dark:border-slate-700">
-					<p class="font-bold mb-1 text-slate-800 dark:text-slate-200">Frage: ${m.q}</p>
-					<p class="text-red-500">❌ Deine Wahl: ${m.g}</p>
-					<p class="text-green-600 font-bold dark:text-green-400">✅ Lösung: ${m.c}</p>
-				</div>`,
-				)
-				.join("");
-		} else {
-			analysis.innerHTML =
-				'<div class="text-center p-6 bg-green-50 rounded-2xl border-2 border-green-100 dark:bg-green-950/30 dark:border-green-900"><p class="text-green-600 font-black text-lg dark:text-green-400">PERFEKT! 100% 🌟</p></div>';
-		}
-		const h = JSON.parse(localStorage.getItem("quiz_history") || "[]");
-		h.unshift({ d: new Date().toLocaleDateString(), p: percent });
-		localStorage.setItem("quiz_history", JSON.stringify(h.slice(0, 10)));
-		window.renderHistory();
-	}
-
-	//aktuelles Quiz Neustarten
-	restartCurrentQuiz() {
-		if (this.quizData.length === 0) return window.goToHome();
-
-		// Alles neu mischen vor dem Neustart
-		shuffleArray(this.quizData);
-		this.quizData.forEach((q) => {
-			// NEU: Nur mischen, falls es sich um eine Choice-Frage handelt
-			if (!q.type || q.type === "choice") {
-				const correctTexts = q.answer.map((index) => q.options[index]);
-				shuffleArray(q.options);
-				q.answer = correctTexts.map((text) => q.options.indexOf(text));
-			}
-		});
-
-		this.resetStats();
-		document.getElementById("result-screen").classList.add("hidden");
-		document.getElementById("quiz-content").classList.remove("hidden");
-		this.showQuestion();
-	}
+    constructor() {
+        // Kern-Datenstrukturen
+        this.quizData = [];        // Enthält alle geladenen Fragen aus der CSV
+        this.currentIndex = 0;     // Aktueller Frage-Index
+        this.score = 0;            // Punktzahl des Spielers
+        this.gameDone = false;     // Marker, ob das Minispiel bereits absolviert wurde
+
+        // --- DIE RETTUNG FÜR DEN ABSTURZ ---
+        // game-ui.js sucht beim Beenden des Minispiels stur nach "window.quizApp".
+        // Indem wir uns hier selbst zuweisen, weiß das Spiel, wen es aufrufen muss!
+        window.quizApp = this;
+        window.quizEngine = this;
+    }
+
+    /**
+     * Setzt das Quiz mit neuen Daten auf den Anfang zurück
+     * @param {Array} data - Array aus Fragen-Objekten
+     */
+    init(data) {
+        this.quizData = data;
+        this.currentIndex = 0;
+        this.score = 0;
+        this.gameDone = false; // Spiel-Marker zurücksetzen für neuen Durchlauf
+        this.showQuestion();
+    }
+
+    /**
+     * Kern-Methode: Bereitet die UI vor und entscheidet anhand des Typs, 
+     * wie die Frage gerendert werden soll.
+     */
+    showQuestion() {
+        // 1. Prüfen, ob das Quiz vorbei ist
+        if (this.currentIndex >= this.quizData.length) {
+            this.showResults();
+            return;
+        }
+
+        const currentQuestion = this.quizData[this.currentIndex];
+
+        // 2. UI-Elemente vorbereiten und leeren
+        const questionTextEl = document.getElementById("question-text");
+        const answerContainer = document.getElementById("answer-container");
+        const nextBtn = document.getElementById("next-question-btn");
+
+        if (questionTextEl) questionTextEl.innerText = currentQuestion.question;
+        if (answerContainer) answerContainer.innerHTML = "";
+        if (nextBtn) nextBtn.classList.add("hidden"); // Wird erst nach Antwort-Abgabe sichtbar
+
+        // 3. Dynamische Weiche je nach Fragetyp aus der CSV
+        switch (currentQuestion.type) {
+            case "choice":
+                this.renderChoiceQuestion(currentQuestion, answerContainer, nextBtn);
+                break;
+            case "cloze":
+                this.renderClozeQuestion(currentQuestion, answerContainer, nextBtn);
+                break;
+            case "text":
+                this.renderTextQuestion(currentQuestion, answerContainer, nextBtn);
+                break;
+            default:
+                console.error("Unbekannter Fragetyp:", currentQuestion.type);
+                // Fehlertoleranz: Springe zur nächsten Frage, falls CSV fehlerhaft
+                this.currentIndex++;
+                this.showQuestion();
+        }
+    }
+
+    /**
+     * Rendet klassische Multiple-Choice-Fragen (Buttons)
+     */
+    renderChoiceQuestion(questionData, container, nextBtn) {
+        questionData.options.forEach(option => {
+            const button = document.createElement("button");
+            button.className = "quiz-answer-btn w-full text-left p-3 my-2 border rounded transition-colors bg-white hover:bg-gray-100";
+            button.innerText = option;
+
+            button.onclick = () => {
+                // Alle Buttons deaktivieren, um Mehrfachklicks zu verhindern
+                Array.from(container.children).forEach(btn => btn.disabled = true);
+
+                // Antwort prüfen
+                if (option.trim() === questionData.answer.trim()) {
+                    button.classList.add("bg-green-200", "border-green-500");
+                    this.score++;
+                } else {
+                    button.classList.add("bg-red-200", "border-red-500");
+                    // Richtige Antwort zur Aufklärung grün markieren
+                    Array.from(container.children).forEach(btn => {
+                        if (btn.innerText.trim() === questionData.answer.trim()) {
+                            btn.classList.add("bg-green-200", "border-green-500");
+                        }
+                    });
+                }
+                this.prepareNextStep(nextBtn);
+            };
+            container.appendChild(button);
+        });
+    }
+
+    /**
+     * Rendert Lückentext-Fragen. Ersetzt ein Platzhalter-Wort im Text durch ein Input-Feld.
+     */
+    renderClozeQuestion(questionData, container, nextBtn) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "p-4 w-full text-center";
+
+        // Wir nutzen das Feld 'question' für den Text mit der Lücke (z.B. "Die Hauptstadt von Deutschland ist [___].")
+        const textParts = questionData.question.split("[___]");
+        
+        // Wenn kein Platzhalter da ist, setzen wir das Input-Feld einfach ans Ende
+        if (textParts.length === 1) {
+            const label = document.createElement("p");
+            label.className = "mb-3 text-lg";
+            label.innerText = questionData.question;
+            wrapper.appendChild(label);
+        }
+
+        // Input-Feld für die Lücke erstellen
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = "Antwort hier eintippen...";
+        input.className = "border-2 border-gray-300 p-2 rounded focus:outline-none focus:border-blue-500 text-center text-lg w-64";
+
+        // Bestätigungs-Button für das Textfeld
+        const submitBtn = document.createElement("button");
+        submitBtn.className = "mt-3 block mx-auto bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition";
+        submitBtn.innerText = "Antwort prüfen";
+
+        submitBtn.onclick = () => {
+            input.disabled = true;
+            submitBtn.disabled = true;
+
+            const userAnswer = input.value.trim().toLowerCase();
+            const correctAnswer = questionData.answer.trim().toLowerCase();
+
+            if (userAnswer === correctAnswer) {
+                input.classList.add("bg-green-100", "border-green-500");
+                this.score++;
+            } else {
+                input.classList.add("bg-red-100", "border-red-500");
+                // Feedback über die richtige Antwort einblenden
+                const feedback = document.createElement("p");
+                feedback.className = "text-green-600 font-bold mt-2";
+                feedback.innerText = `Richtige Antwort: ${questionData.answer}`;
+                wrapper.appendChild(feedback);
+            }
+            this.prepareNextStep(nextBtn);
+        };
+
+        // Zusammenbauen (Falls Lücke da war, Input dazwischensetzen)
+        if (textParts.length > 1) {
+            document.getElementById("question-text").innerText = ""; // Alten Text leeren
+            const phrase = document.createElement("p");
+            phrase.className = "text-xl mb-4";
+            phrase.appendChild(document.createTextNode(textParts[0]));
+            phrase.appendChild(input);
+            phrase.appendChild(document.createTextNode(textParts[1]));
+            wrapper.appendChild(phrase);
+        } else {
+            wrapper.appendChild(input);
+        }
+
+        wrapper.appendChild(submitBtn);
+        container.appendChild(wrapper);
+    }
+
+    /**
+     * Rendert Freitext-Fragen mit einem offenen Textfeld
+     */
+    renderTextQuestion(questionData, container, nextBtn) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "p-4 w-full text-center";
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = "Deine Antwort...";
+        input.className = "border-2 border-gray-300 p-2 rounded focus:outline-none focus:border-blue-500 text-lg w-full max-w-md text-center";
+
+        const submitBtn = document.createElement("button");
+        submitBtn.className = "mt-3 block mx-auto bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition";
+        submitBtn.innerText = "Antwort absenden";
+
+        submitBtn.onclick = () => {
+            input.disabled = true;
+            submitBtn.disabled = true;
+
+            const userAnswer = input.value.trim().toLowerCase();
+            const correctAnswer = questionData.answer.trim().toLowerCase();
+
+            if (userAnswer === correctAnswer) {
+                input.classList.add("bg-green-100", "border-green-500");
+                this.score++;
+            } else {
+                input.classList.add("bg-red-100", "border-red-500");
+                const feedback = document.createElement("p");
+                feedback.className = "text-green-600 font-bold mt-2";
+                feedback.innerText = `Richtige Antwort: ${questionData.answer}`;
+                wrapper.appendChild(feedback);
+            }
+            this.prepareNextStep(nextBtn);
+        };
+
+        wrapper.appendChild(input);
+        wrapper.appendChild(submitBtn);
+        container.appendChild(wrapper);
+    }
+
+    /**
+     * Bereitet den "Nächste Frage"-Button vor und schaltet bei der Hälfte 
+     * der Fragen die Minispiel-Option scharf.
+     */
+    prepareNextStep(nextBtn) {
+        nextBtn.classList.remove("hidden");
+
+        // Berechnung der Quiz-Hälfte für das Minispiel
+        const halfIndex = Math.floor(this.quizData.length / 2);
+
+        // Wenn wir an der Hälfte angekommen sind UND das Spiel noch nicht gespielt wurde
+        if (this.currentIndex === halfIndex - 1 && !this.gameDone) {
+            nextBtn.innerText = "Spielen & Weiter ⚡";
+            
+            nextBtn.onclick = () => {
+                this.gameDone = true; // Markieren, damit es nicht in eine Dauerschleife gerät
+                this.currentIndex++;  // JETZT den Index erhöhen, damit nach dem Spiel die nächste Frage lädt!
+
+                // Quiz-Oberfläche ausblenden
+                document.getElementById("quiz-content").classList.add("hidden");
+                
+                // Trigger an das UI-Skript senden, um das Minispiel-Auwahlmenü zu öffnen
+                const gameArea = document.getElementById("active-game-area");
+                const gameSelection = document.getElementById("quiz-game-selection");
+                
+                if (gameSelection) gameSelection.classList.remove("hidden");
+                if (gameArea) gameArea.classList.remove("hidden");
+            };
+        } else {
+            // Regulärer Ablauf für normale Fragen
+            nextBtn.innerText = "Nächste Frage →";
+            nextBtn.onclick = () => {
+                this.currentIndex++;
+                this.showQuestion();
+            };
+        }
+    }
+
+    /**
+     * Zeigt das Endergebnis des Quizzes und trägt es in die Historie ein
+     */
+    showResults() {
+        const questionTextEl = document.getElementById("question-text");
+        const answerContainer = document.getElementById("answer-container");
+        const nextBtn = document.getElementById("next-question-btn");
+
+        if (questionTextEl) questionTextEl.innerText = "Quiz beendet!";
+        if (nextBtn) nextBtn.classList.add("hidden");
+
+        if (answerContainer) {
+            answerContainer.innerHTML = `
+                <div class="text-center p-5">
+                    <p class="text-2xl mb-4">Du hast <strong>${this.score}</strong> von <strong>${this.quizData.length}</strong> Fragen richtig beantwortet!</p>
+                    <button onclick="window.location.reload()" class="bg-green-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-600 transition shadow">
+                        Neues Quiz starten 🔄
+                    </button>
+                </div>
+            `;
+        }
+
+        // Ergebnis im LocalStorage für die Bestenliste speichern
+        try {
+            const history = JSON.parse(localStorage.getItem("quiz_history") || "[]");
+            history.push({
+                date: new Date().toLocaleString(),
+                score: this.score,
+                total: this.quizData.length
+            });
+            localStorage.setItem("quiz_history", JSON.stringify(history));
+            if (typeof window.renderHistory === "function") window.renderHistory();
+        } catch (e) {
+            console.error("Fehler beim Speichern der Historie:", e);
+        }
+    }
 }
