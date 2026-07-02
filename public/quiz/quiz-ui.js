@@ -10,25 +10,71 @@ import { parseCSVData, generateCSVString } from "./quiz-utils.js";
 // Globale Instanz der QuizEngine erstellen
 const quizEngine = new QuizEngine();
 
-// BEIDE Namen global registrieren – so sind die game-ui.js UND der restliche Code glücklich!
+// Globale Brücken für HTML-Inlines und die game-ui.js schlagen
 window.quizEngine = quizEngine;
 window.quizApp = quizEngine;
+window.loadQuizData = (data) => quizEngine.loadQuizData(data);
+window.initQuiz = (data) => quizEngine.init(data);
 
 // DOMContentLoaded: Startet die UI-Event-Listener nach dem Laden der Seite
 document.addEventListener("DOMContentLoaded", () => {
-    initModusUmschaltung();
-    initDragAndDrop();
-    initCsvDateiHandler();
+    // Jede Funktion ist einzeln gekapselt. Existiert ein Element auf einer 
+    // Unterseite nicht, bricht nicht mehr das gesamte UI-Skript ab!
+    try { initModusUmschaltung(); } catch(e) { console.log("Modus-Umschaltung nicht aktiv."); }
+    try { initDragAndDrop(); } catch(e) { console.log("Drag & Drop nicht aktiv."); }
+    try { initCsvDateiHandler(); } catch(e) { console.log("CSV-Handler nicht aktiv."); }
+    try { initDropdownsUndNavigation(); } catch(e) { console.log("Navigation/Dropdowns nicht aktiv."); }
     
     // Historie beim Start einmalig rendern (falls vorhanden)
     if (typeof window.renderHistory === "function") {
-        window.renderHistory();
+        try { window.renderHistory(); } catch(e) { console.error(e); }
     }
 });
 
 /**
- * Steuert den Wechsel zwischen dem "Spieler-Modus" (Quiz durchlaufen)
- * und dem "Admin-Modus" (CSV hochladen, ansehen, editieren).
+ * Universelle Navigations- und Dropdown-Steuerung (Trainingszone, Tabs etc.)
+ */
+function initDropdownsUndNavigation() {
+    // 1. Dropdown-Menü Steuerung
+    const dropdownBtn = document.querySelector(".dropdown-trigger") || document.getElementById("dropdown-btn");
+    const dropdownMenu = document.querySelector(".dropdown-menu") || document.getElementById("dropdown-menu");
+
+    if (dropdownBtn && dropdownMenu) {
+        dropdownBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            dropdownMenu.classList.toggle("hidden");
+        });
+        
+        // Schließen, wenn man irgendwo anders hinklickt
+        document.addEventListener("click", () => {
+            dropdownMenu.classList.add("hidden");
+        });
+    }
+
+    // 2. ZONEN / TAB-UMSCHALTUNG (Trainingszone, Hauptmenü etc.)
+    // Sucht nach allen Elementen mit dem Attribut data-target="..."
+    const navLinks = document.querySelectorAll("[data-target]");
+    navLinks.forEach(link => {
+        link.addEventListener("click", (e) => {
+            e.preventDefault();
+            const targetId = link.getAttribute("data-target");
+            
+            // Alle Zonen/Bereiche verstecken, die die Klasse 'quiz-zone' oder 'bereich' haben
+            document.querySelectorAll(".quiz-zone, .bereich, #bereich-spieler, #bereich-admin").forEach(zone => {
+                zone.classList.add("hidden");
+            });
+            
+            // Ziel-Zone (z.B. Trainingszone) anzeigen
+            const targetZone = document.getElementById(targetId);
+            if (targetZone) {
+                targetZone.classList.remove("hidden");
+            }
+        });
+    });
+}
+
+/**
+ * Steuert den Wechsel zwischen dem "Spieler-Modus" und dem "Admin-Modus".
  */
 function initModusUmschaltung() {
     const btnSpieler = document.getElementById("btn-modus-spieler");
@@ -60,7 +106,7 @@ function initModusUmschaltung() {
 }
 
 /**
- * Richtet das Drag-and-Drop-Feld für den CSV-Import im Admin-Bereich ein.
+ * Richtet das Drag-and-Drop-Feld für den CSV-Import ein.
  */
 function initDragAndDrop() {
     const dropZone = document.getElementById("csv-drop-zone");
@@ -132,9 +178,7 @@ function verarbeiteCSVDatei(file) {
                 throw new Error("Die CSV-Datei enthält keine lesbaren Fragen.");
             }
 
-            // --- ABSOLUT SICHERER INSTANZ-ZUGRIFF ---
-            // Da FileReader asynchron feuert, nutzen wir das globale window-Objekt,
-            // um sicherzugehen, dass resetStats() und init() fehlerfrei ausgeführt werden.
+            // Sicherer Instanz-Zugriff über window
             if (window.quizEngine && typeof window.quizEngine.resetStats === "function") {
                 window.quizEngine.resetStats();
                 window.quizEngine.init(parsedData);
