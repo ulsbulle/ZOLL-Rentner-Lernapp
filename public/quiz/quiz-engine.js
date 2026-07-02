@@ -11,9 +11,7 @@ export class QuizEngine {
         this.score = 0;            // Punktzahl des Spielers
         this.gameDone = false;     // Marker, ob das Minispiel bereits absolviert wurde
 
-        // --- DIE RETTUNG FÜR DEN ABSTURZ ---
-        // game-ui.js sucht beim Beenden des Minispiels stur nach "window.quizApp".
-        // Indem wir uns hier selbst zuweisen, weiß das Spiel, wen es aufrufen muss!
+        // Brücke für externe Scripte schlagen
         window.quizApp = this;
         window.quizEngine = this;
     }
@@ -27,12 +25,13 @@ export class QuizEngine {
         this.score = 0;
         this.gameDone = false;
         
-        // UI-Komponenten bei einem Reset leeren/vorsorglich verstecken
-        const answerContainer = document.getElementById("answer-container");
+        // Anpassung an index.html: "options" statt "answer-container"
+        const answerContainer = document.getElementById("options");
         if (answerContainer) answerContainer.innerHTML = "";
         
-        const nextBtn = document.getElementById("next-question-btn");
-        if (nextBtn) nextBtn.classList.add("hidden");
+        // Blendet den Feedback-Bereich inklusive Weiter-Button aus
+        const feedbackArea = document.getElementById("feedback-area");
+        if (feedbackArea) feedbackArea.classList.add("hidden");
         
         console.log("Quiz-Statistiken erfolgreich zurückgesetzt.");
     }
@@ -43,11 +42,11 @@ export class QuizEngine {
      */
     init(data) {
         this.quizData = data;
-        this.resetStats(); // Nutzt die neue resetStats-Logik für einen sauberen Start
+        this.resetStats(); 
         this.showQuestion();
     }
 
-    // --- ALIAS---
+    // --- ALIAS ---
     loadQuizData(data) {
         this.init(data);
     }
@@ -65,14 +64,25 @@ export class QuizEngine {
 
         const currentQuestion = this.quizData[this.currentIndex];
 
-        // 2. UI-Elemente vorbereiten und leeren
+        // 2. UI-Elemente vorbereiten und leeren (Kompatibel mit index.html IDs)
         const questionTextEl = document.getElementById("question-text");
-        const answerContainer = document.getElementById("answer-container");
-        const nextBtn = document.getElementById("next-question-btn");
+        const answerContainer = document.getElementById("options"); 
+        const nextBtn = document.getElementById("next-q-btn"); 
+        const feedbackArea = document.getElementById("feedback-area");
 
         if (questionTextEl) questionTextEl.innerText = currentQuestion.question;
         if (answerContainer) answerContainer.innerHTML = "";
-        if (nextBtn) nextBtn.classList.add("hidden"); // Wird erst nach Antwort-Abgabe sichtbar
+        if (feedbackArea) feedbackArea.classList.add("hidden"); // Wird erst nach Antwort sichtbar
+
+        // Fortschrittsbalken & Zähler aktualisieren (falls im HTML vorhanden)
+        const progressBar = document.getElementById("progress-bar");
+        const qCount = document.getElementById("q-count");
+        if (progressBar && this.quizData.length > 0) {
+            progressBar.style.width = `${(this.currentIndex / this.quizData.length) * 100}%`;
+        }
+        if (qCount) {
+            qCount.innerText = `Frage ${this.currentIndex + 1} von ${this.quizData.length}`;
+        }
 
         // 3. Dynamische Weiche je nach Fragetyp aus der CSV
         switch (currentQuestion.type) {
@@ -87,37 +97,47 @@ export class QuizEngine {
                 break;
             default:
                 console.error("Unbekannter Fragetyp:", currentQuestion.type);
-                // Fehlertoleranz: Springe zur nächsten Frage, falls CSV fehlerhaft
                 this.currentIndex++;
                 this.showQuestion();
         }
     }
 
     /**
-     * Rendet klassische Multiple-Choice-Fragen (Buttons)
+     * Rendert klassische Multiple-Choice-Fragen (Buttons)
      */
     renderChoiceQuestion(questionData, container, nextBtn) {
-        questionData.options.forEach(option => {
+        questionData.options.forEach((option, index) => {
             const button = document.createElement("button");
-            button.className = "quiz-answer-btn w-full text-left p-3 my-2 border rounded transition-colors bg-white hover:bg-gray-100";
+            button.className = "quiz-answer-btn w-full text-left p-3 my-2 border rounded-xl transition-all bg-white hover:bg-slate-100 font-medium shadow-sm border-slate-200";
             button.innerText = option;
 
             button.onclick = () => {
-                // Alle Buttons deaktivieren, um Mehrfachklicks zu verhindern
+                // Alle Buttons deaktivieren
                 Array.from(container.children).forEach(btn => btn.disabled = true);
 
-                // Antwort prüfen
-                if (option.trim() === questionData.answer.trim()) {
-                    button.classList.add("bg-green-200", "border-green-500");
+                // Da in quiz-utils.js 'answer' bei Choice-Fragen ein Array von Indices sein kann:
+                const isCorrect = Array.isArray(questionData.answer) 
+                    ? questionData.answer.includes(index) 
+                    : option.trim() === questionData.answer.trim();
+
+                if (isCorrect) {
+                    button.classList.add("bg-green-100", "border-green-500", "text-green-800");
                     this.score++;
+                    this.showFeedback(true, "Richtig!");
                 } else {
-                    button.classList.add("bg-red-200", "border-red-500");
-                    // Richtige Antwort zur Aufklärung grün markieren
-                    Array.from(container.children).forEach(btn => {
-                        if (btn.innerText.trim() === questionData.answer.trim()) {
-                            btn.classList.add("bg-green-200", "border-green-500");
+                    button.classList.add("bg-red-100", "border-red-500", "text-red-800");
+                    
+                    // Richtige Antwort(en) zur Aufklärung grün markieren
+                    Array.from(container.children).forEach((btn, btnIdx) => {
+                        const isBtnCorrect = Array.isArray(questionData.answer)
+                            ? questionData.answer.includes(btnIdx)
+                            : btn.innerText.trim() === questionData.answer.trim();
+                        
+                        if (isBtnCorrect) {
+                            btn.classList.add("bg-green-100", "border-green-500", "text-green-800");
                         }
                     });
+                    this.showFeedback(false, `Falsch! Die richtige Antwort wäre gewesen: ${questionData.answer}`);
                 }
                 this.prepareNextStep(nextBtn);
             };
@@ -132,10 +152,8 @@ export class QuizEngine {
         const wrapper = document.createElement("div");
         wrapper.className = "p-4 w-full text-center";
 
-        // Wir nutzen das Feld 'question' für den Text mit der Lücke (z.B. "Die Hauptstadt von Deutschland ist [___].")
         const textParts = questionData.question.split("[___]");
         
-        // Wenn kein Platzhalter da ist, setzen wir das Input-Feld einfach ans Ende
         if (textParts.length === 1) {
             const label = document.createElement("p");
             label.className = "mb-3 text-lg";
@@ -143,15 +161,13 @@ export class QuizEngine {
             wrapper.appendChild(label);
         }
 
-        // Input-Feld für die Lücke erstellen
         const input = document.createElement("input");
         input.type = "text";
-        input.placeholder = "Antwort hier eintippen...";
-        input.className = "border-2 border-gray-300 p-2 rounded focus:outline-none focus:border-blue-500 text-center text-lg w-64";
+        input.placeholder = "Antwort eintippen...";
+        input.className = "border-2 border-slate-200 p-2 rounded-xl focus:outline-none focus:border-blue-500 text-center text-lg w-64 shadow-sm";
 
-        // Bestätigungs-Button für das Textfeld
         const submitBtn = document.createElement("button");
-        submitBtn.className = "mt-3 block mx-auto bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition";
+        submitBtn.className = "mt-3 block mx-auto bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition font-bold shadow";
         submitBtn.innerText = "Antwort prüfen";
 
         submitBtn.onclick = () => {
@@ -159,27 +175,24 @@ export class QuizEngine {
             submitBtn.disabled = true;
 
             const userAnswer = input.value.trim().toLowerCase();
-            const correctAnswer = questionData.answer.trim().toLowerCase();
+            const correctAnswer = String(questionData.answer).trim().toLowerCase();
 
             if (userAnswer === correctAnswer) {
-                input.classList.add("bg-green-100", "border-green-500");
+                input.classList.add("bg-green-100", "border-green-500", "text-green-800");
                 this.score++;
+                this.showFeedback(true, "Ausgezeichnet, das stimmt!");
             } else {
-                input.classList.add("bg-red-100", "border-red-500");
-                // Feedback über die richtige Antwort einblenden
-                const feedback = document.createElement("p");
-                feedback.className = "text-green-600 font-bold mt-2";
-                feedback.innerText = `Richtige Antwort: ${questionData.answer}`;
-                wrapper.appendChild(feedback);
+                input.classList.add("bg-red-100", "border-red-500", "text-red-800");
+                this.showFeedback(false, `Leider nicht ganz. Richtig ist: ${questionData.answer}`);
             }
             this.prepareNextStep(nextBtn);
         };
 
-        // Zusammenbauen (Falls Lücke da war, Input dazwischensetzen)
         if (textParts.length > 1) {
-            document.getElementById("question-text").innerText = ""; // Alten Text leeren
+            const questionTextEl = document.getElementById("question-text");
+            if (questionTextEl) questionTextEl.innerText = ""; 
             const phrase = document.createElement("p");
-            phrase.className = "text-xl mb-4";
+            phrase.className = "text-xl mb-4 text-slate-800 font-medium";
             phrase.appendChild(document.createTextNode(textParts[0]));
             phrase.appendChild(input);
             phrase.appendChild(document.createTextNode(textParts[1]));
@@ -202,10 +215,10 @@ export class QuizEngine {
         const input = document.createElement("input");
         input.type = "text";
         input.placeholder = "Deine Antwort...";
-        input.className = "border-2 border-gray-300 p-2 rounded focus:outline-none focus:border-blue-500 text-lg w-full max-w-md text-center";
+        input.className = "border-2 border-slate-200 p-2 rounded-xl focus:outline-none focus:border-blue-500 text-lg w-full max-w-md text-center shadow-sm";
 
         const submitBtn = document.createElement("button");
-        submitBtn.className = "mt-3 block mx-auto bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition";
+        submitBtn.className = "mt-3 block mx-auto bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition font-bold shadow";
         submitBtn.innerText = "Antwort absenden";
 
         submitBtn.onclick = () => {
@@ -213,17 +226,15 @@ export class QuizEngine {
             submitBtn.disabled = true;
 
             const userAnswer = input.value.trim().toLowerCase();
-            const correctAnswer = questionData.answer.trim().toLowerCase();
+            const correctAnswer = String(questionData.answer).trim().toLowerCase();
 
             if (userAnswer === correctAnswer) {
-                input.classList.add("bg-green-100", "border-green-500");
+                input.classList.add("bg-green-100", "border-green-500", "text-green-800");
                 this.score++;
+                this.showFeedback(true, "Perfekt beantwortet!");
             } else {
-                input.classList.add("bg-red-100", "border-red-500");
-                const feedback = document.createElement("p");
-                feedback.className = "text-green-600 font-bold mt-2";
-                feedback.innerText = `Richtige Antwort: ${questionData.answer}`;
-                wrapper.appendChild(feedback);
+                input.classList.add("bg-red-100", "border-red-500", "text-red-800");
+                this.showFeedback(false, `Knapp daneben. Die richtige Antwort ist: ${questionData.answer}`);
             }
             this.prepareNextStep(nextBtn);
         };
@@ -234,37 +245,50 @@ export class QuizEngine {
     }
 
     /**
-     * Bereitet den "Nächste Frage"-Button vor und schaltet bei der Hälfte 
-     * der Fragen die Minispiel-Option scharf.
+     * Steuert die Einblendung der Feedback-Area unter den Fragen
+     */
+    showFeedback(isCorrect, text) {
+        const feedbackArea = document.getElementById("feedback-area");
+        const feedbackText = document.getElementById("feedback-text");
+        if (!feedbackArea || !feedbackText) return;
+
+        feedbackText.innerText = text;
+        feedbackArea.classList.remove("hidden", "bg-green-50", "border-green-200", "text-green-800", "bg-red-50", "border-red-200", "text-red-800");
+
+        if (isCorrect) {
+            feedbackArea.classList.add("bg-green-50", "border-green-200", "text-green-800");
+        } else {
+            feedbackArea.classList.add("bg-red-50", "border-red-200", "text-red-800");
+        }
+    }
+
+    /**
+     * Bereitet den "Nächste Frage"-Button vor und steuert die Minispiel-Pausen.
      */
     prepareNextStep(nextBtn) {
-        nextBtn.classList.remove("hidden");
+        const feedbackArea = document.getElementById("feedback-area");
+        if (feedbackArea) feedbackArea.classList.remove("hidden");
 
-        // Berechnung der Quiz-Hälfte für das Minispiel
         const halfIndex = Math.floor(this.quizData.length / 2);
 
         // Wenn wir an der Hälfte angekommen sind UND das Spiel noch nicht gespielt wurde
         if (this.currentIndex === halfIndex - 1 && !this.gameDone) {
-            nextBtn.innerText = "Spielen & Weiter ⚡";
+            if (nextBtn) nextBtn.innerText = "Spielen & Weiter ⚡";
             
-            nextBtn.onclick = () => {
-                this.gameDone = true; // Markieren, damit es nicht in eine Dauerschleife gerät
-                this.currentIndex++;  // JETZT den Index erhöhen, damit nach dem Spiel die nächste Frage lädt!
+            if (nextBtn) nextBtn.onclick = () => {
+                this.gameDone = true; 
+                this.currentIndex++;  
 
-                // Quiz-Oberfläche ausblenden
-                document.getElementById("quiz-content").classList.add("hidden");
+                // Versteckt den Fragen-Inhalt und schaltet auf das Game-Screen deiner index.html um
+                const quizContent = document.getElementById("quiz-content");
+                const gameScreen = document.getElementById("game-screen");
                 
-                // Trigger an das UI-Skript senden, um das Minispiel-Auwahlmenü zu öffnen
-                const gameArea = document.getElementById("active-game-area");
-                const gameSelection = document.getElementById("quiz-game-selection");
-                
-                if (gameSelection) gameSelection.classList.remove("hidden");
-                if (gameArea) gameArea.classList.remove("hidden");
+                if (quizContent) quizContent.classList.add("hidden");
+                if (gameScreen) gameScreen.classList.remove("hidden");
             };
         } else {
-            // Regulärer Ablauf für normale Fragen
-            nextBtn.innerText = "Nächste Frage →";
-            nextBtn.onclick = () => {
+            if (nextBtn) nextBtn.innerText = "Nächste Frage →";
+            if (nextBtn) nextBtn.onclick = () => {
                 this.currentIndex++;
                 this.showQuestion();
             };
@@ -272,25 +296,18 @@ export class QuizEngine {
     }
 
     /**
-     * Zeigt das Endergebnis des Quizzes und trägt es in die Historie ein
+     * Zeigt das Endergebnis des Quizzes passend zur Struktur deiner index.html
      */
     showResults() {
-        const questionTextEl = document.getElementById("question-text");
-        const answerContainer = document.getElementById("answer-container");
-        const nextBtn = document.getElementById("next-question-btn");
+        const quizContent = document.getElementById("quiz-content");
+        const resultScreen = document.getElementById("result-screen");
+        const scoreDisplay = document.getElementById("score-display");
 
-        if (questionTextEl) questionTextEl.innerText = "Quiz beendet!";
-        if (nextBtn) nextBtn.classList.add("hidden");
-
-        if (answerContainer) {
-            answerContainer.innerHTML = `
-                <div class="text-center p-5">
-                    <p class="text-2xl mb-4">Du hast <strong>${this.score}</strong> von <strong>${this.quizData.length}</strong> Fragen richtig beantwortet!</p>
-                    <button onclick="window.location.reload()" class="bg-green-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-600 transition shadow">
-                        Neues Quiz starten 🔄
-                    </button>
-                </div>
-            `;
+        if (quizContent) quizContent.classList.add("hidden");
+        if (resultScreen) resultScreen.classList.remove("hidden");
+        
+        if (scoreDisplay) {
+            scoreDisplay.innerText = `${this.score} von ${this.quizData.length} Fragen richtig beantwortet!`;
         }
 
         // Ergebnis im LocalStorage für die Bestenliste speichern
