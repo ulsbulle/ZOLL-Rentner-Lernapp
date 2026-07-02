@@ -1,95 +1,137 @@
-// Hilfsfunktionen
-// -----------------------------
+// =========================================================================
+// quiz-utils.js - Hilfsfunktionen für die Quiz-App
+// =========================================================================
 
-// Hilsfunktion mischen bei neustart
+/**
+ * Mischt ein Array zufällig (Fisher-Yates Shuffle)
+ * @param {Array} array 
+ */
 export function shuffleArray(array) {
-	for (let i = array.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[array[i], array[j]] = [array[j], array[i]];
-	}
-	return array;
+    if (!Array.isArray(array)) return;
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
 }
 
-// Utility: Drag & Drop und Base64
-export const toBase64 = (f) =>
-	new Promise((res) => {
-		const r = new FileReader();
-		r.readAsDataURL(f);
-		r.onload = () => res(r.result);
-	});
-
-export function handleDragOver(e) {
-	e.preventDefault();
+/**
+ * Konvertiert eine Datei (z.B. PDF) in einen Base64-String
+ * @param {File} file 
+ * @returns {Promise<string>}
+ */
+export function toBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+    });
 }
 
-export function handleDragLeave(e) {
-	e.preventDefault();
+/**
+ * Parst einen CSV-String sicher in ein Quiz-Daten-Array.
+ * Unterstützt klassische MC-Fragen sowie die neuen Freitext- und Lückentexte.
+ * 
+ * @param {string} csvText 
+ * @returns {Array} Array von Fragen-Objekten
+ */
+export function parseCSVData(csvText) {
+    try {
+        if (!csvText || !csvText.trim()) return [];
+        
+        const lines = csvText.split("\n");
+        if (lines.length <= 1) return [];
+
+        // Header auswerten, um Spalten flexibel und reihenfolgeunabhängig zu finden
+        const header = lines[0].split(";").map(h => h.trim().toLowerCase());
+        const typeIdx = header.indexOf("type");
+        const qIdx = header.indexOf("question");
+        const optIdx = header.indexOf("options");
+        const ansIdx = header.indexOf("answer");
+
+        const questions = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const currentLine = lines[i].trim();
+            if (!currentLine) continue; // Leere Zeilen überspringen
+
+            const columns = currentLine.split(";");
+            
+            // Schutz vor unvollständigen Zeilen und Zuweisung von Standardwerten
+            const type = typeIdx !== -1 && columns[typeIdx] ? columns[typeIdx].trim().toLowerCase() : "choice";
+            const question = qIdx !== -1 && columns[qIdx] ? columns[qIdx].trim() : "";
+            const rawOptions = optIdx !== -1 && columns[optIdx] ? columns[optIdx].trim() : "";
+            const rawAnswer = ansIdx !== -1 && columns[ansIdx] ? columns[ansIdx].trim() : "";
+
+            let options = [];
+            let answer = [];
+
+            if (type === "text" || type === "cloze") {
+                // Bei Freitext/Lücke bleibt options leer, answer ist der pure Text für die Levenshtein-Prüfung
+                options = [];
+                answer = rawAnswer; 
+            } else {
+                // Klassisches Multiple-Choice ("choice")
+                options = rawOptions ? rawOptions.split(",").map(o => o.trim()) : [];
+                
+                // FEHLERSCHUTZ: Sicherstellen, dass rawAnswer existiert und ein String ist, bevor .includes() läuft
+                if (rawAnswer) {
+                    if (typeof rawAnswer === "string" && rawAnswer.includes(",")) {
+                        answer = rawAnswer.split(",").map(a => parseInt(a.trim())).filter(num => !isNaN(num));
+                    } else {
+                        const parsedNum = parseInt(rawAnswer);
+                        answer = !isNaN(parsedNum) ? [parsedNum] : [];
+                    }
+                } else {
+                    answer = [];
+                }
+            }
+
+            // Nur hinzufügen, wenn zumindest ein Fragetext existiert
+            if (question) {
+                questions.push({ type, question, options, answer });
+            }
+        }
+
+        return questions;
+    } catch (error) {
+        console.error("quiz-utils.js: CSV-Parsing Fehler:", error);
+        throw error;
+    }
 }
 
-export function handleDrop(e, callback) {
-	e.preventDefault();
-	callback(e.dataTransfer.files);
-}
+/**
+ * Generiert aus einem Quiz-Daten-Array einen gültigen CSV-String.
+ * Maskiert Semikolons in Texten, um Strukturfehler zu vermeiden.
+ * 
+ * @param {Array} quizData 
+ * @returns {string} CSV-formatiert mit Semikolon-Trennung
+ */
+export function generateCSVString(quizData) {
+    if (!Array.isArray(quizData) || quizData.length === 0) return "type;question;options;answer\n";
 
-//CSV-DROP verlassen
-export function handleDragLeaveCSV(e) {
-	e.preventDefault();
-}
+    // Header-Zeile mit dem 'type' Feld für volle Kompatibilität
+    let csvContent = "type;question;options;answer\n";
 
-// --- Data Handling ---
-// CSV Laden und mischen
-export function parseCSVData(text) {
-	try {
-		const lines = text
-			.split(/\r?\n/)
-			.filter((l) => l.trim())
-			.slice(1);
+    quizData.forEach(q => {
+        const type = q.type || "choice";
+        // Semikolons in Texten durch Kommas ersetzen, um das CSV-Format nicht zu zerbrechen
+        const question = (q.question || "").replace(/;/g, ",");
+        
+        let optionsStr = "";
+        let answerStr = "";
 
-		const parsedData = lines
-			.map((l) => {
-				const c = l.match(/(".*?"|[^;]+)(?=\s*;|\s*$)/g).map((s) => s.replace(/^"|"$/g, "").trim());
-				const opts = [c[1], c[2], c[3], c[4]];
-				const rawAnswer = c[5]; // Kann eine Zahl wie "2" oder eine Kette wie "0,2" sein
+        if (type === "choice") {
+            optionsStr = (q.options || []).map(o => o.replace(/;/g, ",")).join(",");
+            answerStr = Array.isArray(q.answer) ? q.answer.join(",") : q.answer;
+        } else {
+            // Für "text" und "cloze" Fragetypen
+            optionsStr = "";
+            answerStr = typeof q.answer === "string" ? q.answer.replace(/;/g, ",") : (q.answer || "");
+        }
 
-				let targetIndices = [];
+        csvContent += `${type};${question};${optionsStr};${answerStr}\n`;
+    });
 
-				// PRÜFUNG: Ist die Antwortspalte mit Indizes (z.B. "0,2") oder mit Text gefüllt?
-				if (rawAnswer.includes(",") || (!isNaN(rawAnswer) && rawAnswer !== "")) {
-					// Falls es sich um Indizes handelt, spalten wir sie beim Komma auf
-					const originalIndices = rawAnswer.split(",").map((num) => parseInt(num.trim()));
-
-					// Da die Optionen gleich gemischt werden, sichern wir die korrekten Texte
-					const correctTexts = originalIndices.map((idx) => opts[idx]).filter((t) => t !== undefined);
-
-					// Optionen mischen
-					shuffleArray(opts);
-
-					// Neue Indizes nach dem Mischen ermitteln
-					targetIndices = correctTexts.map((text) => opts.indexOf(text)).filter((idx) => idx !== -1);
-				} else {
-					// Fallback für alten CSV-Stil (Reiner Antwort-Text statt Index in der Spalte)
-					const correctTexts = rawAnswer.split(",").map((t) => t.trim());
-					shuffleArray(opts);
-					targetIndices = correctTexts.map((text) => opts.indexOf(text)).filter((idx) => idx !== -1);
-				}
-
-				return {
-					question: c[0],
-					options: opts,
-					answer: targetIndices, // Speichert die korrekten Indizes als Array ab
-				};
-			})
-			.filter((q) => q.answer && q.answer.length > 0);
-
-		// Die Fragenliste selbst mischen
-		shuffleArray(parsedData);
-
-		if (parsedData.length === 0) throw new Error("Keine Fragen gefunden");
-
-		return parsedData;
-	} catch (e) {
-		console.error("CSV-Parsing Fehler:", e);
-		alert("Daten fehlerhaft!");
-		return null;
-	}
+    return csvContent;
 }
