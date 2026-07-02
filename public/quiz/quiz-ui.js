@@ -1,176 +1,362 @@
-/**
- * QUIZ UI MANAGER
- * Steuert die gesamte Benutzeroberfläche des Quizzes, den CSV-Import,
- * Drag-and-Drop-Dateihandling sowie die Umschaltung der Menü-Modi.
- */
+// Funktionen für DOM und BOM
+// ------------------------------
 
+import { handleDragOver, handleDragLeave, handleDrop, handleDragLeaveCSV, parseCSVData } from "./quiz-utils.js";
 import { QuizEngine } from "./quiz-engine.js";
-import { parseCSVData, generateCSVString } from "./quiz-utils.js";
 
-// Globale Instanz der QuizEngine erstellen
-const quizEngine = new QuizEngine();
+// Globale Instanziierung der Engine
+window.quizApp = new QuizEngine();
+window.gamePoints = 0;
+window.maxScore = 10;
+window.difficulty = 1.0;
+window.isMuted = localStorage.getItem("quiz_muted") === "true";
 
-// Globale Brücken für HTML-Inlines und andere Skripte schlagen
-window.quizEngine = quizEngine;
-window.quizApp = quizEngine;
-window.loadQuizData = (data) => quizEngine.loadQuizData(data);
-window.initQuiz = (data) => quizEngine.init(data);
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js"; //laden der Bibliothek
 
-// Macht die Funktion global für das onchange="importCSV(this)" im HTML verfügbar
-window.importCSV = function(input) {
-    if (input.files && input.files.length > 0) {
-        verarbeiteCSVDatei(input.files[0]);
-    }
+/** --- UI-HILFSFUNKTIONEN --- **/
+//Quiz starten
+window.startQuizGeneration = () => {
+	const file = document.getElementById("pdf-file").files[0];
+	const customPrompt = document.getElementById("custom-prompt").value;
+	window.quizApp.startQuizGeneration(file, customPrompt);
+};
+window.restartCurrentQuiz = () => window.quizApp.restartCurrentQuiz();
+
+//zurück zu Hauptmenü
+window.goToHome = function () {
+	window.quizApp.resetStats();
+	window.quizApp.quizData = [];
+	window.toggleCard("setup-card");
+	const modus = document.getElementById("Modus");
+	modus.value = "PDF";
+	document.getElementById("section-pdf").classList.remove("hidden");
+	document.getElementById("section-csv").classList.add("hidden");
+	document.getElementById("section-template").classList.add("hidden");
+	document.getElementById("pdf-preview-box").classList.add("hidden");
+	document.getElementById("file-name").innerText = "PDF WÄHLEN / DROP";
+	document.getElementById("pdf-file").value = "";
+	document.getElementById("csv-import").value = "";
+	document.getElementById("section-downloads").classList.add("hidden");
 };
 
-// Globale Funktionen für Drag & Drop Events aus dem HTML
-window.handleDragOverCSV = function(e) {
-    e.preventDefault();
-    const dropZone = document.getElementById("drop-zone-csv");
-    if (dropZone) dropZone.classList.add("border-emerald-500", "bg-emerald-100");
+//Quiz ausblenden-
+window.toggleCard = function (id) {
+	["setup-card", "status", "quiz-container"].forEach((c) => document.getElementById(c)?.classList.add("hidden"));
+	document.getElementById(id)?.classList.remove("hidden");
 };
 
-window.handleDragLeaveCSV = function(e) {
-    const dropZone = document.getElementById("drop-zone-csv");
-    if (dropZone) dropZone.classList.remove("border-emerald-500", "bg-emerald-100");
+//Download ausblenden
+window.toggleDownloads = function (show) {
+	const downloadSection = document.getElementById("section-downloads");
+	if (downloadSection) {
+		if (show) {
+			downloadSection.classList.remove("hidden");
+		} else {
+			downloadSection.classList.add("hidden");
+		}
+	}
 };
 
-window.handleDropCSV = function(e) {
-    e.preventDefault();
-    const dropZone = document.getElementById("drop-zone-csv");
-    if (dropZone) dropZone.classList.remove("border-emerald-500", "bg-emerald-100");
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        verarbeiteCSVDatei(files[0]);
-    }
+//Verlauf rendern
+window.renderHistory = function () {
+	const h = JSON.parse(localStorage.getItem("quiz_history") || "[]");
+	const list = document.getElementById("history-list");
+	if (h.length === 0) {
+		list.innerHTML = '<p class="text-slate-400 text-sm italic text-center py-4">Kein Verlauf.</p>';
+		return;
+	}
+	list.innerHTML = h
+		.map(
+			(e) => `
+        <div class="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-100 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+            <span class="font-bold text-slate-600 dark:text-slate-300 text-sm">${e.d}</span>
+            <span class="font-black text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800 px-3 py-1 rounded-lg shadow-sm border border-blue-50 dark:border-blue-900">${e.p}%</span>
+        </div>`,
+		)
+		.join("");
 };
 
-// DOMContentLoaded: Startet die UI-Event-Listener nach dem Laden der Seite
+//Verlauf löschen
+window.clearHistory = () => {
+	localStorage.removeItem("quiz_history");
+	window.renderHistory();
+};
+
+/** --- AUDIO UI --- **/
+function updateMuteUI() {
+	const btn = document.getElementById("mute-btn");
+	if (btn) btn.innerText = window.isMuted ? "🔇" : "🔊";
+	btn.title = window.isMuted ? "Ton einschalten" : "Ton stummschalten";
+}
+//Speichern der Einstellungen im localStorage
+window.toggleMute = function () {
+	window.isMuted = !window.isMuted;
+	if (window.audioEngine) window.audioEngine.setVolume(window.isMuted ? 0 : 1);
+	localStorage.setItem("quiz_muted", window.isMuted);
+	updateMuteUI();
+};
+
+/** --- PDF VORSCHAU --- **/
+window.previewPDF = async function (input) {
+	const file = input.files[0];
+	if (!file || file.type !== "application/pdf") return;
+	document.getElementById("file-name").innerText = file.name;
+	document.getElementById("pdf-preview-box").classList.remove("hidden");
+	const reader = new FileReader();
+	reader.onload = async function () {
+		const typedarray = new Uint8Array(this.result);
+		const pdf = await pdfjsLib.getDocument(typedarray).promise;
+		const page = await pdf.getPage(1);
+		const canvas = document.getElementById("pdf-canvas");
+		const ctx = canvas.getContext("2d");
+		const viewport = page.getViewport({ scale: 0.5 });
+		canvas.height = viewport.height;
+		canvas.width = viewport.width;
+		await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+	};
+	reader.readAsArrayBuffer(file);
+};
+
+/** --- DATEN IMPORT / EXPORT --- **/
+window.importCSV = function (source) {
+	window.quizApp.resetStats();
+	const file = source.files ? source.files[0] : source[0];
+	if (!file) return;
+	window.toggleCard("status");
+	const r = new FileReader();
+	r.onload = (e) => {
+		const parsedData = parseCSVData(e.target.result);
+		window.quizApp.loadQuizData(parsedData);
+	};
+	r.readAsText(file, "UTF-8");
+};
+
+window.exportCSV = function () {
+	// Erweitert um das optionale Feld "Typ" zur Typerhaltung
+	let csv = "\uFEFFFrage;Option A;Option B;Option C;Option D;Antwort;Typ\n";
+	window.quizApp.quizData.forEach((q) => {
+		const type = q.type || "multiple";
+		let questionStr = q.question.replace(/"/g, '""');
+		let optA = q.options && q.options[0] ? q.options[0].replace(/"/g, '""') : "";
+		let optB = q.options && q.options[1] ? q.options[1].replace(/"/g, '""') : "";
+		let optC = q.options && q.options[2] ? q.options[2].replace(/"/g, '""') : "";
+		let optD = q.options && q.options[3] ? q.options[3].replace(/"/g, '""') : "";
+		
+		let ansField = "";
+		if (type === "multiple") {
+			ansField = q.answer.join(",");
+		} else if (type === "free") {
+			ansField = (q.correct_text || "").replace(/"/g, '""');
+		} else if (type === "cloze") {
+			const m = q.question.match(/\[(.*?)\]/);
+			ansField = m ? m[1].replace(/"/g, '""') : (q.correct_text || "").replace(/"/g, '""');
+		}
+
+		csv += `"${questionStr}";"${optA}";"${optB}";"${optC}";"${optD}";"${ansField}";"${type}"\n`;
+	});
+	const b = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+	const a = document.createElement("a");
+	a.href = URL.createObjectURL(b);
+	a.download = "Quiz_Export_Pro.csv";
+	a.click();
+};
+
+window.loadTemplate = async function (url) {
+	window.quizApp.resetStats();
+	window.toggleCard("status");
+	try {
+		const response = await fetch(url);
+		if (!response.ok) throw new Error(`Vorlage konnte nicht geladen werden (Status: ${response.status})`);
+		const text = await response.text();
+		const parsedData = parseCSVData(text);
+		window.quizApp.loadQuizData(parsedData);
+	} catch (err) {
+		alert("Fehler beim Laden der Vorlage: " + err.message);
+		window.goToHome();
+	}
+};
+
+/** --- INITIALISIERUNG --- **/
+window.loadDownloadFiles = async function () {
+	const downloadList = document.getElementById("file-list");
+	const downloadList2 = document.getElementById("file2-list");
+	const templateList = document.getElementById("template-list");
+
+	try {
+		const [resT, resD] = await Promise.all([fetch("/api/files/templates"), fetch("/api/files/downloads")]);
+
+		const templates = await resT.json();
+		const downloads = await resD.json();
+
+		if (downloadList) {
+			downloadList.innerHTML =
+				templates.length > 0
+					? templates
+							.map(
+								(file) => `
+                <li class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                    <span class="text-slate-700 dark:text-slate-300 font-medium truncate">📄 ${file}</span>
+                    <a href="/templates/${file}" download class="bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300 px-3 py-1 rounded-md text-xs font-bold hover:bg-blue-600 hover:text-white transition-all">Laden ↓</a>
+                </li>
+            `,
+							)
+							.join("")
+					: '<li class="text-slate-400 text-sm italic">Keine Lernmaterialien gefunden.</li>';
+		}
+
+		if (templateList) {
+			const csvFiles = templates.filter((f) => f.toLowerCase().endsWith(".csv"));
+			templateList.innerHTML =
+				csvFiles.length > 0
+					? csvFiles
+							.map(
+								(file) => `
+                <button onclick="loadTemplate('/templates/${file}')" class="w-full p-4 border-2 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left font-bold transition-all flex justify-between items-center group">
+                    <span class="text-slate-900 dark:text-white">📊 ${file.replace(".csv", "")}</span>
+                    <span class="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">Starten →</span>
+                </button>
+            `,
+							)
+							.join("")
+					: '<p class="text-slate-400 text-center">Keine CSV-Vorlagen gefunden.</p>';
+		}
+
+		if (downloadList2) {
+			downloadList2.innerHTML =
+				downloads.length > 0
+					? downloads
+							.map(
+								(file) => `
+                <li class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                    <span class="text-slate-700 dark:text-slate-300 font-medium truncate">📦 ${file}</span>
+                    <a href="/downloads/${file}" download class="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-bold hover:bg-black transition-all">Download ↓</a>
+                </li>
+            `,
+							)
+							.join("")
+					: '<li class="text-slate-400 text-sm italic">Keine sonstigen Dateien gefunden.</li>';
+		}
+	} catch (error) {
+		console.error("Fehler beim Laden der Listen:", error);
+	}
+};
+
+window.onload = () => {
+	const modusSelect = document.getElementById("Modus");
+
+	if (modusSelect) {
+		modusSelect.onchange = function () {
+			const val = this.value;
+
+			document.getElementById("section-pdf").classList.toggle("hidden", val !== "PDF");
+			document.getElementById("section-csv").classList.toggle("hidden", val !== "CSV");
+			document.getElementById("section-template").classList.toggle("hidden", val !== "TEMPLATE");
+			document.getElementById("section-training").classList.toggle("hidden", val !== "TRAINING");
+			document.getElementById("section-downloads").classList.toggle("hidden", val !== "DOWNLOADS");
+
+			if (val === "DOWNLOADS" || val === "TEMPLATE") {
+				window.loadDownloadFiles();
+			}
+
+			if (val !== "TRAINING") {
+				window.gameActive = false;
+				if (typeof window.gameInterval !== "undefined") clearInterval(window.gameInterval);
+			}
+		};
+	}
+
+	window.loadDownloadFiles();
+
+	document.getElementById("section-pdf").classList.remove("hidden");
+	document.getElementById("section-csv").classList.add("hidden");
+	document.getElementById("section-template").classList.add("hidden");
+	document.getElementById("section-training").classList.add("hidden");
+	document.getElementById("section-downloads").classList.add("hidden");
+
+	window.renderHistory();
+};
+
 document.addEventListener("DOMContentLoaded", () => {
-    try { initModusAuswahl(); } catch(e) { console.log("Modus-Auswahl nicht aktiv.", e); }
-    try { initDragAndDropVerhalten(); } catch(e) { console.log("D&D Listener-Fehler.", e); }
-    
-    // Historie beim Start einmalig rendern (falls vorhanden)
-    if (typeof window.renderHistory === "function") {
-        try { window.renderHistory(); } catch(e) { console.error(e); }
-    }
+	const modusSelect = document.getElementById("Modus");
+	if (modusSelect) {
+		modusSelect.onchange = function () {
+			const val = this.value;
+
+			document.getElementById("section-pdf").classList.toggle("hidden", val !== "PDF");
+			document.getElementById("section-csv").classList.toggle("hidden", val !== "CSV");
+			document.getElementById("section-template").classList.toggle("hidden", val !== "TEMPLATE");
+			document.getElementById("section-training").classList.toggle("hidden", val !== "TRAINING");
+			document.getElementById("section-downloads").classList.toggle("hidden", val !== "DOWNLOADS");
+
+			if (val === "DOWNLOADS" || val === "TEMPLATE") {
+				window.loadDownloadFiles();
+			}
+
+			if (this.value !== "TRAINING") {
+				window.gameActive = false;
+				if (typeof window.gameInterval !== "undefined") clearInterval(window.gameInterval);
+			}
+		};
+	}
 });
 
-/**
- * Steuert die Umschaltung der Sektionen basierend auf dem <select id="Modus">-Feld.
- */
-function initModusAuswahl() {
-    const modusSelect = document.getElementById("Modus");
-    if (!modusSelect) return;
+//Drag & Drop Bindings
+window.handleDragOver = handleDragOver;
+window.handleDragLeave = handleDragLeave;
+window.handleDrop = (e) =>
+	handleDrop(e, (files) => {
+		document.getElementById("pdf-file").files = files;
+		window.previewPDF(document.getElementById("pdf-file"));
+	});
+window.handleDragOverCSV = handleDragOver;
+window.handleDragLeaveCSV = handleDragLeaveCSV;
+window.handleDropCSV = (e) => handleDrop(e, (files) => window.importCSV(files));
 
-    const sektionenMap = {
-        "PDF": "section-pdf",
-        "CSV": "section-csv",
-        "TEMPLATE": "section-template",
-        "TRAINING": "section-training",
-        "DOWNLOADS": "section-downloads"
-    };
-
-    modusSelect.addEventListener("change", (e) => {
-        const ausgewaehlterModus = e.target.value;
-        const zielSektionId = sektionenMap[ausgewaehlterModus];
-
-        Object.values(sektionenMap).forEach(id => {
-            const sektion = document.getElementById(id);
-            if (sektion) sektion.classList.add("hidden");
-        });
-
-        if (zielSektionId) {
-            const zielSektion = document.getElementById(zielSektionId);
-            if (zielSektion) zielSektion.classList.remove("hidden");
-        }
-    });
-}
-
-/**
- * Event-Listener für das Drag-and-Drop Feld als Backup zu den Inline-Events
- */
-function initDragAndDropVerhalten() {
-    const dropZone = document.getElementById("drop-zone-csv");
-    if (!dropZone) return;
-
-    dropZone.addEventListener("dragover", window.handleDragOverCSV);
-    dropZone.addEventListener("dragleave", window.handleDragLeaveCSV);
-    dropZone.addEventListener("drop", window.handleDropCSV);
-}
-
-/**
- * Liest die übergebene Datei ein, parst sie über quiz-utils und 
- * initialisiert die QuizEngine fehlerfrei.
- */
-function verarbeiteCSVDatei(file) {
-    if (!file.name.endsWith(".csv")) {
-        alert("Bitte lade eine gültige .csv-Datei hoch!");
-        return;
-    }
-
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
-        try {
-            const text = e.target.result;
-            const parsedData = parseCSVData(text);
-
-            if (!parsedData || parsedData.length === 0) {
-                throw new Error("Die CSV-Datei enthält keine lesbaren Fragen.");
-            }
-
-            if (window.quizEngine && typeof window.quizEngine.resetStats === "function") {
-                window.quizEngine.resetStats();
-                window.quizEngine.init(parsedData);
-                
-                // Hauptsetup ausblenden und Quiz-Container einblenden
-                const setupCard = document.getElementById("setup-card");
-                const quizContainer = document.getElementById("quiz-container");
-                
-                if (setupCard) setupCard.classList.add("hidden");
-                if (quizContainer) quizContainer.classList.remove("hidden");
-                
-                console.log(`${parsedData.length} Fragen erfolgreich aus CSV geladen.`);
-            } else {
-                console.error("QuizEngine ist im globalen Fenster-Scope nicht definiert.");
-                alert("Fehler: Die Quiz-Engine konnte nicht erreicht werden.");
-            }
-
-        } catch (error) {
-            console.error("quiz-ui.js: CSV-Import fehlgeschlagen:", error);
-            alert(`Fehler beim Laden der CSV: ${error.message}`);
-        }
-    };
-
-    reader.readAsText(file);
-}
-
-/**
- * Rendert die bisherigen Spielergebnisse aus dem LocalStorage in die Inhalts-Übersicht.
- */
-window.renderHistory = function() {
-    const historyContainer = document.getElementById("history-list");
-    if (!historyContainer) return;
-
-    try {
-        const history = JSON.parse(localStorage.getItem("quiz_history") || "[]");
-        
-        if (history.length === 0) {
-            historyContainer.innerHTML = `<p class="text-slate-400 text-sm italic text-center">Noch keine Spiele absolviert.</p>`;
-            return;
-        }
-
-        historyContainer.innerHTML = history.slice().reverse().map(entry => `
-            <div class="flex justify-between items-center p-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 transition-colors">
-                <span class="text-slate-500 text-xs font-medium">${entry.date}</span>
-                <span class="font-extrabold text-blue-600">${entry.score} / ${entry.total} Richtige</span>
-            </div>
-        `).join('');
-
-    } catch (e) {
-        console.error("Fehler beim Rendern der Historie:", e);
-        historyContainer.innerHTML = `<p class="text-red-500 italic text-sm text-center">Historie konnte nicht geladen werden.</p>`;
-    }
+/** --- DARKMODE --- **/
+window.updateThemeButton = function (isDark) {
+	const themeBtn = document.getElementById("theme-btn");
+	if (themeBtn) {
+		themeBtn.innerText = isDark ? "☀️" : "🌙";
+		themeBtn.title = isDark ? "Zu hellem Design wechseln" : "Zu dunklem Design wechseln";
+	}
 };
+
+window.toggleDarkMode = function () {
+	const isDark = document.documentElement.classList.toggle("dark");
+	localStorage.setItem("darkMode", isDark);
+	window.updateThemeButton(isDark);
+};
+
+const savedDarkMode =
+	localStorage.getItem("darkMode") === "true" ||
+	(!("darkMode" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+if (savedDarkMode) {
+	document.documentElement.classList.add("dark");
+} else {
+	document.documentElement.classList.remove("dark");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+	const isCurrentlyDark = document.documentElement.classList.contains("dark");
+	window.updateThemeButton(isCurrentlyDark);
+});
+
+window.toggleContrast = function () {
+	const isContrast = document.documentElement.classList.toggle("contrast");
+	localStorage.setItem("contrastMode", isContrast);
+
+	const contrastBtn = document.getElementById("contrast-btn");
+	if (contrastBtn) {
+		contrastBtn.innerText = isContrast ? "🕶️" : "👁️";
+		contrastBtn.title = isContrast ? "Zu normalem Modus wechseln" : "Zu Kontrastmodus wechseln";
+	}
+};
+
+if (localStorage.getItem("contrastMode") === "true") {
+	document.documentElement.classList.add("contrast");
+	document.addEventListener("DOMContentLoaded", () => {
+		const contrastBtn = document.getElementById("contrast-btn");
+		if (contrastBtn) contrastBtn.innerText = "🕶️";
+	});
+}
