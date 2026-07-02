@@ -331,8 +331,13 @@ export class QuizEngine {
 					// Flag setzen, damit das Spiel pro Quiz-Durchlauf nur EINMAL triggert
 					this.gameDone = true;
 
-					// Index im Hintergrund erhöhen, damit es nach dem Spiel mit der nächsten Frage weitergeht
-					this.currentIndex++;
+					// WICHTIG: currentIndex hier NICHT erhöhen! Das passiert erst, 
+			        // wenn der Game-Over-Screen per "Weiter" bestätigt wird.
+			        
+			        // Falls eine globale Startfunktion für dein Spiel existiert, hier triggern:
+			        if (window.startGame) {
+			            window.startGame();
+			        }
 				};
 			} else {
 				// Normaler Ablauf für alle anderen Fragen
