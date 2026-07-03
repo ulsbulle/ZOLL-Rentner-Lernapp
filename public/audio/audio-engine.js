@@ -15,6 +15,15 @@ export class AudioEngine {
 		if (!this.#ctx) {
 			this.#ctx = new (window.AudioContext || window.webkitAudioContext)();
 
+			// Reaktivierung des Audio-Kontexts
+			if (this.#ctx.state === "suspended") {
+				try {
+					this.#ctx.resume();
+				} catch (error) {
+					console.warn("Reaktivierung des Audio-Kontexts fehlgeshlagen:", error);
+				}
+			}
+
 			// Laden des Audioprozessorcodes
 			const processorUrl = new URL("./audio-processor.js", import.meta.url);
 			await this.#ctx.audioWorklet.addModule(processorUrl, { type: "module" });
