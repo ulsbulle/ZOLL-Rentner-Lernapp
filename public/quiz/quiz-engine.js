@@ -24,11 +24,13 @@ export class QuizEngine {
 		let longer = s1.toLowerCase().trim();
 		let shorter = s2.toLowerCase().trim();
 		if (longer.length < shorter.length) {
-			let tmp = longer; longer = shorter; shorter = tmp;
+			let tmp = longer;
+			longer = shorter;
+			shorter = tmp;
 		}
 		let longerLength = longer.length;
 		if (longerLength === 0) return 1.0;
-		
+
 		let costs = [];
 		for (let i = 0; i <= longer.length; i++) {
 			let lastValue = i;
@@ -92,11 +94,14 @@ export class QuizEngine {
 
 				if (q.type === "multiple") {
 					if (!Array.isArray(q.answer)) {
-						q.answer = String(q.answer).split(",").map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+						q.answer = String(q.answer)
+							.split(",")
+							.map((x) => parseInt(x.trim()))
+							.filter((x) => !isNaN(x));
 					}
 					const correctTexts = q.answer.map((index) => q.options[index]);
 					shuffleArray(q.options);
-					q.answer = correctTexts.map((text) => q.options.indexOf(text)).filter(idx => idx !== -1);
+					q.answer = correctTexts.map((text) => q.options.indexOf(text)).filter((idx) => idx !== -1);
 				}
 			});
 
@@ -141,7 +146,8 @@ export class QuizEngine {
 		if (!q.type) q.type = "multiple";
 
 		document.getElementById("progress-bar").style.width = `${(this.currentIndex / this.quizData.length) * 100}%`;
-		document.getElementById("q-count").innerText = `Frage ${this.currentIndex + 1} von ${this.quizData.length} [${q.type.toUpperCase()}]`;
+		document.getElementById("q-count").innerText =
+			`Frage ${this.currentIndex + 1} von ${this.quizData.length} [${q.type.toUpperCase()}]`;
 
 		const optDiv = document.getElementById("options");
 		optDiv.innerHTML = "";
@@ -156,7 +162,8 @@ export class QuizEngine {
 			inputField.type = "text";
 			inputField.id = "free-text-answer";
 			inputField.placeholder = "Deine Antwort hier eingeben...";
-			inputField.className = "w-full p-4 rounded-xl border-2 border-slate-200 dark:border-slate-600 outline-none font-medium text-lg focus:border-blue-500 shadow-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white";
+			inputField.className =
+				"w-full p-4 rounded-xl border-2 border-slate-200 dark:border-slate-600 outline-none font-medium text-lg focus:border-blue-500 shadow-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white";
 			optDiv.appendChild(inputField);
 			inputField.focus();
 
@@ -176,10 +183,17 @@ export class QuizEngine {
 
 				if (isCorrect || isAlmostCorrect) {
 					this.score += isCorrect ? 1 : 0.5;
-					inputField.classList.add(isCorrect ? "border-green-500" : "border-amber-500", isCorrect ? "bg-green-50" : "bg-amber-50");
-					
-					feedbackText.innerHTML = isCorrect ? "✅ Richtig!" : `⚠️ Fast richtig (Kleine Abweichung)!<br>Erwartet: <b>${correctText}</b>`;
-					feedbackText.className = isCorrect ? "text-green-600 font-bold text-center" : "text-amber-600 font-bold text-center";
+					inputField.classList.add(
+						isCorrect ? "border-green-500" : "border-amber-500",
+						isCorrect ? "bg-green-50" : "bg-amber-50",
+					);
+
+					feedbackText.innerHTML = isCorrect
+						? "✅ Richtig!"
+						: `⚠️ Fast richtig (Kleine Abweichung)!<br>Erwartet: <b>${correctText}</b>`;
+					feedbackText.className = isCorrect
+						? "text-green-600 font-bold text-center"
+						: "text-amber-600 font-bold text-center";
 					if (window.audioEngine) window.audioEngine.playSoundEffect("correct");
 				} else {
 					this.userMistakes.push({ q: q.question, g: userText || "[Keine Eingabe]", c: correctText });
@@ -190,11 +204,10 @@ export class QuizEngine {
 				}
 				document.getElementById("feedback-area").classList.remove("hidden");
 			};
-
 		} else if (q.type === "cloze") {
 			const regex = /\[(.*?)\]/;
 			const match = q.question.match(regex);
-			const solutionWord = match ? match[1] : (q.correct_text || "");
+			const solutionWord = match ? match[1] : q.correct_text || "";
 
 			const displayQuestion = q.question.replace(regex, "________");
 			document.getElementById("question-text").innerText = "Ergänze das fehlende Wort:\n\n" + displayQuestion;
@@ -203,7 +216,8 @@ export class QuizEngine {
 			inputField.type = "text";
 			inputField.id = "cloze-answer";
 			inputField.placeholder = "Gesuchtes Lückenwort...";
-			inputField.className = "w-full p-4 rounded-xl border-2 border-slate-200 dark:border-slate-600 outline-none font-medium text-lg focus:border-blue-500 shadow-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white";
+			inputField.className =
+				"w-full p-4 rounded-xl border-2 border-slate-200 dark:border-slate-600 outline-none font-medium text-lg focus:border-blue-500 shadow-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white";
 			optDiv.appendChild(inputField);
 			inputField.focus();
 
@@ -222,10 +236,17 @@ export class QuizEngine {
 
 				if (isCorrect || isAlmostCorrect) {
 					this.score += isCorrect ? 1 : 0.5;
-					inputField.classList.add(isCorrect ? "border-green-500" : "border-amber-500", isCorrect ? "bg-green-50" : "bg-amber-50");
-					
-					feedbackText.innerHTML = isCorrect ? "✅ Richtig!" : `⚠️ Fast richtig gelöst!<br>Lösung: <b>${solutionWord}</b>`;
-					feedbackText.className = isCorrect ? "text-green-600 font-bold text-center" : "text-amber-600 font-bold text-center";
+					inputField.classList.add(
+						isCorrect ? "border-green-500" : "border-amber-500",
+						isCorrect ? "bg-green-50" : "bg-amber-50",
+					);
+
+					feedbackText.innerHTML = isCorrect
+						? "✅ Richtig!"
+						: `⚠️ Fast richtig gelöst!<br>Lösung: <b>${solutionWord}</b>`;
+					feedbackText.className = isCorrect
+						? "text-green-600 font-bold text-center"
+						: "text-amber-600 font-bold text-center";
 					if (window.audioEngine) window.audioEngine.playSoundEffect("correct");
 				} else {
 					this.userMistakes.push({ q: q.question, g: userText || "[Keine Eingabe]", c: solutionWord });
@@ -236,7 +257,6 @@ export class QuizEngine {
 				}
 				document.getElementById("feedback-area").classList.remove("hidden");
 			};
-
 		} else {
 			// --- MULTIPLE CHOICE MODUS ---
 			document.getElementById("question-text").innerText = q.question;
@@ -249,7 +269,7 @@ export class QuizEngine {
 
 			q.options.slice(0, 4).forEach((opt, i) => {
 				if (!opt) return; // Leere Buttons gar nicht erst anzeigen
-				
+
 				const b = document.createElement("button");
 				b.className =
 					"option-btn w-full text-left p-4 rounded-xl border-2 border-slate-100 dark:border-slate-700 transition-all font-medium bg-white dark:bg-slate-800 hover:border-blue-200 dark:hover:border-blue-900 shadow-sm text-slate-900 dark:text-white";
@@ -376,11 +396,16 @@ export class QuizEngine {
 		document.getElementById("quiz-content").classList.add("hidden");
 		document.getElementById("result-screen").classList.remove("hidden");
 		document.getElementById("progress-bar").style.width = "100%";
-		
+
 		const total = this.quizData.length;
 		const percent = Math.round((this.score / total) * 100);
 		document.getElementById("score-display").innerText = `${this.score} von ${total} Punkten (${percent}%)`;
-		
+		if (percent >= 75) {
+			if (window.audioEngine) window.audioEngine.playMusic(musicData.win, false, false, "win");
+		} else {
+			if (window.audioEngine) window.audioEngine.playMusic(musicData.lose, false, false, "lose");
+		}
+
 		const analysis = document.getElementById("mistake-analysis");
 		if (this.userMistakes.length > 0) {
 			analysis.innerHTML = this.userMistakes
@@ -397,7 +422,7 @@ export class QuizEngine {
 			analysis.innerHTML =
 				'<div class="text-center p-6 bg-green-50 dark:bg-green-900/30 rounded-2xl border-2 border-green-100 dark:border-green-900"><p class="text-green-600 dark:text-green-400 font-black text-lg">PERFEKT! 100% 🌟</p></div>';
 		}
-		
+
 		const h = JSON.parse(localStorage.getItem("quiz_history") || "[]");
 		h.unshift({ d: new Date().toLocaleDateString(), p: percent });
 		localStorage.setItem("quiz_history", JSON.stringify(h.slice(0, 10)));
@@ -412,7 +437,7 @@ export class QuizEngine {
 			if (q.type === "multiple") {
 				const correctTexts = q.answer.map((index) => q.options[index]);
 				shuffleArray(q.options);
-				q.answer = correctTexts.map((text) => q.options.indexOf(text)).filter(idx => idx !== -1);
+				q.answer = correctTexts.map((text) => q.options.indexOf(text)).filter((idx) => idx !== -1);
 			}
 		});
 
