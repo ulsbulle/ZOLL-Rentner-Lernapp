@@ -523,16 +523,12 @@
 			import { audioEngine } from "./audio/audio-engine.js";
 			import { musicData } from "./audio/music-data.js";
 
-			// Initialisierung der Audio-Engine bei erster Interaktion
+			// Initialisierung der Audio-Engine
 			window.audioEngine = audioEngine;
 			window.musicData = musicData;
-			document.body.addEventListener(
-				"click",
-				async () => {
-					await audioEngine.init();
-				},
-				{ once: true },
-			);
+			document.addEventListener("click", async () => {
+				await audioEngine.init();
+			});
 		</script>
 		<script type="module" src="quiz/quiz-ui.js"></script>
 		<script type="module" src="games/game-engine.js"></script>
