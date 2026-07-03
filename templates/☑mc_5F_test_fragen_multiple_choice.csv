@@ -1,6 +1,6 @@
-question;option1;option2;option3;option4;answer
-Welche dieser Organe gehören zum menschlichen Atmungssystem?;Lunge;Herz;Luftröhre;Magen;0,2
-Welche Planeten gehören zu unserem Sonnensystem?;Mars;Alpha Centauri;Venus;Sirius;0,2
-Welche Programmiersprachen werden primär für Webentwicklung genutzt?;JavaScript;C++;HTML;Assembly;0,2
-Welche dieser Früchte sind botanisch gesehen Beeren?;Banane;Erdbeere;Wassermelone;Himbeere;0,2
-Welche deutschen Städte haben mehr als 1 Million Einwohner?;Berlin;München;Frankfurt am Main;Köln;0,1,3
+Frage;Option A;Option B;Option C;Option D;Antwort;Typ
+Welche dieser Organe gehören zum menschlichen Atmungssystem?;Lunge;Herz;Luftröhre;Magen;"[0, 2]";multiple
+Welche Planeten gehören zu unserem Sonnensystem?;Mars;Alpha Centauri;Venus;Sirius;"[0, 2]";multiple
+Welche Programmiersprachen werden primär für Webentwicklung genutzt?;JavaScript;C++;HTML;Assembly;"[0, 2]";multiple
+Welche dieser Früchte sind botanisch gesehen Beeren?;Banane;Erdbeere;Wassermelone;Himbeere;"[0, 2]";multiple
+Welche deutschen Städte haben mehr als 1 Million Einwohner?;Berlin;München;Frankfurt am Main;Köln;"[0, 1, 3]";multiple
