@@ -82,7 +82,7 @@ export const GameConfig = {
 			algae: ["rgb(24, 149, 70)", "rgb(27, 121, 63)", "rgb(78, 121, 22)"],
 			popParticles: "rgb(147, 197, 253)",
 			bubbleShadow: "rgba(255, 255, 255, 0.8)",
-			bubbleFrame: "rgba(37, 99, 235, 0.4)",
+			bubbleFrame: "rgba(37, 235, 229, 0.4)",
 			cross: "rgba(0, 124, 213, 0.48)",
 		},
 		fruit: {
