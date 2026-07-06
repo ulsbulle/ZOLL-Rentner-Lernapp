@@ -84,6 +84,7 @@ document.addEventListener("exitGameRequested", (e) => {
 		case "game-canvas":
 			document.getElementById("quiz-game-selection").classList.remove("hidden");
 			document.getElementById("active-game-area").classList.add("hidden");
+			window.toggleTrainingControls(false);
 			window.quizApp.showQuestion();
 			break;
 	}
