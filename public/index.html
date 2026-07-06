@@ -4,14 +4,6 @@
 		<script>
 			// Versionsnummer ändern
 			const VERSION = "3.2";
-
-			// Dieses Mini-Skript verteilt die Konstante automatisch
-			document.addEventListener("DOMContentLoaded", () => {
-				document.title = `AI Quiz Master ${VERSION} - ZOLL Edition`;
-				document.getElementById("quiz-title").textContent = `🧠 AI Quiz Master ${VERSION} 🧠`;
-
-				// Erzwingt die Auswahl von "PDF" bei jedem Neuladen
-				document.getElementById("Modus").value = "PDF";
 			});
 		</script>
 		<meta charset="UTF-8" />
@@ -64,6 +56,11 @@
 				<h1 id="quiz-title" class="text-4xl font-extrabold text-blue-600 mb-2 pb-2 border-b border-slate-300">
 					🧠 AI Quiz Master 🧠
 				</h1>
+				<script>
+					// Setzt den Browsertab-Titel und die H1-Überschrift SOFORT
+					document.title = `AI Quiz Master ${VERSION} - ZOLL Edition`;
+					document.getElementById("quiz-title").textContent = `🧠 AI Quiz Master ${VERSION} 🧠`;
+				</script>
 				<p class="text-slate-500 italic font-bold">Lernen mit System & Spielspaß ©ZOLL-Rentner</p>
 			</div>
 
@@ -106,6 +103,10 @@
 								<option value="DOWNLOADS">📂 Downloads (Vorlagen und Offlineversion)</option>
 								<option value="DEVTOOLS">🛠️ Entwicklertools</option>
 							</select>
+							<script>
+								// Erzwingt die Auswahl von "PDF" sofort beim Einlesen des Elements
+								document.getElementById("Modus").value = "PDF";
+							</script>
 						</div>
 
 						<!--Wenn PDF ausgewählt wurde-->
