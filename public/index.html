@@ -9,6 +9,9 @@
 			document.addEventListener("DOMContentLoaded", () => {
 				document.title = `AI Quiz Master Pro ${VERSION} - ZOLL Edition`;
 				document.getElementById("quiz-title").textContent = `🧠 AI Quiz Master ${VERSION} 🧠`;
+
+				// Erzwingt die Auswahl von "PDF" bei jedem Neuladen
+				document.getElementById("Modus").value = "PDF";
 			});
 		</script>
 		<meta charset="UTF-8" />
@@ -73,11 +76,12 @@
 							<label class="block text-base font-bold text-blue-800 mb-2 underline">Kurzanleitung:</label>
 							<ul class="text-sm text-blue-900 space-y-1 list-disc ml-5 leading-relaxed font-medium">
 								<li>
-									Wähle <b>PDF</b> für KI-Analyse, <b>CSV</b> für schnellen Import oder
-									<b>Vorlage</b> um eine bereitgestellte Vorlage zu laden.
+									Wähle <b>PDF</b> zur automatischen Generierung von KI-Fragen, <b>CSV</b> zum Laden
+									bereits erstellter Quizzes oder <b>Vorlagen</b> um eine bereitgestellte Vorlage zu
+									laden.
 								</li>
 								<li>
-									Unterstützt Multiple-Choice, <b>Freitext</b> und
+									<b>Unterstützt Multiple-Choice</b>, <b>Freitext</b> und
 									<b>Lückentext (z.B. Das ist ein [Wort])</b>.
 								</li>
 								<li>Nutze <b>Drag & Drop</b> zum Hochladen der Dateien.</li>
