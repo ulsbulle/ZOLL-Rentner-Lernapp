@@ -250,6 +250,12 @@ window.loadDevToolsFiles = async function () {
 
 	try {
 		const response = await fetch("/api/files/tools");
+
+		// Prüfen, ob die Antwort vom Server gültiges JSON ist
+		if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
+			throw new Error("Server antwortete nicht mit JSON.");
+		}
+
 		const tools = await response.json();
 
 		devtoolsList.innerHTML =
@@ -267,7 +273,8 @@ window.loadDevToolsFiles = async function () {
 				: '<p class="text-slate-400 text-center">Keine Entwicklertools gefunden.</p>';
 	} catch (error) {
 		console.error("Fehler beim Laden der Entwicklertools:", error);
-		devtoolsList.innerHTML = '<p class="text-red-500 text-center">Fehler beim Laden der Tools vom Server.</p>';
+		devtoolsList.innerHTML =
+			'<p class="text-slate-400 text-sm italic text-center py-4">Entwicklertools konnten nicht geladen werden. Prüfe den Ordnernamen auf dem Server.</p>';
 	}
 };
 // <-- NEU bis hier
