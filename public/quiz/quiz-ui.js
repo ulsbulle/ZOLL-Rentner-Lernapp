@@ -88,6 +88,7 @@ function updateMuteUI() {
 	if (btn) btn.innerText = window.isMuted ? "🔇" : "🔊";
 	btn.title = window.isMuted ? "Ton einschalten" : "Ton stummschalten";
 }
+
 //Speichern der Einstellungen im localStorage
 window.toggleMute = function () {
 	window.isMuted = !window.isMuted;
@@ -141,7 +142,7 @@ window.exportCSV = function () {
 		let optB = q.options && q.options[1] ? q.options[1].replace(/"/g, '""') : "";
 		let optC = q.options && q.options[2] ? q.options[2].replace(/"/g, '""') : "";
 		let optD = q.options && q.options[3] ? q.options[3].replace(/"/g, '""') : "";
-		
+
 		let ansField = "";
 		if (type === "multiple") {
 			ansField = q.answer.join(",");
@@ -243,6 +244,7 @@ window.loadDownloadFiles = async function () {
 
 window.onload = () => {
 	const modusSelect = document.getElementById("Modus");
+	updateMuteUI();
 
 	if (modusSelect) {
 		modusSelect.onchange = function () {
