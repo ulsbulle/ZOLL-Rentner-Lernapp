@@ -263,7 +263,7 @@ window.loadDevToolsFiles = async function () {
 				? tools
 						.map(
 							(file) => `
-                <button onclick="window.location.href='/tools/${file}'" class="w-full p-4 border-2 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left font-bold transition-all flex justify-between items-center group">
+                <button onclick="window.open('/tools/${file}', '_blank')" class="w-full p-4 border-2 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left font-bold transition-all flex justify-between items-center group">
                     <span class="text-slate-900 dark:text-white">🛠️ ${file.replace(".html", "").replace(".js", "")}</span>
                     <span class="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">Öffnen →</span>
                 </button>
