@@ -244,13 +244,14 @@ window.loadDownloadFiles = async function () {
 };
 
 // <-- NEU ab hier
-Window.loadDevToolsFiles = async function () {
+window.loadDevToolsFiles = async function () {
 	const devtoolsList = document.getElementById("devtools-list");
 	if (!devtoolsList) return;
 
 	try {
 		const response = await fetch("/api/files/tools");
 
+		// Prüfen, ob die Antwort vom Server gültiges JSON ist
 		if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
 			throw new Error("Server antwortete nicht mit JSON.");
 		}
@@ -262,7 +263,7 @@ Window.loadDevToolsFiles = async function () {
 				? tools
 						.map(
 							(file) => `
-                <button onclick="window.open('/tools/${file}', '_blank')" class="w-full p-4 border-2 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left font-bold transition-all flex justify-between items-center group">
+                <button onclick="window.location.href='/tools/${file}'" class="w-full p-4 border-2 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left font-bold transition-all flex justify-between items-center group">
                     <span class="text-slate-900 dark:text-white">🛠️ ${file.replace(".html", "").replace(".js", "")}</span>
                     <span class="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">Öffnen →</span>
                 </button>
@@ -273,7 +274,7 @@ Window.loadDevToolsFiles = async function () {
 	} catch (error) {
 		console.error("Fehler beim Laden der Entwicklertools:", error);
 		devtoolsList.innerHTML =
-			'<p class="text-slate-400 text-sm italic text-center py-4">Entwicklertools konnten nicht geladen werden.</p>';
+			'<p class="text-slate-400 text-sm italic text-center py-4">Entwicklertools konnten nicht geladen werden. Prüfe den Ordnernamen auf dem Server.</p>';
 	}
 };
 // <-- NEU bis hier
