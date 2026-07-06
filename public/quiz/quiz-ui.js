@@ -32,6 +32,7 @@ window.goToHome = function () {
 	document.getElementById("section-pdf").classList.remove("hidden");
 	document.getElementById("section-csv").classList.add("hidden");
 	document.getElementById("section-template").classList.add("hidden");
+	document.getElementById("section-devtools").classList.add("hidden");
 	document.getElementById("pdf-preview-box").classList.add("hidden");
 	document.getElementById("file-name").innerText = "PDF WÄHLEN / DROP";
 	document.getElementById("pdf-file").value = "";
@@ -242,6 +243,35 @@ window.loadDownloadFiles = async function () {
 	}
 };
 
+// <-- NEU ab hier
+window.loadDevToolsFiles = async function () {
+	const devtoolsList = document.getElementById("devtools-list");
+	if (!devtoolsList) return;
+
+	try {
+		const response = await fetch("/api/files/tools");
+		const tools = await response.json();
+
+		devtoolsList.innerHTML =
+			tools.length > 0
+				? tools
+						.map(
+							(file) => `
+                <button onclick="window.location.href='/tools/${file}'" class="w-full p-4 border-2 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-left font-bold transition-all flex justify-between items-center group">
+                    <span class="text-slate-900 dark:text-white">🛠️ ${file.replace(".html", "").replace(".js", "")}</span>
+                    <span class="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">Öffnen →</span>
+                </button>
+            `,
+						)
+						.join("")
+				: '<p class="text-slate-400 text-center">Keine Entwicklertools gefunden.</p>';
+	} catch (error) {
+		console.error("Fehler beim Laden der Entwicklertools:", error);
+		devtoolsList.innerHTML = '<p class="text-red-500 text-center">Fehler beim Laden der Tools vom Server.</p>';
+	}
+};
+// <-- NEU bis hier
+
 window.onload = () => {
 	const modusSelect = document.getElementById("Modus");
 	updateMuteUI();
@@ -255,9 +285,15 @@ window.onload = () => {
 			document.getElementById("section-template").classList.toggle("hidden", val !== "TEMPLATE");
 			document.getElementById("section-training").classList.toggle("hidden", val !== "TRAINING");
 			document.getElementById("section-downloads").classList.toggle("hidden", val !== "DOWNLOADS");
+			document.getElementById("section-devtools").classList.toggle("hidden", val !== "DEVTOOLS");
 
 			if (val === "DOWNLOADS" || val === "TEMPLATE") {
 				window.loadDownloadFiles();
+			}
+
+			if (val === "DEVTOOLS") {
+				// <-- NEU
+				window.loadDevToolsFiles(); // <-- NEU
 			}
 
 			if (val !== "TRAINING") {
@@ -274,6 +310,7 @@ window.onload = () => {
 	document.getElementById("section-template").classList.add("hidden");
 	document.getElementById("section-training").classList.add("hidden");
 	document.getElementById("section-downloads").classList.add("hidden");
+	document.getElementById("section-devtools").classList.add("hidden");
 
 	window.renderHistory();
 };
@@ -289,6 +326,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			document.getElementById("section-template").classList.toggle("hidden", val !== "TEMPLATE");
 			document.getElementById("section-training").classList.toggle("hidden", val !== "TRAINING");
 			document.getElementById("section-downloads").classList.toggle("hidden", val !== "DOWNLOADS");
+			document.getElementById("section-devtools").classList.toggle("hidden", val !== "DEVTOOLS");
 
 			if (val === "DOWNLOADS" || val === "TEMPLATE") {
 				window.loadDownloadFiles();
@@ -297,6 +335,11 @@ document.addEventListener("DOMContentLoaded", () => {
 			if (this.value !== "TRAINING") {
 				window.gameActive = false;
 				if (typeof window.gameInterval !== "undefined") clearInterval(window.gameInterval);
+			}
+
+			if (val === "DEVTOOLS") {
+				// <-- NEU
+				window.loadDevToolsFiles(); // <-- NEU
 			}
 		};
 	}
