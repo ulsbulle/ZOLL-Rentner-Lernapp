@@ -31,7 +31,7 @@ app.post("/api/quiz", async (req, res) => {
 	console.log("--- Quiz-Anfrage gestartet (Lücke/Freitext auf ein Wort begrenzt) ---");
 
 	try {
-		let { pdfBase64, questionCount, customprompt } = req.body;
+		let { pdfBase64, questionCount, customPrompt } = req.body;
 		const apiKey = process.env.GEMINI_API_KEY;
 
 		if (!apiKey) return res.status(500).json({ error: "Server-Konfigurationsfehler: API-Key fehlt." });
@@ -59,7 +59,7 @@ app.post("/api/quiz", async (req, res) => {
 2. "cloze" (Lückentext - Die Lösung MUSS aus exakt EINEM WORT bestehen)
 3. "free" (Freitext / Offene Frage - Die Lösung MUSS aus exakt EINEM WORT bestehen)
 
-Erstelle insgesamt exakt ${questionCount || 3} Fragen. ${customprompt || ""}
+Erstelle insgesamt exakt ${questionCount || 3} Fragen. ${customPrompt || ""}
 
 Du MUSST als Antwort AUSSCHLIESSLICH ein valides JSON-Array zurückgeben. Keine zusätzlichen Erklärungen, Einleitungen oder Formatierungen (wie \`\`\`json ... \`\`\`), kein Text davor oder danach!
 
