@@ -250,14 +250,18 @@ window.loadDownloadFiles = async function () {
 			downloadList2.innerHTML =
 				downloads.length > 0
 					? downloads
-							.map(
-								(file) => `
-                <li class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
-                    <span class="text-slate-700 dark:text-slate-300 font-medium truncate">📦 ${file}</span>
-                    <a href="/downloads/${file}" download class="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-bold hover:bg-black transition-all">Download ↓</a>
-                </li>
-            `,
-							)
+							.map((file) => {
+								// Prüfen, ob die Datei auf .pdf endet (Groß-/Kleinschreibung ignoriert)
+								const isPdf = file.toLowerCase().endsWith(".pdf");
+								const icon = isPdf ? "📄" : "📦"; // 📄 für PDF, sonst 📦
+
+								return `
+                        <li class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                            <span class="text-slate-700 dark:text-slate-300 font-medium truncate">${icon} ${file}</span>
+                            <a href="/downloads/${file}" download class="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-bold hover:bg-black transition-all">Download ↓</a>
+                        </li>
+                    `;
+							})
 							.join("")
 					: '<li class="text-slate-400 text-sm italic">Keine sonstigen Dateien gefunden.</li>';
 		}
