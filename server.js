@@ -1,3 +1,10 @@
+// Server.js
+// ------------------------------
+// Diese Datei stellt das Backend bereit. Sie regelt das statische Hosting von Dateien. (GitHub / render https://zoll-rentner-lernapp.onrender.com/)
+// Die KI-gestützte Quiz-Generierung über die Google Gemini API sowie Endpunkte zum Auslesen lokaler Ordnerstrukturen.
+// API-KEY ist nicht offen sondern als Server-Variabele auf dem Backend
+// ------------------------------
+
 import express from "express";
 import cors from "cors";
 import path from "path";
@@ -18,13 +25,19 @@ app.use(express.static("public"));
 app.use(express.static(path.join(__dirname, "public")));
 
 // 1. Ordner als statisch markieren
-// Dies ermöglicht den Zugriff auf Dateien via http://.../templates/name.csv
+// Dies ermöglicht den Zugriff auf Dateien z.B. via http://.../templates/name.csv
 // Es wird sowohl im 'downloads' als auch im 'templates' Ordner gesucht
+// Jetzt auch Michis Tools
 app.use("/downloads", express.static(path.join(__dirname, "downloads")));
 app.use("/templates", express.static(path.join(__dirname, "templates")));
 app.use("/tools", express.static(path.join(__dirname, "tools")));
 
 /** --- QUIZ ENDPUNKT MIT GEMINI 2.5 FLASH (FOKUS: EINWORT-ANTWORTEN) --- **/
+// Dies ist der zentrale API-Endpunkt für die Generierung von Quizfragen aus einer hochgeladenen PDF-Datei.
+// Funktionsweise: Nimmt eine Base64-kodierte PDF-Datei (durch den Benutzer hochgeaden),
+// die gewünschte Fragenanzahl und optionale Zusatzanweisungen (customPrompt über das Zahnrad) entgegen.
+// Es werden die Daten an das Google-Modell gesendet, verarbeitet die Server-Fehlercodes (z. B. Rate-Limits)
+// und gibt ein JSON-Array an das Frontend zurück.
 app.post("/api/quiz", async (req, res) => {
 	// Dem Server erlauben, sich bis zu 2.5 Min Zeit zu nehmen
 	req.setTimeout(150000);
@@ -101,7 +114,7 @@ WICHTIG: Achte bei 'cloze' und 'free' strengstens darauf, dass niemals Sätze od
 		if (response.status === 429) {
 			console.error("Quota-Limit überschritten.");
 			return res.status(429).json({
-				error: "Das tägliche Limit für kostenlose Quiz-Erstellungen ist erreicht. Bitte versuche es morgen wieder oder kontaktiere den Admin.",
+				error: "Das tägliche Limit für kostenlose Quiz-Erstellungen ist erreicht. Bitte versuche es morgen wieder oder kontaktiere den Admin (die Zollrentner).",
 			});
 		}
 
@@ -131,6 +144,9 @@ WICHTIG: Achte bei 'cloze' und 'free' strengstens darauf, dass niemals Sätze od
 });
 
 // Hilfsfunktion (Vereinheitlicht)
+// Eine universelle Hilfsfunktion für das lokale Dateisystem.
+// Funktionsweise: Prüft, ob das übergebene Verzeichnis existiert. Wenn nicht, wird es automatisch angelegt (fs.mkdirSync).
+// Anschließend liest es synchron alle Dateien aus, filtert versteckte Systemdateien (die mit einem . beginnen) heraus und gibt die bereinigte Liste zurück.
 const getFilesFromDir = (folder) => {
 	const dirPath = path.join(__dirname, folder);
 	if (!fs.existsSync(dirPath)) {
@@ -146,6 +162,8 @@ const getFilesFromDir = (folder) => {
 /** --- DATEI-SYSTEM ENDPUNKTE --- **/
 
 // Endpunkt für den 'templates' Ordner (Lernmaterialien)
+// Endpunkt für Lernmaterialien.
+// Funktionsweise: Ruft getFilesFromDir("templates") auf und gibt die Liste der verfügbaren Vorlagen als JSON an den Client zurück.
 app.get("/api/files/templates", (req, res) => {
 	try {
 		const files = getFilesFromDir("templates");
@@ -156,6 +174,8 @@ app.get("/api/files/templates", (req, res) => {
 });
 
 // Endpunkt für den 'downloads' Ordner (Sonstige Downloads)
+// Endpunkt für allgemeine Downloads.
+// Funktionsweise: Ruft getFilesFromDir("downloads") auf und liefert die darin enthaltenen Dateien als JSON aus.
 app.get("/api/files/downloads", (req, res) => {
 	try {
 		const files = getFilesFromDir("downloads");
@@ -165,7 +185,9 @@ app.get("/api/files/downloads", (req, res) => {
 	}
 });
 
-// Endpunkt für den 'tools' Ordner (Entwicklertools)
+// Endpunkt für den 'tools' Ordner (Entwicklertools) --> Michi
+// Endpunkt für integrierte Web-Entwicklertools.
+// Funktionsweise: Ruft getFilesFromDir("tools") auf, um zusätzliche HTML/JS-Hilfsprogramme für den Benutzer
 app.get("/api/files/tools", (req, res) => {
 	// <-- NEU: API-Route bereitstellen
 	try {
