@@ -251,14 +251,19 @@ window.loadDownloadFiles = async function () {
 				downloads.length > 0
 					? downloads
 							.map((file) => {
-								// Prüfen, ob die Datei auf .pdf endet (Groß-/Kleinschreibung ignoriert)
 								const isPdf = file.toLowerCase().endsWith(".pdf");
-								const icon = isPdf ? "📄" : "📦"; // 📄 für PDF, sonst 📦
+								const icon = isPdf ? "📄" : "📦";
+
+								// Wenn es eine PDF ist: in neuem Tab öffnen (_blank) ohne 'download'-Attribut
+								// Wenn es keine PDF ist: normaler Download
+								const actionAttribute = isPdf ? 'target="_blank"' : "download";
+
+								const btnText = isPdf ? "Öffnen ↗" : "Download ↓";
 
 								return `
                         <li class="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
                             <span class="text-slate-700 dark:text-slate-300 font-medium truncate">${icon} ${file}</span>
-                            <a href="/downloads/${file}" download class="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-bold hover:bg-black transition-all">Download ↓</a>
+                            <a href="/downloads/${file}" ${actionAttribute} class="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-bold hover:bg-black transition-all">${btnText}</a>
                         </li>
                     `;
 							})
