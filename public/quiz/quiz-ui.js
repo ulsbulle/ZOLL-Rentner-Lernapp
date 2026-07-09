@@ -1,5 +1,7 @@
 // Funktionen für DOM und BOM
 // ------------------------------
+//Verwaltet die gesamte Benutzeroberfläche, Event-Listener, Themes, PDF-Rendering auf dem Canvas sowie Datei-Ex- und Importe.
+// ------------------------------
 
 import { handleDragOver, handleDragLeave, handleDrop, handleDragLeaveCSV, parseCSVData } from "./quiz-utils.js";
 import { QuizEngine } from "./quiz-engine.js";
@@ -14,7 +16,8 @@ window.isMuted = localStorage.getItem("quiz_muted") === "true";
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js"; //laden der Bibliothek
 
 /** --- UI-HILFSFUNKTIONEN --- **/
-//Quiz starten
+// Quiz starten
+// Globale Verbindungs-Funktionen, um Events an die QuizEngine weiterzuleiten.
 window.startQuizGeneration = () => {
 	const file = document.getElementById("pdf-file").files[0];
 	const customPrompt = document.getElementById("custom-prompt").value;
@@ -22,7 +25,8 @@ window.startQuizGeneration = () => {
 };
 window.restartCurrentQuiz = () => window.quizApp.restartCurrentQuiz();
 
-//zurück zu Hauptmenü
+// zurück zu Hauptmenü
+// Navigation zurück zum Hauptmenü. Setzt alle Eingabefelder, Datei-Auswahlen und UI-Zustände zurück.
 window.goToHome = function () {
 	window.quizApp.resetStats();
 	window.quizApp.quizData = [];
@@ -40,13 +44,14 @@ window.goToHome = function () {
 	document.getElementById("section-downloads").classList.add("hidden");
 };
 
-//Quiz ausblenden-
+// Quiz ausblenden-
 window.toggleCard = function (id) {
 	["setup-card", "status", "quiz-container"].forEach((c) => document.getElementById(c)?.classList.add("hidden"));
 	document.getElementById(id)?.classList.remove("hidden");
 };
 
-//Download ausblenden
+// Download ausblenden
+// Blendet die Download-Sektion basierend auf einem Boolean-Wert ein oder aus.
 window.toggleDownloads = function (show) {
 	const downloadSection = document.getElementById("section-downloads");
 	if (downloadSection) {
@@ -58,7 +63,8 @@ window.toggleDownloads = function (show) {
 	}
 };
 
-//Verlauf rendern
+// Verlauf rendern
+// Liest die letzten 10 Testergebnisse aus dem lokalen Browserspeicher (localStorage) und generiert eine tabellarische Listenansicht im UI.
 window.renderHistory = function () {
 	const h = JSON.parse(localStorage.getItem("quiz_history") || "[]");
 	const list = document.getElementById("history-list");
@@ -77,20 +83,23 @@ window.renderHistory = function () {
 		.join("");
 };
 
-//Verlauf löschen
+// Verlauf löschen
+// Löscht die Historie aus dem Speicher und aktualisiert die Ansicht sofort.
 window.clearHistory = () => {
 	localStorage.removeItem("quiz_history");
+	// Liest die letzten 10 Testergebnisse aus dem lokalen Browserspeicher (localStorage) und generiert eine tabellarische Listenansicht im UI.
 	window.renderHistory();
 };
 
 /** --- AUDIO UI --- **/
+// Verwaltet die Sound-Optionen. Ändert das Lautsprecher-Emoji (🔊/🔇) und setzt das globale Volume der Audio-Engine gegenläufig auf 0 oder 1.
 function updateMuteUI() {
 	const btn = document.getElementById("mute-btn");
 	if (btn) btn.innerText = window.isMuted ? "🔇" : "🔊";
 	btn.title = window.isMuted ? "Ton einschalten" : "Ton stummschalten";
 }
 
-//Speichern der Einstellungen im localStorage
+// Speichern der Einstellungen im localStorage
 window.toggleMute = function () {
 	window.isMuted = !window.isMuted;
 	if (window.audioEngine) window.audioEngine.setVolume(window.isMuted ? 0 : 1);
@@ -99,6 +108,9 @@ window.toggleMute = function () {
 };
 
 /** --- PDF VORSCHAU --- **/
+// Erzeugt eine Live-Vorschau der hochgeladenen PDF-Datei (1.Seite).
+// Funktionsweise: Lädt die Datei via FileReader, füttert die Bibliothek pdf.js damit,
+// greift sich die allererste Seite und zeichnet diese skaliert.
 window.previewPDF = async function (input) {
 	const file = input.files[0];
 	if (!file || file.type !== "application/pdf") return;
@@ -120,6 +132,9 @@ window.previewPDF = async function (input) {
 };
 
 /** --- DATEN IMPORT / EXPORT --- **/
+// Laden lokaler Quiz-Dateien ohne Serververbindung.
+// Funktionsweise: Liest eine vom Nutzer ausgewählte CSV-Datei als Text ein,
+// konvertiert sie über die Utility-Funktionen in ein JS-Objekt und übergibt sie an die Quiz-Engine.
 window.importCSV = function (source) {
 	window.quizApp.resetStats();
 	const file = source.files ? source.files[0] : source[0];
@@ -133,6 +148,10 @@ window.importCSV = function (source) {
 	r.readAsText(file, "UTF-8");
 };
 
+// Exportiert das aktuelle Quiz-Set als CSV-Datei auf die Festplatte des Nutzers.
+// Jetzt auch mit der Spalte Typ um die unterschiedlichen Fragen erkennbar zu machne.
+// Fragentypen free und cloze sind werden damit beim Re-Import korrekt verarbeitet.
+// Für Lückentexte wird das ermittelte Lösungswort automatisch wieder in eckige Klammern gesetzt.
 window.exportCSV = function () {
 	// Erweitert um das optionale Feld "Typ" zur Typerhaltung
 	let csv = "\uFEFFFrage;Option A;Option B;Option C;Option D;Antwort;Typ\n";
@@ -163,6 +182,7 @@ window.exportCSV = function () {
 	a.click();
 };
 
+// Lädt serverseitig bereitgestellte Lern-Vorlagen direkt via HTTP-Fetch.
 window.loadTemplate = async function (url) {
 	window.quizApp.resetStats();
 	window.toggleCard("status");
@@ -174,11 +194,14 @@ window.loadTemplate = async function (url) {
 		window.quizApp.loadQuizData(parsedData);
 	} catch (err) {
 		alert("Fehler beim Laden der Vorlage: " + err.message);
+		// Navigation zurück zum Hauptmenü. Setzt alle Eingabefelder, Datei-Auswahlen und UI-Zustände auf den Werkszustand zurück.
 		window.goToHome();
 	}
 };
 
 /** --- INITIALISIERUNG --- **/
+// Ruft parallel (Promise.all) die API-Endpunkte für Vorlagen und Downloads ab und generiert daraus dynamisch
+// Listen mit Download-Buttons oder Direkt-Start-Buttons für CSV-Dateien.
 window.loadDownloadFiles = async function () {
 	const downloadList = document.getElementById("file-list");
 	const downloadList2 = document.getElementById("file2-list");
@@ -243,7 +266,10 @@ window.loadDownloadFiles = async function () {
 	}
 };
 
-// <-- NEU ab hier
+// <-- NEU für Michis Tools
+// Lädt die verfügbaren Entwickler-Tools vom Server.
+// Funktionsweise: Holt die Tool-Liste ab und rendert Schaltflächen, die beim Klick das jeweilige Werkzeug in einem neuen Browsertab (_blank) öffnen.
+// Enthält einen integrierten Fallback für den Fall, dass etwas nicht geladen werden kann.
 window.loadDevToolsFiles = async function () {
 	const devtoolsList = document.getElementById("devtools-list");
 	if (!devtoolsList) return;
@@ -373,6 +399,8 @@ window.updateThemeButton = function (isDark) {
 	}
 };
 
+// Barrierefreiheits- und Styling-Optionen. Schalten CSS-Klassen (.dark / .contrast)
+// auf dem Root-Dokument um und speichern die Nutzerpräferenz dauerhaft im Browser.
 window.toggleDarkMode = function () {
 	const isDark = document.documentElement.classList.toggle("dark");
 	localStorage.setItem("darkMode", isDark);
@@ -394,6 +422,8 @@ document.addEventListener("DOMContentLoaded", () => {
 	window.updateThemeButton(isCurrentlyDark);
 });
 
+// Barrierefreiheits- und Styling-Optionen. Schalten CSS-Klassen (.dark / .contrast)
+// auf dem Root-Dokument um und speichern die Nutzerpräferenz dauerhaft im Browser.
 window.toggleContrast = function () {
 	const isContrast = document.documentElement.classList.toggle("contrast");
 	localStorage.setItem("contrastMode", isContrast);

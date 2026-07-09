@@ -1,5 +1,9 @@
 // Quizengine und Logik
 // ------------------------------
+// Diese Datei enthält die Kern-Logik des Quizzes im Frontend.
+// Verwaltung vom den Zustand des Spiels (Punkte, Fehler, aktueller Index)
+// Steuerung der visuelle Auswertung.
+// ------------------------------
 
 import { shuffleArray, toBase64 } from "./quiz-utils.js";
 
@@ -12,6 +16,9 @@ export class QuizEngine {
 		this.gameDone = false;
 	}
 
+	// Spielzustand zurücksetzen
+	// Funktionsweise: Setzt den Frage-Index auf 0, den Punktestand auf 0, leert die Liste der gemachten Fehler
+	// (userMistakes) und setzt das Spiel-Flag gameDone auf false.
 	resetStats() {
 		this.currentIndex = 0;
 		this.score = 0;
@@ -20,6 +27,9 @@ export class QuizEngine {
 	}
 
 	// Berechnet die Levenshtein-Ähnlichkeit zwischen zwei Texten (0.0 bis 1.0)
+	// Mathematische Textanalyse zur Auswertung von Freitext-Antworten.
+	// Funktionsweise: Berechnet mithilfe des Levenshtein-Algorithmus den Abstand und die Ähnlichkeit
+	// zweier Zeichenketten (Case-Insensitive und getrimmt). Gibt einen Wert zwischen 0.0 (völlig unähnlich) und 1.0 (identisch) zurück.
 	getSimilarity(s1, s2) {
 		let longer = s1.toLowerCase().trim();
 		let shorter = s2.toLowerCase().trim();
@@ -54,6 +64,11 @@ export class QuizEngine {
 	}
 
 	// --- Core Quiz Flow ---
+	// Initiiert den asynchronen Prozess der Quiz-Erstellung über das UI.
+	// Funktionsweise: Konvertiert die hochgeladene PDF-Datei in Base64,
+	// setzt ein Timeout-Limit von 30 Sekunden ab und sendet die Anfrage an das Backend.
+	// Nach Erhalt der Fragen werden diese gemischt (shuffleArray)
+	// und die korrekten Antwortindizes für Multiple-Choice-Fragen so umsortiert, dass sie trotz Shuffling der Antwort-Optionen konsistent bleiben.
 	async startQuizGeneration(file, customPrompt) {
 		this.resetStats();
 		if (!file) return alert("PDF fehlt!");
@@ -121,6 +136,9 @@ export class QuizEngine {
 		}
 	}
 
+	// Lädt ein bereits generiertes oder importiertes Set an Fragen direkt in die Engine.
+	// Funktionsweise: Überspringt die API-Generierung, speichert das Fragen-Array in this.quizData,
+	// schaltet die Ansicht um und startet die Anzeige.
 	loadQuizData(data) {
 		if (!data) {
 			window.goToHome();
@@ -130,7 +148,15 @@ export class QuizEngine {
 		window.toggleCard("quiz-container");
 		this.showQuestion();
 	}
-
+	// Engine für das aktuelle Quiz-Element.
+	// Funktionsweise: Prüft, ob das Ende des Quizzes erreicht ist. Wenn nicht, ermittelt sie den Fragentyp (free, cloze, multiple)
+	// und baut das HTML-Interface dynamisch auf:
+	// free: Generiert ein Texteingabefeld. Die Prüfung (checkAnswer) validiert mittels getSimilarity.
+	// Ab einer Ähnlichkeit von 88% gilt es als richtig, ab  68% als "fast richtig" (gibt 0.5 Punkte).
+	// cloze: Filtert mithilfe einer Regex nach eckigen Klammern [...] in der Frage, ersetzt diese durch Unterstriche (________)
+	// und verlangt die Eingabe des isolierten Lückenwortes im Eingabefeld.
+	// multiple: Rendert bis zu 4 Antwortbuttons inklusive Tastatur-Hotkeys (Tasten 1–4).
+	// Ermöglicht Multi-Select. Bei der Auswertung werden alle korrekten Optionen grün und falsch gewählte Optionen rot gefärbt.
 	showQuestion() {
 		if (this.currentIndex >= this.quizData.length) {
 			this.showRes();
@@ -392,6 +418,10 @@ export class QuizEngine {
 		};
 	}
 
+	// Schließt das Quiz ab und rendert das Endergebnis.
+	// Funktionsweise: Versteckt den Quiz-Screen, berechnet die prozentuale Erfolgsquote, triggert je nach Erfolg eine Gewinner-
+	// oder Verlierermusik und listet im Fehlerfall eine detaillierte Fehleranalyse (mistake-analysis) auf.
+	// Zudem wird das Ergebnis in die localStorage-Historie geschrieben.
 	showRes() {
 		document.getElementById("quiz-content").classList.add("hidden");
 		document.getElementById("result-screen").classList.remove("hidden");
@@ -429,6 +459,9 @@ export class QuizEngine {
 		window.renderHistory();
 	}
 
+	// Startet das aktuell geladene Quiz neu, ohne die KI erneut abzufragen.
+	// Funktionsweise: Setzt die Statistiken zurück, mischt das bestehende Fragen-Array sowie dessen
+	// Multiple-Choice-Optionen neu durch und startet die Anzeige von vorn.
 	restartCurrentQuiz() {
 		if (this.quizData.length === 0) return window.goToHome();
 
