@@ -97,6 +97,7 @@ function updateMuteUI() {
 	const btn = document.getElementById("mute-btn");
 	if (btn) btn.innerText = window.isMuted ? "🔇" : "🔊";
 	btn.title = window.isMuted ? "Ton einschalten" : "Ton stummschalten";
+	btn.ariaLabel = window.isMuted ? "Ton einschalten" : "Ton stummschalten";
 }
 
 // Speichern der Einstellungen im localStorage
@@ -405,6 +406,7 @@ window.updateThemeButton = function (isDark) {
 	if (themeBtn) {
 		themeBtn.innerText = isDark ? "☀️" : "🌙";
 		themeBtn.title = isDark ? "Zu hellem Design wechseln" : "Zu dunklem Design wechseln";
+		themeBtn.ariaLabel = isDark ? "Zu hellem Design wechseln" : "Zu dunklem Design wechseln";
 	}
 };
 
@@ -441,6 +443,7 @@ window.toggleContrast = function () {
 	if (contrastBtn) {
 		contrastBtn.innerText = isContrast ? "🕶️" : "👁️";
 		contrastBtn.title = isContrast ? "Zu normalem Modus wechseln" : "Zu Kontrastmodus wechseln";
+		contrastBtn.ariaLabel = isContrast ? "Zu normalem Modus wechseln" : "Zu Kontrastmodus wechseln";
 	}
 };
 
