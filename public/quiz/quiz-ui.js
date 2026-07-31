@@ -8,9 +8,6 @@ import { QuizEngine } from "./quiz-engine.js";
 
 // Globale Instanziierung der Engine
 window.quizApp = new QuizEngine();
-window.gamePoints = 0;
-window.maxScore = 10;
-window.difficulty = 1.0;
 window.isMuted = localStorage.getItem("quiz_muted") === "true";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js"; //laden der Bibliothek
