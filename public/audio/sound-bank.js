@@ -1,31 +1,43 @@
 // Soundbank mit Oszillatorfunktionen
-// ------------------------------
+// -----------------------------------
+// - Bereitstellung grundlegender Wellenformen (Sinus, Sägezahn, Rechteck, Dreieck)
+// - Bibliothek aus DSP-Funktionen zur Klangsynthese der Instrumente und Effekte
+// - echtzeitbasierte Berechnung mittels Oszillatoren, Rauschen, Modulationen und Hüllkurven
+// - Soft-Clipping der Signale
 
 // Globale Hilfsfunktionen und Konstanten
-const musicVolume = 0.8;
+const musicVolume = 0.75;
 const soundVolume = 1.0;
 const bubbleBurstAdjustement = 2.5;
 export const PI = Math.PI;
 export const PI2 = Math.PI * 2;
+
+// Phasennormierung auf [0, 2π] via Modulo
+// Verhinderung von Fließkommaungenauigkeiten bei großen Werten
 const normalizePhase = (p) => {
 	const phase = p % PI2;
 	return phase < 0.0 ? phase + PI2 : phase;
 };
 
 // Grundwellen
+// Sägezahn: linearer Anstieg von -1 bis 1, abrupter Abfall am Ende der Periode
 const sawWave = (p) => normalizePhase(p) / PI - 1.0;
+// Rechteck: harter Vorzeichenwechsel nach jeder halben Periode
 const squareWave = (p) => (normalizePhase(p) < PI ? 1.0 : -1.0);
+// Dreieck: linearer Ansieg / Abfall von -1 bis 1, Umkehrung alle Vielfache von Pi
 const triangleWave = (p) => 1.0 - 2.0 * Math.abs(normalizePhase(p) / PI - 1.0);
 
-// Zusammengesetzte Wellen
+// Additive Synthese komplexerer Wellen
 const polyWave = (p) => 0.6 * triangleWave(p) + 0.2 * Math.sin(p) + 0.2 * sawWave(p);
 const stringsWave = (p) => 0.5 * sawWave(p) + 0.3 * triangleWave(p) + 0.2 * Math.sin(p);
 const voiceWave = (p) => 0.7 * (Math.sin(p) + 0.3 * Math.sin(p * 2.0)) + 0.2 * triangleWave(p);
+
+// Verwendung von Phasenmodulation zur Erzeugung metallischer Klänge
 const rideWave = (p) => Math.sin(p + Math.sin(p * 1.5) * 1.5);
 const crashWave = (p) => Math.sin(p + Math.sin(p * 1.6) * 2.0);
 const agogoWave = (p, time) => Math.sin(p + Math.sin(p * 1.8) * 0.4 * Math.exp(-time * 6.5));
 
-// Soundbank
+// Soundbank allozieren
 export const soundBank = new Array(46);
 
 // ============================================================================
@@ -56,6 +68,8 @@ soundBank[2] = function saw(phase, time) {
 	const mix = sawWave(phase);
 
 	// Sättigung und Lautstärkenormalisierung
+	// Lautstärke-Begrenzung via Tangens hyperbolicus (Soft Clipping)
+	// Sättigung zur Abrundung von Spitzen (Bandsättigung)
 	const saturation = 1.5;
 	const level = 0.5;
 	const output = Math.tanh(mix * saturation) * level * musicVolume;
@@ -64,11 +78,11 @@ soundBank[2] = function saw(phase, time) {
 };
 
 soundBank[3] = function chiffer(phase, time) {
-	// Rauschen
+	// Rauschen (Anblasgeräusch)
 	const noiseEnvelope = Math.exp(-time * 40.0) * 0.1 + 0.03;
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope;
 
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
 	const dropEnvelope = Math.exp(-time * 40.0);
 	const drop = (Math.sin(phase * 6.8) * 1.1 + Math.sin(phase * 8.0) * 1.1) * dropEnvelope;
 
@@ -110,7 +124,7 @@ soundBank[3] = function chiffer(phase, time) {
 };
 
 soundBank[4] = function poly(phase, time) {
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
 	const dropEnvelope = Math.exp(-time * 4.0);
 	const drop = dropEnvelope * 0.4;
 
@@ -119,6 +133,7 @@ soundBank[4] = function poly(phase, time) {
 	const detune = 0.01 + detuneIncrease * 0.015;
 
 	// Phasen und Modulation
+	// Chorus-Effekt und Lebendigkeit durch verstimmte Phasen und langsame Modulationen
 	const modulationB = Math.sin(time * 2.2) * 0.004;
 	const modulationC = Math.cos(time * 1.6) * 0.005;
 	const modulationD = Math.sin(time * 2.8) * 0.003;
@@ -165,6 +180,7 @@ soundBank[5] = function strings(phase, time) {
 	const detune = 0.008 + detuneIncrease * 0.015;
 
 	// Phasen und Modulation
+	// Chorus-Effekt und Lebendigkeit durch verstimmte Phasen und langsame Modulationen
 	const modulationB = Math.sin(time * 1.2) * 0.003;
 	const modulationC = Math.cos(time * 0.8) * 0.004;
 	const modulationD = Math.sin(time * 1.5) * 0.002;
@@ -206,11 +222,13 @@ soundBank[5] = function strings(phase, time) {
 };
 
 soundBank[6] = function brass(phase, time) {
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
 	const dropEnvelope = Math.exp(-time * 20.0);
 	const drop = dropEnvelope * 0.15;
 
 	// Phasen und Modulation
+	// Frequenzmodulation für obertonreichen Blechbläserklang im Attack
+	// Modulation hängt von Hüllkurve ab (Obertöne hängen von Blasdruck ab)
 	const modulationA = Math.sin(time * 5.0) * 0.002;
 	const modulationFmEnvelope = Math.exp(-time * 8.0);
 	const modulationFm = 1.5 + 2.5 * modulationFmEnvelope;
@@ -244,6 +262,7 @@ soundBank[6] = function brass(phase, time) {
 
 soundBank[7] = function harp(phase, time) {
 	// Attack-Inharmonizität
+	// Zupfgeräusch durch inharmonische Obertöne (5.6, 8.2)
 	const attackEnvelope = Math.exp(-time * 25.0);
 	const attack = (Math.sin(phase * 5.6) * 0.4 + Math.sin(phase * 8.2) * 0.2) * attackEnvelope;
 
@@ -265,7 +284,7 @@ soundBank[7] = function harp(phase, time) {
 		// Attack: Sinusförmiger Anstieg auf 100%
 		envelope = Math.sin((time / attackTime) * (PI / 2.0));
 	} else {
-		// Decay: Schneller Abfall auf 0%
+		// Decay: Exponentieller Abfall auf 0%
 		const decayTime = time - attackTime;
 		envelope = Math.exp(-decayTime * 2.0);
 	}
@@ -275,7 +294,7 @@ soundBank[7] = function harp(phase, time) {
 
 soundBank[8] = function fantasia(phase, time) {
 	// --- Chorklang ---
-	// Rauschen
+	// Rauschen (Lufstromgeräusch)
 	const voiceNoise = Math.random() * 2.0 - 1.0;
 
 	// Zeitabhängige Verstimmung
@@ -283,6 +302,7 @@ soundBank[8] = function fantasia(phase, time) {
 	const voiceDetune = 0.006 + voiceDetuneIncrease * 0.012;
 
 	// Phasen und Modulation
+	// Chorus-Effekt und Lebendigkeit durch verstimmte Phasen und langsame Modulationen
 	const voiceModulationA = Math.sin(time * 1.5) * 0.005;
 	const voiceModulationB = Math.cos(time * 1.1) * 0.005;
 	const voicePhaseA = phase * (1.0 + voiceDetune + voiceModulationA);
@@ -316,10 +336,12 @@ soundBank[8] = function fantasia(phase, time) {
 
 	// --- Glockenklang ---
 	// Attack-Inharmonizität
+	// starkes disharmonisches Anschlagsgeräusch
 	const bellAttackEnvelope = Math.exp(-time * 30.0);
 	const bellAttack = (Math.sin(phase * 7.0) + Math.sin(phase * 12.0) * 0.5) * bellAttackEnvelope;
 
 	// Oszillator
+	// Additive Synthese eines glockentypischen Spektrums mit obertonspezifischen Hüllkurven
 	const bellOscillator =
 		0.25 * Math.sin(phase * 0.5) * Math.exp(-time * 0.5) +
 		0.6 * Math.sin(phase * 1.0) * Math.exp(-time * 0.8) +
@@ -365,15 +387,17 @@ soundBank[8] = function fantasia(phase, time) {
 // ============================================================================
 // Perkussionsinstrumente: Sternenslalom
 // ============================================================================
+// Perkussionsinstrumente und Soundeffekte ignorieren die Phasenübergabe und sind nur zeitabhängig
 
 soundBank[9] = function bass(time) {
 	const frequency = 24.5; // G0
 
-	// Rauschen
+	// Rauschen (Anschlagklick)
 	const noiseEnvelope = Math.exp(-time * 80.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope * 0.25;
 
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
+	// Simulation des Spannungsabfalls des Trommelfells
 	const drop = Math.exp(-time * 20.0) * 0.3;
 
 	// Phase und Modulation
@@ -401,15 +425,17 @@ soundBank[9] = function bass(time) {
 };
 
 soundBank[10] = function snare(time) {
-	const frequencyA = 196.0; // G3
-	const frequencyB = 293.66; // D4
+	const frequencyA = 196.0; // G3 - Schlagfell
+	const frequencyB = 293.66; // D4 - Resonanzfell
 
-	// Rauschen
+	// Rauschen (Snare-Teppich)
+	// Potenzierung für hochfrequentes Rauschen
 	const rawNoise = Math.random() * 2.0 - 1.0;
 	const noiseEnvelope = Math.exp(-time * 15.0);
 	const noise = Math.pow(rawNoise, 3) * noiseEnvelope;
 
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
+	// Simulation des Spannungsabfalls der Trommelfelle
 	const drop = Math.exp(-time * 25.0) * 0.2;
 
 	// Phasen
@@ -436,11 +462,12 @@ soundBank[10] = function snare(time) {
 soundBank[11] = function tomHigh(time) {
 	const frequency = 146.83; // D3
 
-	// Rauschen
+	// Rauschen (Anschlagklick)
 	const noiseEnvelope = Math.exp(-time * 90.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope * 0.4;
 
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
+	// Simulation des Spannungsabfalls des Trommelfells
 	const drop = Math.exp(-time * 20.0) * 0.1;
 
 	// Phase und Modulation
@@ -469,11 +496,12 @@ soundBank[11] = function tomHigh(time) {
 soundBank[12] = function tomLow(time) {
 	const frequency = 98.0; // G2
 
-	// Rauschen
+	// Rauschen (Anschlagklick)
 	const noiseEnvelope = Math.exp(-time * 70.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope * 0.5;
 
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
+	// Simulation des Spannungsabfalls des Trommelfells
 	const drop = Math.exp(-time * 15.0) * 0.05;
 
 	// Phase und Modulation
@@ -502,7 +530,8 @@ soundBank[12] = function tomLow(time) {
 soundBank[13] = function hihatClosed(time) {
 	const frequency = 2349.32; // D7
 
-	// Rauschen
+	// Rauschen (Beckenklirren)
+	// Potenzierung für hochfrequentes Rauschen
 	const rawNoise = Math.random() * 2.0 - 1.0;
 	const noise = Math.pow(rawNoise, 3);
 
@@ -510,6 +539,7 @@ soundBank[13] = function hihatClosed(time) {
 	const phase = time * frequency * PI2;
 
 	// Oszillator
+	// Metallischer Klang durch Phasenmodulation und Inharmonizitäten
 	const oscillator = Math.sin(phase + Math.sin(phase * 1.41) * 2.0 + Math.sin(phase * 2.13) * 1.5);
 
 	// Mix
@@ -531,13 +561,14 @@ soundBank[13] = function hihatClosed(time) {
 soundBank[14] = function hihatOpen(time) {
 	const frequency = 2349.32; // D7
 
-	// Rauschen
+	// Rauschen (Beckenklirren)
 	const noise = Math.random() * 2.0 - 1.0;
 
 	// Phase
 	const phase = time * frequency * PI2;
 
 	// Oszillator
+	// Metallischer Klang durch Phasenmodulation und Inharmonizitäten
 	const oscillator = Math.sin(phase + Math.sin(phase * 1.33) * 2.5 + Math.sin(phase * 2.45) * 1.8);
 
 	// Mix
@@ -551,6 +582,7 @@ soundBank[14] = function hihatOpen(time) {
 	// Hüllkurve
 	const attack = 1.0 - Math.exp(-time * 500.0);
 	const sustain = Math.exp(-time * 6.0);
+	// Steile Stoppkurve nach 0.2s schließt Hi-Hat
 	const stop = time < 0.2 ? 1.0 : Math.exp(-(time - 0.2) * 35.0);
 	const envelope = attack * sustain * stop;
 
@@ -560,7 +592,8 @@ soundBank[14] = function hihatOpen(time) {
 soundBank[15] = function ride(time) {
 	const frequency = 3135.96; // G7
 
-	// Rauschen
+	// Rauschen (Beckenklirren)
+	// Potenzierung für hochfrequentes Rauschen
 	const rawNoise = Math.random() * 2.0 - 1.0;
 	const noise = Math.pow(rawNoise, 3) * 4.0;
 
@@ -568,6 +601,7 @@ soundBank[15] = function ride(time) {
 	const phase = time * frequency * PI2;
 
 	// Oszillator
+	// Additive Synthese mit inharmonischen Obertönen für metallischen Klang
 	const oscillator = rideWave(phase) + rideWave(phase * 1.41) + rideWave(phase * 2.05) + rideWave(phase * 2.75);
 
 	// Mix
@@ -589,7 +623,7 @@ soundBank[15] = function ride(time) {
 soundBank[16] = function crash(time) {
 	const frequency = 1567.98; // G6
 
-	// Rauschen
+	// Rauschen (Beckenklirren)
 	const noiseEnvelope = Math.exp(-time * 1.5);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope * 4.0;
 
@@ -597,6 +631,7 @@ soundBank[16] = function crash(time) {
 	const phase = time * frequency * PI2;
 
 	// Oszillator
+	// Additive Synthese mit inharmonischen Obertönen für metallischen Klang
 	const oscillatorEnvelope = Math.exp(-time * 1.2);
 	const oscillator =
 		(crashWave(phase) +
@@ -628,7 +663,7 @@ soundBank[16] = function crash(time) {
 soundBank[17] = function surdoOpen(time) {
 	const frequency = 65.41; // C2
 
-	// Rauschen
+	// Rauschen (Anschlagklick)
 	const noiseEnvelope = Math.exp(-time * 80.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope * 0.05;
 
@@ -658,7 +693,7 @@ soundBank[17] = function surdoOpen(time) {
 soundBank[18] = function surdoMuted(time) {
 	const frequency = 130.81; // C3
 
-	// Rauschen
+	// Rauschen (Anschlagklick)
 	const noiseEnvelope = Math.exp(-time * 50.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope;
 
@@ -689,11 +724,12 @@ soundBank[18] = function surdoMuted(time) {
 soundBank[19] = function timbauBass(time) {
 	const frequency = 98.0; // G2
 
-	// Rauschen
+	// Rauschen (Anschlagklick)
 	const noiseEnvelope = Math.exp(-time * 25.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope;
 
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
+	// Simulation des Spannungsabfalls des Trommelfells
 	const drop = Math.exp(-time * 25.0) * 0.2;
 
 	// Phase und Modulation
@@ -720,7 +756,7 @@ soundBank[19] = function timbauBass(time) {
 soundBank[20] = function timbauOpen(time) {
 	const frequency = 164.81; // E3
 
-	// Rauschen
+	// Rauschen (Anschlagklick)
 	const noiseEnvelope = Math.exp(-time * 30.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope;
 
@@ -750,7 +786,7 @@ soundBank[20] = function timbauOpen(time) {
 soundBank[21] = function timbauSlap(time) {
 	const frequency = 261.63; // C4
 
-	// Rauschen
+	// Rauschen (Klatschen)
 	const noiseEnvelope = Math.exp(-time * 60.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope;
 
@@ -776,7 +812,8 @@ soundBank[21] = function timbauSlap(time) {
 soundBank[22] = function caixa(time) {
 	const frequency = 196.0; // G3
 
-	// Rauschen
+	// Rauschen (Schnarrseiten)
+	// Zweigeteilte Hüllkurve (leichtes Fade-In, dann exponentieller Abfall)
 	const noiseEnvelope = time < 0.005 ? time / 0.005 : Math.exp(-(time - 0.005) * 8.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope;
 
@@ -801,7 +838,7 @@ soundBank[22] = function caixa(time) {
 soundBank[23] = function caixaRim(time) {
 	const frequency = 261.63; // C4
 
-	// Rauschen
+	// Rauschen (Rahmen und Snare-Teppich)
 	const clickEnvelope = Math.exp(-time * 100.0);
 	const click = (Math.random() * 2.0 - 1.0) * clickEnvelope;
 	const noiseEnvelope = Math.exp(-time * 15.0);
@@ -827,10 +864,10 @@ soundBank[23] = function caixaRim(time) {
 };
 
 soundBank[24] = function pandeiro(time) {
-	const frequencyDrum = 196.0; // G3
-	const frequencyJingle = 3951.07; // B7
+	const frequencyDrum = 196.0; // G3 - Trommelfell
+	const frequencyJingle = 3951.07; // B7 - Schellenring
 
-	// Rauschen
+	// Rauschen (Schellenklirren)
 	const noiseEnvelope = Math.exp(-time * 9.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope;
 
@@ -862,7 +899,7 @@ soundBank[24] = function pandeiro(time) {
 soundBank[25] = function agogoHigh(time) {
 	const frequency = 1567.98; // G6
 
-	// Rauschen
+	// Rauschen (Klirren)
 	const noiseEnvelope = Math.exp(-time * 60.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope * 0.12;
 
@@ -870,6 +907,7 @@ soundBank[25] = function agogoHigh(time) {
 	const phase = time * frequency * PI2;
 
 	// Oszillator
+	// Additive Synthese mit inharmonischen Obertönen für metallischen Klang
 	const oscillatorEnvelope = Math.exp(-time * 5.5);
 	const oscillator =
 		(agogoWave(phase, time) * 0.25 +
@@ -898,7 +936,7 @@ soundBank[25] = function agogoHigh(time) {
 soundBank[26] = function agogoLow(time) {
 	const frequency = 1174.66; // D6
 
-	// Rauschen
+	// Rauschen (Klirren)
 	const noiseEnvelope = Math.exp(-time * 55.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope * 0.15;
 
@@ -906,6 +944,7 @@ soundBank[26] = function agogoLow(time) {
 	const phase = time * frequency * PI2;
 
 	// Oszillator
+	// Additive Synthese mit inharmonischen Obertönen für metallischen Klang
 	const oscillatorEnvelope = Math.exp(-time * 4.8);
 	const oscillator =
 		(agogoWave(phase, time) * 0.28 +
@@ -945,6 +984,7 @@ soundBank[27] = function correct(time) {
 	const phaseB = time * frequencyB * PI2;
 
 	// Oszillator
+	// Zeitversetzte Aktivierung des zweiten Tons (Arpeggio)
 	const oscillatorEnvelopeA = time < 0.1 ? 1.0 : Math.exp(-(time - 0.1) * 50.0);
 	const oscillatorEnvelopeB = time < 0.1 ? 0.0 : Math.exp(-(time - 0.1) * 10.0);
 	const oscillatorA = Math.sin(phaseA) * 0.7 + triangleWave(phaseA) * 0.3;
@@ -965,6 +1005,7 @@ soundBank[28] = function wrong(time) {
 	const frequency = 98.0; // G2
 
 	// Phase und Modulation
+	// Verstärkte Frequenzmodulation erzeugt Rauhigkeit durch dissonantes Flattern
 	const phase = time * frequency * PI2;
 	const modulation = Math.sin(phase * PI) * 2.5;
 
@@ -983,6 +1024,7 @@ soundBank[28] = function wrong(time) {
 };
 
 soundBank[29] = function point(time) {
+	// Zeitversetzte Aktivierung bei zusammengesetzten Sounds
 	if (time < 0) return 0;
 
 	const frequencyA = 1174.66; // D6
@@ -993,6 +1035,7 @@ soundBank[29] = function point(time) {
 	const phaseB = time * frequencyB * PI2;
 
 	// Oszillator
+	// Zeitversetzte Aktivierung des zweiten Tons (Arpeggio)
 	const oscillatorEnvelopeA = time < 0.06 ? 1.0 : Math.exp(-(time - 0.06) * 50.0);
 	const oscillatorEnvelopeB = time < 0.06 ? 0.0 : Math.exp(-(time - 0.06) * 4.0);
 
@@ -1008,6 +1051,7 @@ soundBank[29] = function point(time) {
 };
 
 soundBank[30] = function point2(time) {
+	// Zeitversetzte Aktivierung bei zusammengesetzten Sounds
 	if (time < 0) return 0;
 
 	const frequency = 1568.0; // G6
@@ -1034,9 +1078,10 @@ soundBank[30] = function point2(time) {
 // ============================================================================
 // Sounds: BubbleBurst
 // ============================================================================
+// Tiefpassfilter in Bubbleburst wird durch Korrekturfaktor entgegengewirkt
 
 soundBank[31] = function blow(time) {
-	// Rauschen
+	// Rauschen (Luftstrom)
 	const mix = Math.random() * 2.0 - 1.0;
 
 	// Sättigung und Lautstärkenormalisierung
@@ -1045,6 +1090,7 @@ soundBank[31] = function blow(time) {
 	const output = Math.tanh(mix * saturation * bubbleBurstAdjustement) * level * soundVolume;
 
 	// Hüllkurve
+	// Langsamer Fade-In und Fade-Out simuliert dynamischen Luftstrom
 	const envelope = time < 0.15 ? time / 0.15 : Math.exp(-(time - 0.15) * 3.5);
 
 	return output * envelope * bubbleBurstAdjustement;
@@ -1053,11 +1099,11 @@ soundBank[31] = function blow(time) {
 soundBank[32] = function bubbleBurst(time) {
 	const frequency = 698.46; // F5
 
-	// Rauschen
+	// Rauschen (Platzen)
 	const noiseEnvelope = Math.exp(-time * 48.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope;
 
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
 	const drop = Math.exp(-time * 50.0) * 2.0;
 
 	// Phase
@@ -1078,13 +1124,14 @@ soundBank[32] = function bubbleBurst(time) {
 	// Hüllkurve
 	const envelope = 1.0 - Math.exp(-time * 450.0);
 
+	// Verzögerte Kombination mit point-Sound
 	return (output * envelope + soundBank[29](time - 0.2)) * bubbleBurstAdjustement;
 };
 
 soundBank[33] = function bubbleImplosion(time) {
 	const frequency = 349.23; // F4
 
-	// Rauschen
+	// Rauschen (Ploppen)
 	const noiseEnvelope = Math.exp(-time * 130.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope * 0.45;
 
@@ -1117,11 +1164,11 @@ soundBank[33] = function bubbleImplosion(time) {
 soundBank[34] = function caught(time) {
 	const frequency = 293.66; // D4
 
-	// Rauschen
+	// Rauschen (Klick)
 	const noiseEnvelope = Math.exp(-time * 30.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope * 0.4;
 
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
 	const drop = Math.exp(-time * 40.0) * 2.5;
 
 	// Phase
@@ -1145,21 +1192,24 @@ soundBank[34] = function caught(time) {
 };
 
 soundBank[35] = function vegetableCaught(time) {
+	// Kombination des caught- und point-Sounds
 	return soundBank[34](time) + soundBank[29](time);
 };
 
 soundBank[36] = function fruitCaught(time) {
+	// Kombination des caught- und point2-Sounds
 	return soundBank[34](time) + soundBank[30](time);
 };
 
 soundBank[37] = function freshMissed(time) {
 	const frequency = 784.0; // G5
 
-	// Rauschen
+	// Rauschen (Platschgeräusch)
 	const noiseEnvelope = Math.exp(-time * 40.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope * 0.7;
 
 	// Phase und Modulation
+	// Frequenzmodulation zur Erzeugung des zischend-schmatzenden Attacks
 	const modulation = Math.sin(time * 200.0) * 300.0;
 	const phase = time * (frequency + modulation) * PI2;
 
@@ -1185,7 +1235,7 @@ soundBank[38] = function junkfoodCaught(time) {
 	const frequencyA = 73.42; // D2
 	const frequencyB = 146.83; // D3
 
-	// Rauschen
+	// Rauschen (Aufprall)
 	const noiseEnvelope = Math.exp(-time * 15.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope;
 
@@ -1219,11 +1269,12 @@ soundBank[38] = function junkfoodCaught(time) {
 soundBank[39] = function jump(time) {
 	const frequency = 130.81; // C3
 
-	// Rauschen
+	// Rauschen (Absprung)
 	const noiseEnvelope = Math.exp(-time * 18.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope * 0.45;
 
 	// Phase und Modulation
+	// Linear ansteigende Modulation für Pitch-Rise
 	const modulation = time * 1200.0;
 	const phase = time * (frequency + modulation) * PI2;
 
@@ -1247,14 +1298,16 @@ soundBank[39] = function jump(time) {
 };
 
 soundBank[40] = function landed(time) {
+	// Zurücksetzen der Zeit nach 0.1s für zweiten Impuls
 	const localTime = time > 0.1 ? time - 0.1 : time;
+
 	const frequency = 196.0; // G3
 
-	// Rauschen
+	// Rauschen (Hufschlag)
 	const noiseEnvelope = Math.exp(-localTime * 120.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope * 0.5;
 
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
 	const drop = Math.exp(-localTime * 80.0) * 4.0;
 
 	// Phase
@@ -1284,11 +1337,11 @@ soundBank[41] = function obstacleHit(time) {
 	const frequencyA = 65.41; // C2
 	const frequencyB = 130.81; // C3
 
-	// Rauschen
+	// Rauschen (Aufprall)
 	const noiseEnvelope = Math.exp(-time * 20.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope;
 
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
 	const drop = Math.exp(-time * 15.0) * 0.5;
 
 	// Phasen
@@ -1319,7 +1372,7 @@ soundBank[41] = function obstacleHit(time) {
 soundBank[42] = function laser(time) {
 	const frequency = 784.0; // G5
 
-	// Attack-Tonhöhensenkung
+	// Attack-Tonhöhensenkung (Pitch-Drop)
 	const drop = Math.exp(-time * 15.0) * 3.5;
 
 	// Phase
@@ -1354,6 +1407,7 @@ soundBank[43] = function noAmmo(time) {
 	const output = Math.tanh(mix * saturation) * level * soundVolume;
 
 	// Hüllkurve
+	// Doppel-Klick durch zwei überlappend versetzte Hüllkurve
 	const envelopeA = Math.exp(-time * 100.0);
 	const envelopeB = time > 0.05 ? Math.exp(-(time - 0.05) * 100.0) : 0;
 	const envelope = envelopeA + envelopeB;
@@ -1365,7 +1419,7 @@ soundBank[44] = function asteroidDestroyed(time) {
 	const frequencyA = 49.0; // G1
 	const frequencyB = 98.0; // G2
 
-	// Rauschen
+	// Rauschen (Explosion)
 	const noiseEnvelope = Math.exp(-time * 3.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope;
 
@@ -1388,14 +1442,17 @@ soundBank[44] = function asteroidDestroyed(time) {
 	// Hüllkurve
 	const envelope = Math.exp(-time * 3.5);
 
+	// Verzögerte Kombination mit point-Sound
 	return output * envelope + soundBank[29](time - 0.35);
 };
 
 soundBank[45] = function asteroidHit(time) {
+	// Zurücksetzen der Zeit nach 0.07s für zweiten Impuls
 	const localTime = time > 0.07 ? time - 0.07 : time;
+
 	const frequency = 73.42; // D2
 
-	// Rauschen
+	// Rauschen (Aufprall)
 	const noiseEnvelope = Math.exp(-time * 2.0);
 	const noise = (Math.random() * 2.0 - 1.0) * noiseEnvelope;
 
@@ -1414,6 +1471,7 @@ soundBank[45] = function asteroidHit(time) {
 	const output = Math.tanh(mix * saturation) * level * soundVolume;
 
 	// Hüllkurve
+	// Schneller Abfall zu Beginn, langsamer Abfall nach zweitem Impuls
 	const decay = time < 0.07 ? Math.exp(-time * 28.0) : Math.exp(-localTime * 6.0);
 	const attack = 1.0 - Math.exp(-localTime * 400.0);
 	const envelope = attack * decay;

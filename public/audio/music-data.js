@@ -1,5 +1,5 @@
 // Daten (Noten) zur Generierung der Hintergrundmusik in den Minispielen
-// ------------------------------
+// ----------------------------------------------------------------------
 
 /* Kurzspezifikation
 'Spieltyp': {
