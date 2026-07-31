@@ -1,5 +1,7 @@
 // Minispielklasse
 // -----------------------------
+// - Basisklasse für alle Minispiele
+// - referenziert die engine und stellt die Grundstruktur und -methoden für die spezifischen Spiele bereit
 
 export class MiniGame {
 	constructor(engine) {

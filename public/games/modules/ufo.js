@@ -1,5 +1,9 @@
 // Sternenslalom
 // -----------------------------
+// - Space-Shooter und Ausweichspiel: Der Spieler muss anfliegenden Asteroiden ausweichen oder sie abschießen.
+// - Implementierung eines Objektpools, einer Nachladelogik und eines dualen Kollisionsmanagements (Laser-Asteroid, Asteroid-Raumschiff)
+// - Rendering von Hintergrundsternen und Explosionen
+// - Realisierung einer Steuerung über Maus, Tastatur und Single- oder Multitouch
 
 import { MiniGame } from "./mini-game.js";
 import { createExplosion, drawCharCentered, drawPlayer } from "../game-utils.js";
@@ -23,8 +27,8 @@ export class UfoGame extends MiniGame {
 	constructor(engine) {
 		super(engine);
 		this.title = "Sternenslalom";
-		this.useDefaultKeyboard = true;
-		this.syncPointerOnDown = false;
+		this.useDefaultKeyboard = true; // Cursorsteuerung über Pfeiltasten und WASD
+		this.syncPointerOnDown = false; // kein Cursorsprung zur Pointer-Down-Koordinate
 		this.instructions = INSTRUCTIONS.ufo;
 	}
 
@@ -39,19 +43,20 @@ export class UfoGame extends MiniGame {
 		this.touchStart = null;
 		this.nextAsteroidFrame = 20;
 
-		// Sterngenerierung
+		// Generierung der Sterne im Hintergrund
 		for (let starIndex = 0; starIndex < 100; starIndex++) {
 			this.stars.push({
 				x: Math.random() * W,
 				y: Math.random() * H,
 				size: Math.random() * 1.5 * S,
-				color: COLORS.ufo.star[Math.floor(Math.random() * 10)]
-					.replace(/rgb/i, "rgba")
-					.replace(/\)$/, `, ${Math.random()})`),
+				color: COLORS.ufo.star[Math.floor(Math.random() * 10)] // wählt zufällig eine von zehn Sternfarben aus
+					.replace(/rgb/, "rgba") // ersetzt "rgb" durch "rgba" um einen zufälligen Alphawert zu ergänzen
+					.replace(/\)$/, `, ${Math.random()})`), // sucht eine schließende Klammer \) am Stringende $ und ersetzt sie durch: , ${Math.random()})
 			});
 		}
 
-		// Generierung der Asteroiden
+		// Methode zur Generierung der Asteroiden
+		// Erzeugen von Asteroiden mit zufälliger Position und auf Spielfortschritt, Schwierigkeit und Zufall basierender Geschwindigkeit
 		this.createAsteroid = () => {
 			const progress = this.engine.score / this.engine.maxScore;
 			const difficulty = this.engine.difficulty;
@@ -69,6 +74,7 @@ export class UfoGame extends MiniGame {
 	}
 
 	// Feuerlogik
+	// Auslösen eines Laserschusses und Reduktion der verfügbaren Munition
 	fire() {
 		if (this.ammo > 0) {
 			this.laserBeams.push({
@@ -76,9 +82,10 @@ export class UfoGame extends MiniGame {
 				y: this.input.lerp.y - 20 * S,
 				speed: PHYSICS.ufo.laserSpeed,
 			});
-			this.ammo--;
+			this.ammo--; // Munition verringern
 			if (this.engine.audio && this.engine.gameState === "playing")
 				this.engine.audio.playSoundEffect(SOUNDS.ufo.laser);
+			// Zeit seit letztem Nachladen läuft beständig weiter und muss nach erstem Schuss aus voller Munition zurückgesetzt werden
 			if (this.ammo === PHYSICS.ufo.maxAmmo - 1) this.lastReload = Date.now();
 		} else {
 			if (this.engine.audio && this.engine.gameState === "playing")
@@ -88,7 +95,7 @@ export class UfoGame extends MiniGame {
 
 	// Event Handler
 	onPointerDown(e) {
-		// Feuern bei Multitouch oder Mausclick
+		// Feuern bei Multitouch oder Mausklick
 		this.touchStart = Date.now();
 		if (this.input.activePointers.size > 1 || e.pointerType === "mouse") {
 			this.fire();
@@ -111,8 +118,9 @@ export class UfoGame extends MiniGame {
 	}
 
 	// Physik
+	// Aktualisierung der Spielwelt durch Berechnung von Bewegungen und Kollisionen
 	update(deltaTime) {
-		this.frames += 1 * deltaTime;
+		this.frames += 1 * deltaTime; // deltaTime = Verhältnis von vergangener Zeit zu Soll-Zeit eines Frames
 
 		const progress = this.engine.score / this.engine.maxScore;
 		const difficulty = this.engine.difficulty;
@@ -120,14 +128,14 @@ export class UfoGame extends MiniGame {
 		// Sternbewegung
 		this.stars.forEach((star) => {
 			star.y += deltaTime * PHYSICS.ufo.starSpeed * this.engine.difficulty;
-			if (star.y > H) star.y = 0; // Reset am unteren Rand
+			if (star.y > H + 1.5 * S) star.y = -1.5 * S; // Randüberlauf zu oberem Rand nach Verschwinden
 		});
 
 		// Laserstrahlen
 		for (let beamIndex = this.laserBeams.length - 1; beamIndex >= 0; beamIndex--) {
 			const laserBeam = this.laserBeams[beamIndex];
 			laserBeam.y -= laserBeam.speed * deltaTime;
-			if (laserBeam.y < -20 * S) this.laserBeams.splice(beamIndex, 1);
+			if (laserBeam.y < -20 * S) this.laserBeams.splice(beamIndex, 1); // Verschwundenen Laser aus dem Array entfernen
 		}
 
 		// Explosionspartikel
@@ -135,65 +143,69 @@ export class UfoGame extends MiniGame {
 			const particle = this.particles[particleIndex];
 			particle.x += particle.speedX * deltaTime;
 			particle.y += particle.speedY * deltaTime;
-			particle.alpha -= 0.02 * deltaTime; // Partikel verblasst
-			if (particle.alpha <= 0) this.particles.splice(particleIndex, 1);
+			particle.alpha -= 0.02 * deltaTime; // Partikel verblasst mit der Zeit
+			if (particle.alpha <= 0) this.particles.splice(particleIndex, 1); // Verblasste Partikel aus dem Array entfernen
 		}
 
 		// Asteroiden
+		// Erzeugen neuer Asteroiden basierend auf Schwierigkeitsgrad, Spielfortschritt und Zufall
 		const spawnConfig = PHYSICS.ufo.spawnRate;
 		const spawnRate =
 			spawnConfig.base / (spawnConfig.r * Math.random() + spawnConfig.p * progress + spawnConfig.d * difficulty);
 		if (this.frames >= this.nextAsteroidFrame) {
-			this.createAsteroid();
-			this.nextAsteroidFrame = this.frames + spawnRate;
+			this.createAsteroid(); // neuen Asteroiden generieren
+			this.nextAsteroidFrame = this.frames + spawnRate; // nächsten Spawnframe definieren
 		}
 
 		// Kollisionsmanagement Laserstrahl-Asteroid
+		// Positionsberechnung und Kollisionsprüfung zwischen jedem Laser und jedem Asteroiden
 		for (let beamIndex = this.laserBeams.length - 1; beamIndex >= 0; beamIndex--) {
 			const laserBeam = this.laserBeams[beamIndex];
 
 			for (let asteroidIndex = this.asteroids.length - 1; asteroidIndex >= 0; asteroidIndex--) {
 				const asteroid = this.asteroids[asteroidIndex];
-				const distance = Math.sqrt((laserBeam.x - asteroid.x) ** 2 + (laserBeam.y - asteroid.y) ** 2);
+				const distance = Math.hypot(laserBeam.x - asteroid.x, laserBeam.y - asteroid.y); // euklidischer Abstand
 
 				if (distance < 25 * S) {
 					createExplosion(this, asteroid.x, asteroid.y, COLORS.ufo.explosionParticles);
-					this.asteroids.splice(asteroidIndex, 1);
-					this.laserBeams.splice(beamIndex, 1);
-					this.engine.addScore(POINTS.ufo.asteroidDestroyed); // Bonuspunkte Abschuss
+					this.asteroids.splice(asteroidIndex, 1); // Zerstörten Asteroiden aus dem Array entfernen
+					this.laserBeams.splice(beamIndex, 1); // Zerstörten Laser aus dem Array entfernen
+					this.engine.addScore(POINTS.ufo.asteroidDestroyed); // Bonuspunkte für Abschuss
 					if (this.engine.audio && this.engine.gameState === "playing")
 						this.engine.audio.playSoundEffect(SOUNDS.ufo.asteroidDestroyed);
-					break;
+					break; // aus Asteroidenschleife aussteigen, da Laser verschwunden
 				}
 			}
 		}
 
 		// Kollisionsmanagement Asteroid-Raumschiff
+		// Positionsberechnung und Kollisionsprüfung zwischen Spieler und jedem Asteroiden
 		for (let asteroidIndex = this.asteroids.length - 1; asteroidIndex >= 0; asteroidIndex--) {
 			const asteroid = this.asteroids[asteroidIndex];
 			asteroid.y += asteroid.speed * deltaTime;
+			const distance = Math.hypot(asteroid.x - this.input.lerp.x, asteroid.y - this.input.lerp.y); // euklidischer Abstand
 
-			if (
-				!asteroid.hit &&
-				Math.sqrt((asteroid.x - this.input.lerp.x) ** 2 + (asteroid.y - this.input.lerp.y) ** 2) < 25 * S
-			) {
-				asteroid.hit = true;
-				this.engine.applyDamage(POINTS.ufo.asteroidHit); // Malus Kollision
+			if (!asteroid.hit && distance < 25 * S) {
+				asteroid.hit = true; // Vermeidung von Mehrfachschaden
+				this.engine.applyDamage(POINTS.ufo.asteroidHit); // Malus für Kollision
 				if (this.engine.audio && this.engine.gameState === "playing")
 					this.engine.audio.playSoundEffect(SOUNDS.ufo.asteroidHit);
 			}
-			if (asteroid.y > H + 20 * S) this.asteroids.splice(asteroidIndex, 1);
+			if (asteroid.y > H + 20 * S) this.asteroids.splice(asteroidIndex, 1); // Verschwundenen Asteroiden aus dem Array entfernen
 		}
 
 		// Nachladelogik
+		// Automatisches Nachladen nach definierter Zeit seit dem letzten Nachladen (oder dem ersten Schuss)
 		if (
 			this.ammo < PHYSICS.ufo.maxAmmo &&
 			Date.now() - this.lastReload > PHYSICS.ufo.reloadTime * this.engine.difficulty
 		) {
-			this.ammo++;
-			this.lastReload = Date.now();
+			this.ammo++; // Munition erhöhen
+			this.lastReload = Date.now(); // Zeit seit letztem Nachladen zurücksetzen
 		}
-		this.engine.addScore(0.12 * deltaTime); // Punktzahl steigt mit Zeit
+
+		// Punktzahl steigt mit Zeit
+		this.engine.addScore(0.12 * deltaTime);
 	}
 
 	// Zeichnen
