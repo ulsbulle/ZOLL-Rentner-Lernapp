@@ -1,5 +1,7 @@
 // Hilfs- und Zeichenfunktionen
 // -----------------------------
+// - Auslagerung einheitlicher Canvas-Routinen
+// - Start- und Endbildschirm-Zeichnung
 
 import { GameConfig } from "./game-config.js";
 
@@ -7,6 +9,7 @@ const { CANVAS_WIDTH: W, CANVAS_HEIGHT: H, SCALE: S, font, CHARS, COLORS, MOTIVA
 
 // Anzeige eines Emojis zentriert an einer gegebenen Position
 // (notwendig aufgrund erratischen Verhaltens von iOS bzgl. textAlign = "centered")
+// textAlign = "left" mit Offset-Kalkulation über ctx.measureText
 export function drawCharCentered(ctx, x, y, char, font, flipped = false) {
 	ctx.save();
 
@@ -17,9 +20,10 @@ export function drawCharCentered(ctx, x, y, char, font, flipped = false) {
 	const width = ctx.measureText(char).width;
 
 	if (flipped) {
-		const xPos = x + width / 2;
-		ctx.translate(xPos, y);
-		ctx.scale(-1, 1);
+		// Matrix-Transformation zur horizontalen Spiegelung von Zeichen
+		const xPos = x + width / 2; // +, da Spiegelung
+		ctx.translate(xPos, y); // Koordinatenursprung nach (xPos, y)
+		ctx.scale(-1, 1); // Spiegelung an der x-Achse
 		ctx.fillText(char, 0, 0);
 	} else {
 		const xPos = x - width / 2;
@@ -30,16 +34,17 @@ export function drawCharCentered(ctx, x, y, char, font, flipped = false) {
 }
 
 // Anzeige der Tastatursymbole
+// Generierung eines abgerundeten Rechtecks mit Schatten
 function drawKey(ctx, char, x, y, keyWidth) {
 	ctx.save();
 
-	const keyText = char === " " ? "⎵" : char;
+	const keyText = char === " " ? "⎵" : char; // Ersetzen des Leerzeichens
 	const keyHeight = 15 * S;
 	const depth = 2 * S;
 
 	const rectangleX = x;
 	const rectangleY = y - keyHeight / 2;
-	const textY = char === " " ? y - 1 * S : y;
+	const textY = char === " " ? y - 1 * S : y; // leichter vertikaler Versatz für das Leerzeichensymbol
 
 	// Schatten
 	ctx.fillStyle = COLORS.UI.textKey[0];
@@ -59,11 +64,7 @@ function drawKey(ctx, char, x, y, keyWidth) {
 	ctx.stroke();
 
 	// Text
-	ctx.fillStyle = COLORS.UI.textKey[3];
-	ctx.textAlign = "center";
-	ctx.textBaseline = "middle";
-	ctx.font = font(12, true, GameConfig.FONT_UI);
-	ctx.fillText(keyText, rectangleX + keyWidth / 2, textY);
+	drawCharCentered(ctx, rectangleX + keyWidth / 2, textY, keyText, font(12, true, GameConfig.FONT_UI));
 
 	ctx.restore();
 }
@@ -72,6 +73,7 @@ function drawKey(ctx, char, x, y, keyWidth) {
 export function drawHearts(ctx, engine) {
 	ctx.save();
 
+	// Iteration über die zu zeichnenden Herzen von rechts nach links
 	for (let i = 0; i < engine.maxLives; i++) {
 		const x = W - 20 * S - i * 25 * S;
 		const y = 20 * S;
@@ -81,8 +83,8 @@ export function drawHearts(ctx, engine) {
 			ctx.globalAlpha = 1.0;
 			drawCharCentered(ctx, x, y, CHARS.UI.live.char[0], font(CHARS.UI.live.size, true));
 		} else if (engine.recoveringHeart && i === engine.lives - 1) {
-			// Blinkendes Herz
-			const blink = Math.floor(Date.now() / 250) % 2;
+			// Blinkendes Herz (Zeitabhängige Umschaltung des Alphawertes)
+			const blink = Math.floor(Date.now() / 250) % 2; // Wechsel zwischen 0 und 1 alle 250ms
 			ctx.globalAlpha = blink ? 1.0 : 0.2;
 			drawCharCentered(ctx, x, y, CHARS.UI.live.char[0], font(CHARS.UI.live.size, true));
 		} else {
@@ -98,11 +100,12 @@ export function drawHearts(ctx, engine) {
 // Anzeige des Spielers / Cursors
 export function drawPlayer(ctx, x, y, radius, cursor, char) {
 	// Prüfung, ob einzelner Wert oder Positionen differenzierendes Array
+	// (Spieler und Cursor sind in Pferdeparcours nicht deckungsgleich)
 	const xHighlight = x[0] ?? x;
 	const xPlayer = x[1] ?? x;
 	const yHighlight = y[0] ?? y;
 	const yPlayer = y[1] ?? y;
-	const flipped = char.flipped ?? false;
+	const flipped = char.flipped ?? false; // Spiegelung des Spielers (nur Pferdeparcours)
 
 	ctx.save();
 
@@ -119,10 +122,11 @@ export function drawPlayer(ctx, x, y, radius, cursor, char) {
 }
 
 // Anzeige der Schatten (Pferdeparcours und Früchtefänger)
+// Alpha-Wert und Schattenbreite abhängig von Distanz zum Boden
 export function drawShadow(ctx, x, groundY, currentY, startFadeY) {
 	if (currentY > startFadeY) {
-		const fadeRange = groundY - startFadeY;
-		const fadeProgress = Math.min(1, (currentY - startFadeY) / fadeRange);
+		const fadeRange = groundY - startFadeY; // Höhenbereich mit Schattenprojektion
+		const fadeProgress = Math.min(1, (currentY - startFadeY) / fadeRange); // prozentuale Höhe innerhalb des Projektionsbereichs
 		const shadowAlpha = fadeProgress * 0.25;
 		const shadowWidth = (10 + fadeProgress * 15) * S;
 		ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha})`;
@@ -134,7 +138,8 @@ export function drawShadow(ctx, x, groundY, currentY, startFadeY) {
 	}
 }
 
-// Berechnung der Explosionspartikel (Sternenslalom und BubbleBurst)
+// Berechnung der Explosionspartikel (Früchtefänger, Sternenslalom und BubbleBurst)
+// 12 Partikel mit zufälliger Größe und Bewegung
 export function createExplosion(game, x, y, color) {
 	game.particles = game.particles ?? [];
 	for (let i = 0; i < 12; i++) {
@@ -187,38 +192,45 @@ export function drawStartScreen(ctx, gameType, gameInstance, buttonRectangle) {
 		ctx.fillStyle = COLORS.UI.text[index === 0 ? 1 : 0];
 		ctx.font = font(index === 0 ? 14 : 13, index === 0, GameConfig.FONT_UI);
 
-		// Besondere Darstellung der Tasten
+		// Besondere Darstellung von Tastatursymbolen
 		if (line.includes("[")) {
-			// Aufteilen anhand "[]"
-			const parts = line.split(/(\[.*?\])/);
+			// Zeilen mit Tastatursymbolen
 
-			// Berechnung der Zeilenbreite
+			const parts = line.split(/(\[.*?\])/);
+			// Zerlegung des Strings anhand von Ausdrücken in eckigen Klammern in ein Array
+			// ( ... ) = Treffer bleiben beim split() erhalten
+			// \[.*?\] = beliebig viele (*) beliebige Zeichen (.) zwischen eckigen Klammern (*? = kürzester Treffer)
+
 			let lineWidth = 0;
+			// Berechnung der gesamten Zeilenbreite zur Zentrierung
 			parts.forEach((part) => {
 				if (part.startsWith("[") && part.endsWith("]")) {
-					const char = part.slice(1, -1);
-					const keyWidth = char === " " ? 45 * S : 15 * S;
+					// Breite einer Taste
+					const char = part.slice(1, -1); // Entfernen der eckigen Klammern
+					const keyWidth = char === " " ? 45 * S : 15 * S; // Leerzeichen mit Sonderbreite
 					lineWidth += keyWidth + 4 * S;
 				} else {
+					// Breite eines normalen Textblocks
 					lineWidth += ctx.measureText(part).width;
 				}
 			});
 
-			// x-Position des Zeichens
+			// x-Position des Zeilenbeginns
 			let xPos = W / 2 - lineWidth / 2;
 			ctx.textAlign = "left";
 
-			// Zeichnen der Tasten
+			// Zeichnen der Tasten und Textblöcke
 			parts.forEach((part) => {
 				if (part.startsWith("[") && part.endsWith("]")) {
-					const char = part.slice(1, -1);
-					const keyWidth = char === " " ? 45 * S : 15 * S;
-					xPos += 2 * S;
+					// Zeichnen einer Taste
+					const char = part.slice(1, -1); // Entfernen der eckigen Klammern
+					const keyWidth = char === " " ? 45 * S : 15 * S; // Leerzeichen mit Sonderbreite
+					xPos += 2 * S; // Vorschub um Abstand
 					drawKey(ctx, char, xPos, yPos, keyWidth);
-					xPos += keyWidth + 2 * S;
+					xPos += keyWidth + 2 * S; // Vorschub um Breite der Taste und Abstand
 				} else {
 					ctx.fillText(part, xPos, yPos);
-					xPos += ctx.measureText(part).width;
+					xPos += ctx.measureText(part).width; // Vorschub um Textbreite
 				}
 			});
 		} else {
@@ -249,7 +261,7 @@ export function drawEndScreen(ctx, result, score, maxScore, buttonRectangle) {
 	ctx.save();
 
 	// Overlay mit Farbverlauf
-	const gradient = ctx.createLinearGradient(0, 0, 0, H);
+	const gradient = ctx.createLinearGradient(0, 0, 0, H); // Farbverlauf über die gesamte Höhe
 	switch (result) {
 		case "win":
 			gradient.addColorStop(0, COLORS.UI.overlayWin[0]);
@@ -287,7 +299,7 @@ export function drawEndScreen(ctx, result, score, maxScore, buttonRectangle) {
 	// Punktzahl
 	ctx.font = font(22, true, GameConfig.FONT_UI);
 	ctx.fillStyle = COLORS.UI.text[1];
-	ctx.fillText(`${Math.max(0, Math.min(Math.floor(score), maxScore))} / ${maxScore} Punkte`, W / 2, 110 * S);
+	ctx.fillText(`${Math.max(0, Math.min(Math.floor(score), maxScore))} / ${maxScore} Punkte`, W / 2, 110 * S); // Begrenzung auf Maximalpunktzahl
 
 	// Motivationstext
 	ctx.font = font(14, false, GameConfig.FONT_UI);

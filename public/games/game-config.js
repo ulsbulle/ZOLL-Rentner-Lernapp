@@ -1,24 +1,27 @@
 // Konfigurationsdatei für die Minispiele
-// -----------------------------
+// ---------------------------------------
+// - zentrale Konfiguration der Layout-, Physik- und UI-Parameter
+// - responsive Skalierung über den Skalierungsfaktor S
 
-const W = 300;
-const H = 300;
+const W = 500; // Leinwandbreite
+const H = 500; // Leinwandhöhe
 const S = W / 300; // Skalierungsfaktor zu 300px
 
 export const GameConfig = {
 	CANVAS_WIDTH: W,
 	CANVAS_HEIGHT: H,
 	SCALE: S,
-	FPS: 60,
+	FPS: 60, // Ziel-Bildwiederholrate
 
 	// Positionen
 	CENTER_X: W / 2,
 	CENTER_Y: H / 2,
-	GROUND_Y: H - 20 * S,
+	GROUND: H - 20 * S,
 	MARGIN: 15 * S,
 	START_BUTTON: { x: W / 2 - 60 * S, y: H - 70 * S, w: 120 * S, h: 40 * S },
 	CONTINUE_BUTTON: { x: W / 2 - 50 * S, y: H - 110 * S, w: 100 * S, h: 40 * S },
 	HIGHLIGHT_RADIUS: { bubble: 27 * S, fruit: 25 * S, horse: 20 * S, ufo: 25 * S },
+	KEYBOARD_MOVEMENT: 7 * S,
 
 	// Schrift
 	FONT_UI: "sans-serif",
@@ -65,7 +68,7 @@ export const GameConfig = {
 			overlayLose: ["rgba(30, 20, 50, 0.95)", "rgba(60, 40, 90, 0.9)"],
 			border: ["rgba(59, 130, 246, 0.4)", "rgba(255, 255, 255, 0.1)"],
 			text: ["rgb(226, 232, 240)", "rgb(251, 191, 36)", "rgb(255, 255, 255)"],
-			textKey: ["rgb(20, 20, 20)", "rgb(40, 40, 40)", "rgb(180, 180, 180)", "rgb(255, 255, 255)"],
+			textKey: ["rgb(20, 20, 20)", "rgb(40, 40, 40)", "rgb(180, 180, 180)"],
 			textStart: "rgb(59, 130, 246)",
 			textWin: "rgb(74, 222, 128)",
 			textLose: "rgb(248, 113, 113)",
@@ -141,13 +144,15 @@ export const GameConfig = {
 		},
 	},
 
-	// Physik (base = Basiswert * Anteile r = Zufall, p = Spielfortschritt, d = Schwierigkeitsgrad)
+	// Physik
+	// dynamische Werte hängen ab von einem (absoluten) Basiswert und einem Faktor (relativ) zusammengesetzt aus Zufalls-, Fortschritts- und Schwierigkeitsgradsanteil
+	// (base = Basiswert, Anteile r = Zufall, p = Spielfortschritt, d = Schwierigkeitsgrad)
 	PHYSICS: {
 		bubble: {
 			spawnSize: 15 * S,
 			burstSize: 65 * S,
 			growStrength: 15 * S,
-			shrinkRate: { base: 0.2, r: 0.1, p: 0.4, d: 0.5 },
+			shrinkRate: { base: 0.2 * S, r: 0.1, p: 0.4, d: 0.5 },
 			targetSpeed: { base: 1.4 * S, r: 0.3, p: 0.3, d: 0.4 },
 		},
 		fruit: {
@@ -155,9 +160,11 @@ export const GameConfig = {
 			targetSpeed: { base: 4.5 * S, r: 0.25, p: 0.35, d: 0.4 },
 		},
 		horse: {
-			groundY: H - 40 * S,
+			groundY: H - 35 * S,
 			gravity: 0.4 * S,
 			jumpPower: 6.5 * S,
+			touchSensitivity: 1.5,
+			keyboardLift: 0.8 * S,
 			maxHoldFrames: 15,
 			grassSpeed: 5 * S,
 			spawnRate: { base: 40, r: 0.2, p: 0.4, d: 0.4 },
@@ -166,7 +173,7 @@ export const GameConfig = {
 		ufo: {
 			maxAmmo: 3,
 			laserSpeed: 10 * S,
-			reloadTime: 3000,
+			reloadTime: 3000, // ms
 			starSpeed: 1.5 * S,
 			spawnRate: { base: 15, r: 0.2, p: 0.3, d: 0.5 },
 			targetSpeed: { base: 8 * S, r: 0.3, p: 0.3, d: 0.4 },
@@ -174,7 +181,7 @@ export const GameConfig = {
 	},
 
 	// Dauer der Schadensphase
-	DAMAGE_COOLDOWN: 3000,
+	DAMAGE_COOLDOWN: 3000, // ms
 
 	// Punktsystem
 	POINTS: {
@@ -209,33 +216,35 @@ export const GameConfig = {
 	},
 
 	// Anleitungen
+	// [C] wird als Taste mit der Beschriftung "C" dargestellt
 	INSTRUCTIONS: {
 		bubble: [
 			"Puste die Seifenblase auf!",
-			"Klicke auf die Blase, um sie zu vergrößern.",
-			"Bringe sie zum Platzen, bevor sie schrumpft!",
-			"Steuerung: Zielen und Pusten mit ...",
-			"🖱️ 👆 [↵] [ ] 📲.",
+			"Tipp auf die Blase, um sie zu vergrößern und",
+			"bringe sie zum Platzen, bevor sie schrumpft!",
+			"Steuerung: 🖱️ 📲 [ ] [↵]",
+			"[▲] [◀] [▼] [▶] [W] [A] [S] [D]",
 		],
 		fruit: [
-			"Fange gesundes Essen!",
-			"Sammle Obst (+5P) & Gemüse (+10P).",
-			"Weiche Junkfood aus (-10P)!",
-			"Steuerung:[W] [A] [S] [D] [▲] [◀] [▼] [▶]",
-			" 🖱️ [↵] [ ] 📲.",
+			"Fang gesundes Essen!",
+			"Sammle Obst (+5P) & Gemüse (+10P),",
+			"weiche Junkfood aus (-10P)!",
+			"Steuerung: [▲] [◀] [▼] [▶]",
+			"[W] [A] [S] [D] 🖱️ 📲",
 		],
 		horse: [
 			"Reite durch den Parcours!",
-			"Weiche den Straßensperren aus.",
-			"Steuerung: [ ] [↵] [W] [▲] 🖱️",
-			"oder wische auf dem Display nach oben 📲.",
+			"Spring über die Hürden.",
+			"Steuerung: 🖱️ 📲 [▲] [W] [ ] [↵]",
+			"Steuere die Sprunghöhe durch",
+			"Swipestärke oder Tastendruckdauer.",
 		],
 		ufo: [
 			"Fliege durch den Weltraum!",
-			"Weiche Asteroiden aus oder schieße sie ab.",
-			"Steuerung:[W] [A] [S] [D] [▲] [◀] [▼] [▶]",
-			" 📲 [↵] 🖱️ ",
-			"Schießen: [ ] 🖱️ Touch-Klick.",
+			"Weich Asteroiden aus oder schieße sie ab.",
+			"Steuerung: 🖱️ 📲 [▲] [◀] [▼] [▶]",
+			"[W] [A] [S] [D] [ ] [↵]",
+			"Steuere / schieße zeitgleich mit zwei Fingern.",
 		],
 	},
 

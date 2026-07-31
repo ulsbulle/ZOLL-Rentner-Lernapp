@@ -1,5 +1,9 @@
 // Spielengine und Hauptschleife
 // ------------------------------
+// - Verwaltung der zentralen requestAnimationFrame-Schleife
+// - Synchronisation von Inputmanager, Physiklogik, Renderer und Audioengine
+// - Auswertung und Delegation der Input-Events
+// - Kapselung des Spielzustands (Start, Playing, Win, Lose, Score, Damage)
 
 import { InputManager } from "./input-manager.js";
 import { drawStartScreen, drawEndScreen, drawHearts } from "./game-utils.js";
@@ -22,7 +26,7 @@ export class GameEngine {
 		this.ctx = this.canvas.getContext("2d");
 		this.audio = audioEngine;
 
-		// Übernahme der Eingaben vom InputManager
+		// Übernahme der Eingabe-Events vom InputManager
 		this.input = new InputManager(this.canvas, {
 			onKeyDown: (e) => this.handleKeyDown(e),
 			onKeyUp: (e) => this.handleKeyUp(e),
@@ -39,7 +43,7 @@ export class GameEngine {
 
 		this.difficulty = 1.0;
 		this.lives = 3;
-		this.maxScore = 200;
+		this.maxScore = 250;
 
 		this.#score = 0;
 		this.frames = 0;
@@ -62,6 +66,7 @@ export class GameEngine {
 	setupCanvas() {
 		const dpr = window.devicePixelRatio || 1;
 		const rectangle = this.canvas.getBoundingClientRect();
+		// Skalierung mit Device-Pixel-Ratio zur Vermeidung von Unschärfen
 		this.canvas.width = rectangle.width * dpr;
 		this.canvas.height = rectangle.height * dpr;
 		this.ctx.scale(this.canvas.width / GameConfig.CANVAS_WIDTH, this.canvas.height / GameConfig.CANVAS_HEIGHT);
@@ -70,11 +75,14 @@ export class GameEngine {
 	// Cleanup
 	destroy() {
 		if (this.animationId) {
+			// Beendigung der Animationsschleife
 			cancelAnimationFrame(this.animationId);
 			this.animationId = null;
 		}
+		// Eingabe-Event-Listener entfernen
 		if (this.input) this.input.destroy();
 		this.activeGame = null;
+		// Leinwand löschen
 		this.ctx.clearRect(0, 0, GameConfig.CANVAS_WIDTH, GameConfig.CANVAS_HEIGHT);
 	}
 
@@ -103,19 +111,23 @@ export class GameEngine {
 		const pointer = this.input.getPointerPos(e);
 		switch (this.gameState) {
 			case "playing":
+				// Delegation des Pointer-Down-Events an das aktive Spiel
 				this.activeGame.onPointerDown(e);
 				break;
 			case "start":
+				// Spielstart-Funktion
 				if (this.input.isOverButton(pointer, GameConfig.START_BUTTON)) this.startGame();
 				break;
 			case "win":
 			case "lose":
+				// Spielende-Funktion
 				if (this.input.isOverButton(pointer, GameConfig.CONTINUE_BUTTON)) this.endGame();
 				break;
 		}
 	}
 
 	handlePointerUp(e) {
+		// Delegation des Pointer-Up-Events an das aktive Spiel
 		if (this.gameState === "playing") this.activeGame.onPointerUp(e);
 	}
 
@@ -123,9 +135,11 @@ export class GameEngine {
 		const key = e.key.toLowerCase();
 		switch (this.gameState) {
 			case "playing":
+				// Delegation bestimmter Key-Down-Events an das aktive Spiel
 				if ([" ", "enter", "arrowup", "w"].includes(key)) this.activeGame.onKeyDown(key);
-				else if (key === "escape") this.endGame();
+				else if (key === "escape") this.endGame(); // Spielende-Funktion
 				break;
+			// Buttonbestätigung via Tastatur im Spielstart- und endebildschirm
 			case "start":
 			case "win":
 			case "lose":
@@ -138,6 +152,7 @@ export class GameEngine {
 
 	handleKeyUp(e) {
 		const key = e.key.toLowerCase();
+		// Delegation bestimmter Key-Up-Events an das aktive Spiel
 		if (this.gameState === "playing" && [" ", "enter", "arrowup", "w"].includes(key)) this.activeGame.onKeyUp(key);
 	}
 
@@ -146,7 +161,7 @@ export class GameEngine {
 		// Allgemeine Konfiguration
 		this.difficulty = difficulty;
 		this.maxScore = maxScore;
-		this.maxLives = difficulty == 0.6 ? 3 : difficulty == 1 ? 2 : 1;
+		this.maxLives = difficulty == 0.6 ? 3 : difficulty == 1 ? 2 : 1; // Mapping Schwierigkeitsgrad auf Anzahl Leben
 		this.#score = 0;
 		this.lives = this.maxLives;
 
@@ -157,13 +172,15 @@ export class GameEngine {
 		const gameMap = { horse: HorseGame, fruit: FruitGame, ufo: UfoGame, bubble: BubbleGame };
 		this.activeGameType = type;
 		try {
+			// Mapping Typ-String auf entsprechende Minigame-Klasse
 			this.activeGame = new gameMap[type](this);
 			this.activeGame.init();
-			this.input.setSyncPointer(this.activeGame.syncPointerOnDown);
+			this.input.setSyncPointer(this.activeGame.syncPointerOnDown); // spielabhängige Pointersynchronisation bei Pointer-Down-Event
 
 			// Starten der Schleife
-			if (this.animationId) cancelAnimationFrame(this.animationId);
+			if (this.animationId) cancelAnimationFrame(this.animationId); // Vorherige Animation beenden
 			this.lastTime = Date.now();
+			// Lautstärke auf 0 setzen als Vorbereitung des Fade-Ins
 			this.volume = 0;
 			if (this.audio) this.audio.setVolume(0);
 			this.loop();
@@ -183,23 +200,29 @@ export class GameEngine {
 
 	// Spielendefunktion
 	endGame() {
+		// Auslösen eines Spielende-Events für den UI-Manager (game-ui)
 		document.dispatchEvent(new CustomEvent("exitGameRequested", { detail: { canvasId: this.canvasId } }));
 	}
 
 	// Hauptschleife (Start der Spielanimation)
 	loop() {
 		let now = Date.now();
+		// Berechnung deltaTime (Vergangene Zeit / Soll-Dauer eines Frames) für framerate-unabhängige Physik
+		// Begrenzung des Physikfortschritts auf maximal 3 Frames
 		let deltaTime = Math.min(3.0, (now - this.lastTime) / (1000 / GameConfig.FPS));
 		this.lastTime = now;
 
 		// Fade-In
+		// Erhöhung der Lautstärke von 0 bis 1 in 200 Frames
 		if (!window.isMuted && this.volume < 1.0) {
 			this.volume += 0.005;
 			if (this.audio) this.audio.setVolume(Math.min(1.0, this.volume));
 		}
 
+		// Löschen der Leinwand
 		this.ctx.clearRect(0, 0, GameConfig.CANVAS_WIDTH, GameConfig.CANVAS_HEIGHT);
 
+		// Spezifische Update-Funktionen
 		switch (this.gameState) {
 			case "start":
 				this.updateStart(deltaTime);
@@ -213,6 +236,7 @@ export class GameEngine {
 				break;
 		}
 
+		// Anforderung des nächsten Frames vom Browser
 		this.animationId = requestAnimationFrame(() => this.loop());
 	}
 
@@ -253,6 +277,7 @@ export class GameEngine {
 		if (this.gameState !== "playing") return;
 		this.#score = Math.max(0, this.score + points);
 
+		// Punktanzeige aktualisieren
 		const scoreDisplay = document.getElementById(
 			this.canvasId === "home-canvas" ? "home-game-score" : "game-score",
 		);
@@ -264,6 +289,7 @@ export class GameEngine {
 			if (scoreDisplay) scoreDisplay.innerText = `${this.maxScore} P`;
 			this.gameState = "win";
 			this.canvas.style.cursor = "default";
+			// Auslösen eines Spielende-Events (ohne Listener)
 			document.dispatchEvent(new CustomEvent("gameOver", { detail: { result: "win" } }));
 			if (this.audio) this.audio.playMusic(musicData.win, false, false, "win");
 		}
@@ -284,6 +310,7 @@ export class GameEngine {
 			if (this.lives <= 0) {
 				this.gameState = "lose";
 				this.canvas.style.cursor = "default";
+				// Auslösen eines Spielende-Events (ohne Listener)
 				document.dispatchEvent(new CustomEvent("gameOver", { detail: { result: "lose" } }));
 				if (this.audio) this.audio.playMusic(musicData.lose, false, false, "lose");
 			}

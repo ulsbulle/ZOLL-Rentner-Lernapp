@@ -1,12 +1,16 @@
 // Input-Event-Listener und Manager
-// -----------------------------
+// ---------------------------------
+// - Empfangen gerätespezifischer Eingaben (Maus, Touch, Tastatur)
+// - Verwaltung aktiver Pointer-IDs zur Multitouch-Steuerung
+// - Management der Spielerposition und Lerp-Interpolation
+// - Weiterleitung relevanter Eingaben über Callbacks
 
 import { GameConfig } from "./game-config.js";
 
 export class InputManager {
 	constructor(canvas, callbacks) {
 		this.canvas = canvas;
-		this.callbacks = callbacks ?? {};
+		this.callbacks = callbacks ?? {}; // Callbacks: onKeyDown, onKeyUp, onPointerMove, onPointerDown, onPointerUp
 		this.keys = {};
 		this.mouse = { x: GameConfig.CENTER_X, y: GameConfig.CENTER_Y };
 		this.lerp = { x: GameConfig.CENTER_X, y: GameConfig.CENTER_Y };
@@ -18,10 +22,11 @@ export class InputManager {
 	}
 
 	setSyncPointer(value) {
-		this.syncPointerOnDown = value;
+		this.syncPointerOnDown = value; // Verhalten Pointerposition bei Pointer-Down
 	}
 
 	// Event Listener entfernen
+	// Deregistrierung zur Vermeidung von Komplikationen
 	destroy() {
 		window.removeEventListener("keydown", this.handleKeyDown);
 		window.removeEventListener("keyup", this.handleKeyUp);
@@ -61,7 +66,7 @@ export class InputManager {
 				e.preventDefault();
 			}
 
-			// Weiterleitung an Callbacks
+			// Weiterleitung an Callbacks (nur bei Anschlag, keine Dauerweiterleitung bei Gedrückthalten)
 			if (this.keys[key] !== true && this.callbacks.onKeyDown) {
 				this.callbacks.onKeyDown(e);
 			}
@@ -98,18 +103,19 @@ export class InputManager {
 
 		this.canvas.onpointerdown = (e) => {
 			e.preventDefault();
-			// Fokus von HTML-Elementen entfernen
+			// Fokus von HTML-Elementen entfernen, damit Eingaben an das Spiel gehen
 			if (document.activeElement) document.activeElement.blur();
 
-			this.activePointers.add(e.pointerId);
-			this.canvas.setPointerCapture(e.pointerId);
+			this.activePointers.add(e.pointerId); // Pointer registrieren
+			this.canvas.setPointerCapture(e.pointerId); // Pointerereignisse auch außerhalb der Leinwand empfangen
 
-			// Erster Touch --> Steuerungspointer setzen
+			// Erster Touch oder Maus --> Steuerungspointer setzen
+			// Sicherstellung, dass nachfolgende Multitouch-Events die Steuerung nicht überschreiben
 			if (this.steeringPointerId === null || e.pointerType === "mouse") {
 				this.steeringPointerId = e.pointerId;
 			}
 
-			// Spielerposition setzen
+			// Spielerposition setzen (wenn Synchronisation bei Pointer-Down)
 			if (this.syncPointerOnDown) {
 				// Begrenzen der Pointerposition auf die Leinwand
 				const pointer = this.getPointerPos(e);
@@ -129,18 +135,25 @@ export class InputManager {
 
 		this.canvas.onpointerup = (e) => {
 			e.preventDefault();
+			// Freigabe des Steuerungspointers bei Beendigung der Geste
 			if (this.steeringPointerId === e.pointerId) this.steeringPointerId = null;
+
+			// Freigabe des Pointer Captures
 			if (this.canvas.hasPointerCapture(e.pointerId)) this.canvas.releasePointerCapture(e.pointerId);
 
 			// Weiterleitung an Callbacks
 			if (this.callbacks.onPointerUp) this.callbacks.onPointerUp(e);
+
+			// Pointer deregistrieren
 			this.activePointers.delete(e.pointerId);
 		};
 
+		// Unterdrückung des nativen Kontextmenüs bei Rechtsklick
 		this.canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 	}
 
 	// Pointer-Koordinaten ermitteln
+	// Transformation der Browser-Koordinaten skalierte Leinwand-Koordinaten
 	getPointerPos(e) {
 		const r = this.canvas.getBoundingClientRect();
 		return {
@@ -150,14 +163,16 @@ export class InputManager {
 	}
 
 	// Interpolation (lerp) der Pointerbewegung
+	// Glättung ruckartiger Bewegungen
 	updateLerp(deltaTime) {
 		this.lerp.x += (this.mouse.x - this.lerp.x) * 0.2 * deltaTime;
 		this.lerp.y += (this.mouse.y - this.lerp.y) * 0.2 * deltaTime;
 	}
 
 	// Bewegungsteuerung mittels Tastatur
+	// Feste Bewegung pro niedergedrücktem Frame
 	updateKeyboardMovement(deltaTime) {
-		const speed = 7 * GameConfig.SCALE * deltaTime;
+		const speed = GameConfig.KEYBOARD_MOVEMENT * deltaTime;
 		if (this.isKeyDown("w") || this.isKeyDown("arrowup")) this.mouse.y -= speed;
 		if (this.isKeyDown("s") || this.isKeyDown("arrowdown")) this.mouse.y += speed;
 		if (this.isKeyDown("a") || this.isKeyDown("arrowleft")) this.mouse.x -= speed;
@@ -176,7 +191,7 @@ export class InputManager {
 		return !!this.keys[key.toLowerCase()];
 	}
 
-	// Überprüfe, ob Pointer über Buttongrenzen liegt
+	// Überprüfen, ob Pointer über Buttongrenzen liegt
 	isOverButton(pointer, rectangle) {
 		return (
 			pointer.x >= rectangle.x &&
